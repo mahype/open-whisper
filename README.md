@@ -13,11 +13,13 @@ Cross-platform voice-to-text desktop app in Rust.
 - Clipboard-based insertion into the active app with simulated paste shortcut.
 - Model download management with progress, local cleanup and default Whisper download URLs.
 - Autostart handling with hidden background launch on supported desktop systems.
+- First-run onboarding with audio setup, model choice and startup selection.
+- Runtime permission diagnostics for microphone, tray, global hotkey and platform-specific hints.
 
 ## Planned next steps
 
 1. Optional Ollama/LM Studio transcription and post-processing path.
-2. Installer/onboarding flow for first-run model setup.
-3. Hardening for Linux desktop variants and permission diagnostics.
-4. Better permission checks for microphone, accessibility and simulated paste.
-5. Packaging/signing for Windows, macOS and Linux releases.
+2. Hardening for Linux desktop variants and deeper OS permission probes.
+3. Better permission checks for microphone, accessibility and simulated paste.
+4. Packaging/signing for Windows, macOS and Linux releases.
+5. Distribution-friendly installer/update flow.

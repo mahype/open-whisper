@@ -2,6 +2,7 @@ mod autostart;
 mod desktop_integration;
 mod dictation;
 mod model_manager;
+mod permission_diagnostics;
 mod settings_store;
 mod text_inserter;
 
@@ -11,6 +12,7 @@ use dictation::{DictationController, DictationOutcome};
 use eframe::egui::{self, RichText};
 use model_manager::ModelDownloadManager;
 use open_whisper_core::{AppSettings, ModelPreset, ProviderKind, StartupBehavior, TriggerMode};
+use permission_diagnostics::{PermissionReport, PermissionStatus};
 use text_inserter::insert_text_into_active_app;
 
 fn main() -> eframe::Result<()> {
@@ -19,11 +21,12 @@ fn main() -> eframe::Result<()> {
         AppSettings::default()
     });
     let start_hidden = AutostartManager::start_hidden_requested();
+    let start_visible = !start_hidden || !initial_settings.onboarding_completed;
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([960.0, 780.0])
-            .with_visible(!start_hidden),
+            .with_visible(start_visible),
         ..Default::default()
     };
 
@@ -49,12 +52,20 @@ struct OpenWhisperDesktopApp {
     dictation_trigger_count: u64,
     exit_requested: bool,
     last_transcript: String,
+    onboarding_step: usize,
+    permission_report: PermissionReport,
     status: String,
     window_visible: bool,
 }
 
 impl OpenWhisperDesktopApp {
     fn new(mut settings: AppSettings, start_hidden: bool) -> Self {
+        if !settings.onboarding_completed
+            && settings.startup_behavior == StartupBehavior::AskOnFirstLaunch
+        {
+            settings.startup_behavior = StartupBehavior::ManualLaunch;
+        }
+
         let mut autostart = AutostartManager::new();
         let mut dictation = DictationController::new();
         let mut model_downloads = ModelDownloadManager::new();
@@ -78,18 +89,24 @@ impl OpenWhisperDesktopApp {
             Err(err) => status = err,
         }
 
+        let desktop = DesktopIntegration::new();
+        let permission_report = PermissionReport::collect(&settings, &dictation, &desktop);
+        let should_show_window = !start_hidden || !settings.onboarding_completed;
+
         Self {
             autostart,
             settings,
-            desktop: DesktopIntegration::new(),
+            desktop,
             dictation,
             model_downloads,
             dirty: false,
             dictation_trigger_count: 0,
             exit_requested: false,
             last_transcript: String::new(),
+            onboarding_step: 0,
+            permission_report,
             status,
-            window_visible: !start_hidden,
+            window_visible: should_show_window,
         }
     }
 
@@ -189,6 +206,232 @@ impl OpenWhisperDesktopApp {
             }
         }
     }
+
+    fn refresh_permission_report(&mut self) {
+        self.permission_report =
+            PermissionReport::collect(&self.settings, &self.dictation, &self.desktop);
+    }
+
+    fn finish_onboarding(&mut self) {
+        self.settings.onboarding_completed = true;
+        self.dirty = true;
+        self.save();
+        self.set_status("Ersteinrichtung abgeschlossen.");
+    }
+
+    fn render_permission_report(&self, ui: &mut egui::Ui) {
+        ui.label(self.permission_report.summary());
+        for item in self.permission_report.items() {
+            let status = match item.status() {
+                PermissionStatus::Ok => "[OK]",
+                PermissionStatus::Info => "[Hinweis]",
+                PermissionStatus::Warning => "[Warnung]",
+                PermissionStatus::Error => "[Fehler]",
+            };
+            ui.label(format!("{status} {}: {}", item.title(), item.detail()));
+        }
+    }
+
+    fn render_audio_setup(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Eingabegeraet");
+            if ui.button("Aktualisieren").clicked() {
+                self.refresh_devices();
+            }
+        });
+
+        egui::ComboBox::from_id_salt("input-device")
+            .selected_text(self.settings.input_device_name.as_str())
+            .show_ui(ui, |ui| {
+                for device in self.dictation.available_input_devices() {
+                    if ui
+                        .selectable_value(
+                            &mut self.settings.input_device_name,
+                            device.clone(),
+                            device,
+                        )
+                        .changed()
+                    {
+                        self.dirty = true;
+                    }
+                }
+            });
+
+        ui.label("Globaler Shortcut");
+        self.dirty |= ui.text_edit_singleline(&mut self.settings.hotkey).changed();
+
+        let old = self.settings.trigger_mode;
+        egui::ComboBox::from_label("Aufnahmemodus")
+            .selected_text(self.settings.trigger_mode.label())
+            .show_ui(ui, |ui| {
+                for option in TriggerMode::ALL {
+                    ui.selectable_value(&mut self.settings.trigger_mode, option, option.label());
+                }
+            });
+        self.dirty |= old != self.settings.trigger_mode;
+
+        ui.label("Sprache (`auto`, `de`, `en`, ...)");
+        self.dirty |= ui
+            .text_edit_singleline(&mut self.settings.transcription_language)
+            .changed();
+    }
+
+    fn render_model_setup(&mut self, ui: &mut egui::Ui) {
+        self.settings.active_provider = ProviderKind::LocalWhisper;
+
+        let old_preset = self.settings.local_model;
+        egui::ComboBox::from_label("Lokales Standardmodell")
+            .selected_text(self.settings.local_model.label())
+            .show_ui(ui, |ui| {
+                for preset in ModelPreset::ALL {
+                    ui.selectable_value(
+                        &mut self.settings.local_model,
+                        preset,
+                        format!("{} ({})", preset.label(), preset.whisper_model()),
+                    );
+                }
+            });
+        if old_preset != self.settings.local_model {
+            self.sync_model_path_from_preset();
+        }
+
+        ui.label(self.settings.local_model.description());
+        ui.label("Die drei lokalen Standardmodelle Klein, Mittel und Gross bleiben als integrierte Presets in der App verfuegbar.");
+        ui.label(format!(
+            "Aktueller Backend-Name: {}",
+            self.settings.local_model.whisper_model()
+        ));
+        ui.label(format!(
+            "Erwarteter Dateiname: {}",
+            self.settings.local_model.default_filename()
+        ));
+
+        if let Ok(path) = self.dictation.suggested_model_path(&self.settings) {
+            ui.label(format!("Standardpfad: {}", path.display()));
+        }
+
+        ui.label(self.model_downloads.summary(&self.settings));
+        if let Some(progress) = self.model_downloads.progress_fraction() {
+            ui.add(egui::ProgressBar::new(progress).show_percentage());
+        }
+
+        ui.horizontal(|ui| {
+            if ui
+                .add_enabled(
+                    !self.model_downloads.is_downloading(),
+                    egui::Button::new("Ausgewaehltes Modell herunterladen"),
+                )
+                .clicked()
+            {
+                match self.model_downloads.start_download(&self.settings) {
+                    Ok(message) => self.set_status(message),
+                    Err(err) => self.set_status(err),
+                }
+            }
+
+            if ui.button("Standardpfad uebernehmen").clicked() {
+                self.sync_model_path_from_preset();
+            }
+        });
+
+        ui.label(format!(
+            "Downloadquelle: {}",
+            self.settings.local_model.download_url()
+        ));
+        ui.label(
+            "Ollama und LM Studio bleiben optional und kommen spaeter nur als Zusatzpfad dazu.",
+        );
+    }
+
+    fn render_onboarding(&mut self, ui: &mut egui::Ui) {
+        const STEP_COUNT: usize = 4;
+        let step_title = match self.onboarding_step {
+            0 => "Willkommen",
+            1 => "Audio und Hotkey",
+            2 => "Lokales Modell",
+            _ => "Autostart und Diagnose",
+        };
+
+        ui.heading("Ersteinrichtung");
+        ui.label("Dieser Assistent richtet Open Whisper fuer den ersten produktiven Start ein.");
+        ui.add(
+            egui::ProgressBar::new((self.onboarding_step + 1) as f32 / STEP_COUNT as f32)
+                .show_percentage()
+                .text(format!(
+                    "Schritt {} von {}",
+                    self.onboarding_step + 1,
+                    STEP_COUNT
+                )),
+        );
+        ui.add_space(12.0);
+
+        ui.group(|ui| {
+            ui.heading(step_title);
+
+            match self.onboarding_step {
+                0 => {
+                    ui.label("Open Whisper startet im Hintergrund, hoert auf einen globalen Shortcut und fuegt den Text danach in die aktive App ein.");
+                    ui.label("Standardpfad: lokales Whisper mit drei integrierten Groessenstufen Klein, Mittel und Gross.");
+                    ui.label("Ollama und LM Studio bleiben optional und werden spaeter nur als Zusatzfunktion verwendet.");
+                }
+                1 => {
+                    self.render_audio_setup(ui);
+                }
+                2 => {
+                    self.render_model_setup(ui);
+                }
+                _ => {
+                    ui.label("Waehle jetzt, ob die App beim Systemstart automatisch im Hintergrund geladen werden soll.");
+                    ui.radio_value(
+                        &mut self.settings.startup_behavior,
+                        StartupBehavior::LaunchAtLogin,
+                        "Mit dem System starten",
+                    );
+                    ui.radio_value(
+                        &mut self.settings.startup_behavior,
+                        StartupBehavior::ManualLaunch,
+                        "Nur manuell starten",
+                    );
+                    ui.add_space(8.0);
+                    self.render_permission_report(ui);
+                }
+            }
+        });
+
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            if ui
+                .add_enabled(self.onboarding_step > 0, egui::Button::new("Zurueck"))
+                .clicked()
+            {
+                self.onboarding_step -= 1;
+            }
+
+            if self.onboarding_step + 1 < STEP_COUNT {
+                if ui.button("Weiter").clicked() {
+                    self.onboarding_step += 1;
+                }
+            } else if ui
+                .add_enabled(
+                    !self.model_downloads.is_downloading(),
+                    egui::Button::new("Einrichtung abschliessen"),
+                )
+                .clicked()
+            {
+                self.finish_onboarding();
+            }
+        });
+
+        if self.model_downloads.is_downloading() {
+            ui.label(
+                "Einrichtung kann abgeschlossen werden, sobald der Modelldownload fertig ist.",
+            );
+        } else if self.permission_report.has_errors() {
+            ui.label("Es gibt noch Diagnosefehler. Du kannst die Einrichtung trotzdem abschliessen und spaeter in den Einstellungen nacharbeiten.");
+        } else if self.permission_report.has_warnings() {
+            ui.label("Es gibt noch Hinweise oder Warnungen. Die App ist trotzdem bereits konfigurierbar.");
+        }
+    }
 }
 
 impl eframe::App for OpenWhisperDesktopApp {
@@ -207,6 +450,8 @@ impl eframe::App for OpenWhisperDesktopApp {
         for action in self.desktop.poll_actions() {
             self.handle_desktop_action(ctx, action);
         }
+
+        self.refresh_permission_report();
 
         if ctx.input(|input| input.viewport().close_requested()) {
             if self.exit_requested {
@@ -245,8 +490,13 @@ impl eframe::App for OpenWhisperDesktopApp {
             ui.label(&self.status);
             ui.separator();
 
+            if !self.settings.onboarding_completed {
+                self.render_onboarding(ui);
+                return;
+            }
+
             egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("Ersteinrichtung");
+                ui.heading("Einstellungen");
                 ui.label(
                     "Die App kann jetzt Eingabegeraete erkennen, Audio aufnehmen, \
                      bei Stille stoppen und lokal ueber Whisper transkribieren.",
@@ -271,67 +521,14 @@ impl eframe::App for OpenWhisperDesktopApp {
                     self.dirty |= old != self.settings.startup_behavior;
 
                     ui.label(self.autostart.summary());
-                    if self.settings.startup_behavior == StartupBehavior::AskOnFirstLaunch {
-                        ui.label(
-                            "Die eigentliche Erststart-Abfrage folgt noch. Beim Speichern bleibt der aktuelle OS-Status bis dahin unveraendert.",
-                        );
-                    } else {
-                        ui.label(
-                            "Die Auswahl wird beim Speichern direkt auf den Systemstart angewendet.",
-                        );
-                    }
+                    ui.label("Die Auswahl wird beim Speichern direkt auf den Systemstart angewendet.");
                 });
 
                 ui.add_space(12.0);
 
                 ui.group(|ui| {
                     ui.heading("Aufnahme");
-
-                    ui.horizontal(|ui| {
-                        ui.label("Eingabegeraet");
-                        if ui.button("Aktualisieren").clicked() {
-                            self.refresh_devices();
-                        }
-                    });
-
-                    egui::ComboBox::from_id_salt("input-device")
-                        .selected_text(self.settings.input_device_name.as_str())
-                        .show_ui(ui, |ui| {
-                            for device in self.dictation.available_input_devices() {
-                                if ui
-                                    .selectable_value(
-                                        &mut self.settings.input_device_name,
-                                        device.clone(),
-                                        device,
-                                    )
-                                    .changed()
-                                {
-                                    self.dirty = true;
-                                }
-                            }
-                        });
-
-                    ui.label("Globaler Shortcut");
-                    self.dirty |= ui.text_edit_singleline(&mut self.settings.hotkey).changed();
-
-                    let old = self.settings.trigger_mode;
-                    egui::ComboBox::from_label("Aufnahmemodus")
-                        .selected_text(self.settings.trigger_mode.label())
-                        .show_ui(ui, |ui| {
-                            for option in TriggerMode::ALL {
-                                ui.selectable_value(
-                                    &mut self.settings.trigger_mode,
-                                    option,
-                                    option.label(),
-                                );
-                            }
-                        });
-                    self.dirty |= old != self.settings.trigger_mode;
-
-                    ui.label("Sprache (`auto`, `de`, `en`, ...)");
-                    self.dirty |= ui
-                        .text_edit_singleline(&mut self.settings.transcription_language)
-                        .changed();
+                    self.render_audio_setup(ui);
 
                     self.dirty |= ui
                         .checkbox(
@@ -522,12 +719,14 @@ impl eframe::App for OpenWhisperDesktopApp {
                         "Downloadquelle: {}",
                         self.settings.local_model.download_url()
                     ));
+                    ui.label("Lokale Standardpfade fuer Klein, Mittel und Gross sind fest integriert. Externe Provider bleiben optional.");
                 });
 
                 ui.add_space(12.0);
 
                 ui.group(|ui| {
-                    ui.heading("Externe Provider");
+                    ui.heading("Optionale Externe Provider");
+                    ui.label("Ollama und LM Studio sind nur Zusatzpfade. Standardmaessig bleibt Local Whisper aktiv.");
 
                     ui.label("Ollama Endpoint");
                     self.dirty |= ui
@@ -548,6 +747,13 @@ impl eframe::App for OpenWhisperDesktopApp {
                     self.dirty |= ui
                         .text_edit_singleline(&mut self.settings.lm_studio.model_name)
                         .changed();
+                });
+
+                ui.add_space(12.0);
+
+                ui.group(|ui| {
+                    ui.heading("Permission-Diagnose");
+                    self.render_permission_report(ui);
                 });
 
                 ui.add_space(12.0);

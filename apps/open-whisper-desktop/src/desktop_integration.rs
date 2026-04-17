@@ -117,6 +117,20 @@ impl DesktopIntegration {
         self.tray.is_some()
     }
 
+    pub fn tray_active(&self) -> bool {
+        self.tray.is_some()
+    }
+
+    pub fn hotkey_active(&self) -> bool {
+        self.hotkey
+            .as_ref()
+            .is_some_and(HotKeyController::is_registered)
+    }
+
+    pub fn initialization_message(&self) -> Option<&str> {
+        self.initialization_status.as_deref()
+    }
+
     pub fn summary(&self) -> String {
         let tray_status = if self.tray.is_some() {
             "Tray aktiv"
@@ -205,6 +219,10 @@ impl HotKeyController {
         self.registered_text
             .as_ref()
             .map(|hotkey| format!("Hotkey aktiv auf {hotkey}"))
+    }
+
+    fn is_registered(&self) -> bool {
+        self.registered_text.is_some()
     }
 }
 

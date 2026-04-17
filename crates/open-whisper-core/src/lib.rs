@@ -67,9 +67,9 @@ impl ModelPreset {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Light => "Leicht",
-            Self::Standard => "Standard",
-            Self::Quality => "Qualitaet",
+            Self::Light => "Klein",
+            Self::Standard => "Mittel",
+            Self::Quality => "Gross",
         }
     }
 
@@ -91,9 +91,13 @@ impl ModelPreset {
 
     pub fn description(self) -> &'static str {
         match self {
-            Self::Light => "Schnellster Start, niedrigere Genauigkeit, fuer schwache Rechner.",
-            Self::Standard => "Guter Standard aus Geschwindigkeit und Genauigkeit.",
-            Self::Quality => "Hoehere Genauigkeit, aber mehr CPU/RAM-Bedarf.",
+            Self::Light => "Kleines lokales Modell fuer schwache Rechner und schnelle Reaktion.",
+            Self::Standard => {
+                "Mittleres lokales Modell als guter Standard fuer Alltag und Genauigkeit."
+            }
+            Self::Quality => {
+                "Grosses lokales Modell mit hoeherer Genauigkeit, aber mehr CPU/RAM-Bedarf."
+            }
         }
     }
 
@@ -165,7 +169,9 @@ impl ExternalProviderSettings {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
 pub struct AppSettings {
+    pub onboarding_completed: bool,
     pub startup_behavior: StartupBehavior,
     pub input_device_name: String,
     pub hotkey: String,
@@ -211,6 +217,7 @@ impl AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            onboarding_completed: false,
             startup_behavior: StartupBehavior::default(),
             input_device_name: "System Default".to_owned(),
             hotkey: "Ctrl+Shift+Space".to_owned(),
@@ -241,6 +248,7 @@ mod tests {
 
         assert_eq!(settings.active_provider, ProviderKind::LocalWhisper);
         assert_eq!(settings.local_model, ModelPreset::Standard);
+        assert!(!settings.onboarding_completed);
         assert!(settings.insert_text_automatically);
         assert!(settings.restore_clipboard_after_insert);
     }
@@ -258,6 +266,11 @@ mod tests {
     #[test]
     fn light_preset_uses_expected_download_url() {
         assert!(ModelPreset::Light.download_url().contains("ggml-base.bin"));
+    }
+
+    #[test]
+    fn quality_label_maps_to_gross() {
+        assert_eq!(ModelPreset::Quality.label(), "Gross");
     }
 
     #[test]
