@@ -8,6 +8,7 @@ mod dictation;
 #[path = "../../../apps/open-whisper-desktop/src/model_manager.rs"]
 mod model_manager;
 mod permission_diagnostics;
+mod post_processing;
 #[allow(dead_code)]
 #[path = "../../../apps/open-whisper-desktop/src/settings_store.rs"]
 mod settings_store;
@@ -39,9 +40,17 @@ struct BridgeRuntime {
     dictation: DictationController,
     model_downloads: ModelDownloadManager,
     hotkey: Option<HotKeyController>,
+    post_processing_rx: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
+    pending_post_processing: Option<PendingPostProcessing>,
     dictation_trigger_count: u64,
     last_status: String,
     last_transcript: String,
+}
+
+struct PendingPostProcessing {
+    raw_transcript: String,
+    mode_name: String,
+    provider_label: String,
 }
 
 impl BridgeRuntime {
@@ -51,6 +60,7 @@ impl BridgeRuntime {
             last_status = format!("Settings konnten nicht geladen werden: {err}");
             AppSettings::default()
         });
+        settings.normalize();
 
         let mut autostart = AutostartManager::new();
         let mut dictation = DictationController::new();
@@ -85,6 +95,8 @@ impl BridgeRuntime {
             dictation,
             model_downloads,
             hotkey,
+            post_processing_rx: None,
+            pending_post_processing: None,
             dictation_trigger_count: 0,
             last_status,
             last_transcript: String::new(),
@@ -94,6 +106,50 @@ impl BridgeRuntime {
     fn poll(&mut self) {
         for message in self.model_downloads.poll() {
             self.last_status = message;
+        }
+
+        if let Some(rx) = &self.post_processing_rx {
+            match rx.try_recv() {
+                Ok(Ok(processed_text)) => {
+                    self.post_processing_rx = None;
+                    let mode_name = self
+                        .pending_post_processing
+                        .as_ref()
+                        .map(|pending| pending.mode_name.clone())
+                        .unwrap_or_else(|| self.settings.active_mode_name().to_owned());
+                    self.pending_post_processing = None;
+                    self.finish_transcript(processed_text, &format!(
+                        "Nachverarbeitung im Modus '{mode_name}' abgeschlossen."
+                    ));
+                }
+                Ok(Err(err)) => {
+                    self.post_processing_rx = None;
+                    if let Some(pending) = self.pending_post_processing.take() {
+                        let fallback_status = format!(
+                            "Nachverarbeitung im Modus '{}' ueber {} fehlgeschlagen. Rohtranskript wird verwendet. {err}",
+                            pending.mode_name,
+                            pending.provider_label
+                        );
+                        self.finish_transcript(pending.raw_transcript, &fallback_status);
+                    } else {
+                        self.last_status = err;
+                    }
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    self.post_processing_rx = None;
+                    if let Some(pending) = self.pending_post_processing.take() {
+                        let fallback_status = format!(
+                            "Nachverarbeitung im Modus '{}' wurde unerwartet beendet. Rohtranskript wird verwendet.",
+                            pending.mode_name
+                        );
+                        self.finish_transcript(pending.raw_transcript, &fallback_status);
+                    } else {
+                        self.last_status =
+                            "Nachverarbeitungs-Worker wurde unerwartet beendet.".to_owned();
+                    }
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            }
         }
 
         let pending_actions = self
@@ -124,29 +180,65 @@ impl BridgeRuntime {
             match outcome {
                 DictationOutcome::Status(message) => self.last_status = message,
                 DictationOutcome::TranscriptReady(transcript) => {
-                    self.last_transcript = transcript.clone();
-                    if self.settings.insert_text_automatically {
-                        match text_inserter::insert_text_into_active_app(&transcript, &self.settings)
-                        {
-                            Ok(message) => self.last_status = message,
-                            Err(err) => self.last_status = err,
-                        }
+                    let mode = self.settings.active_mode().clone();
+                    let provider = self.settings.active_mode_provider();
+                    if mode.post_processing_enabled
+                        && provider != open_whisper_core::PostProcessingProvider::Disabled
+                    {
+                        let provider_label = provider.label().to_owned();
+                        let mode_name = mode.name.clone();
+                        let raw_transcript = transcript.clone();
+                        let settings = self.settings.clone();
+                        let (tx, rx) = std::sync::mpsc::channel();
+                        std::thread::spawn(move || {
+                            let result = post_processing::process_text(&settings, &raw_transcript);
+                            let _ = tx.send(result);
+                        });
+                        self.post_processing_rx = Some(rx);
+                        self.pending_post_processing = Some(PendingPostProcessing {
+                            raw_transcript: transcript,
+                            mode_name: mode_name.clone(),
+                            provider_label,
+                        });
+                        self.last_status = format!(
+                            "Whisper-Transkript bereit. Nachverarbeitung im Modus '{mode_name}' laeuft."
+                        );
                     } else {
-                        self.last_status = "Transkript bereit.".to_owned();
+                        self.finish_transcript(transcript, "Transkript bereit.");
                     }
                 }
             }
         }
     }
 
+    fn finish_transcript(&mut self, transcript: String, ready_status: &str) {
+        self.last_transcript = transcript.clone();
+        if self.settings.insert_text_automatically {
+            match text_inserter::insert_text_into_active_app(&transcript, &self.settings) {
+                Ok(message) => {
+                    if ready_status.is_empty() {
+                        self.last_status = message;
+                    } else {
+                        self.last_status = format!("{ready_status} {message}");
+                    }
+                }
+                Err(err) => self.last_status = err,
+            }
+        } else {
+            self.last_status = ready_status.to_owned();
+        }
+    }
+
     fn load_settings(&mut self) -> AppSettings {
         self.poll();
+        self.settings.normalize();
         self.settings.clone()
     }
 
     fn save_settings(&mut self, mut next_settings: AppSettings) -> Result<String, String> {
         let previous_path = self.settings.local_model_path.clone();
         let previous_model = self.settings.local_model;
+        next_settings.normalize();
 
         if next_settings.local_model_path.trim().is_empty() {
             if let Ok(path) = self.dictation.suggested_model_path(&next_settings) {
@@ -287,6 +379,7 @@ impl BridgeRuntime {
         RuntimeStatusDto {
             is_recording: self.dictation.is_recording(),
             is_transcribing: self.dictation.is_transcribing(),
+            is_post_processing: self.post_processing_rx.is_some(),
             last_status: self.last_status.clone(),
             last_transcript: self.last_transcript.clone(),
             dictation_trigger_count: self.dictation_trigger_count,
@@ -301,6 +394,7 @@ impl BridgeRuntime {
                 .unwrap_or_else(|| self.settings.hotkey.clone()),
             startup_summary: self.autostart.summary().to_owned(),
             provider_summary: self.settings.active_provider_summary(),
+            active_mode_name: self.settings.active_mode_name().to_owned(),
             onboarding_completed: self.settings.onboarding_completed,
         }
     }

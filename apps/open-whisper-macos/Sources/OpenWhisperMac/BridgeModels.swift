@@ -117,6 +117,25 @@ enum ProviderKind: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum PostProcessingProvider: String, Codable, CaseIterable, Identifiable {
+    case disabled
+    case ollama
+    case lmStudio = "lm_studio"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .disabled:
+            return "Aus"
+        case .ollama:
+            return "Ollama"
+        case .lmStudio:
+            return "LM Studio"
+        }
+    }
+}
+
 enum DiagnosticStatus: String, Codable {
     case ok
     case info
@@ -140,6 +159,37 @@ enum DiagnosticStatus: String, Codable {
 struct ExternalProviderSettings: Codable {
     var endpoint: String
     var modelName: String
+}
+
+struct ProcessingMode: Codable, Identifiable, Hashable {
+    var id: String
+    var name: String
+    var postProcessingEnabled: Bool
+    var postProcessingProvider: PostProcessingProvider
+    var prompt: String
+
+    static let standard = ProcessingMode(
+        id: "standard",
+        name: "Standard",
+        postProcessingEnabled: false,
+        postProcessingProvider: .disabled,
+        prompt: ""
+    )
+
+    var postProcessingSummary: String {
+        guard postProcessingEnabled else {
+            return "Direktes Diktat ohne Nachverarbeitung"
+        }
+
+        switch postProcessingProvider {
+        case .disabled:
+            return "Direktes Diktat ohne Nachverarbeitung"
+        case .ollama:
+            return "Nachverarbeitung ueber Ollama"
+        case .lmStudio:
+            return "Nachverarbeitung ueber LM Studio"
+        }
+    }
 }
 
 struct TranscriptionLanguageOption: Identifiable, Hashable {
@@ -189,25 +239,29 @@ struct AppSettings: Codable {
     var activeProvider: ProviderKind
     var ollama: ExternalProviderSettings
     var lmStudio: ExternalProviderSettings
+    var modes: [ProcessingMode]
+    var activeModeId: String
 
     static let `default` = AppSettings(
         onboardingCompleted: false,
         startupBehavior: .askOnFirstLaunch,
         inputDeviceName: "System Default",
         hotkey: "Ctrl+Shift+Space",
-        triggerMode: .pushToTalk,
+        triggerMode: .toggle,
         transcriptionLanguage: "auto",
         insertTextAutomatically: true,
         insertDelayMs: 120,
         restoreClipboardAfterInsert: true,
-        vadEnabled: true,
+        vadEnabled: false,
         vadThreshold: 0.014,
         vadSilenceMs: 900,
         localModel: .standard,
         localModelPath: "",
         activeProvider: .localWhisper,
         ollama: ExternalProviderSettings(endpoint: "http://127.0.0.1:11434", modelName: "whisper"),
-        lmStudio: ExternalProviderSettings(endpoint: "http://127.0.0.1:1234", modelName: "openai/whisper-small")
+        lmStudio: ExternalProviderSettings(endpoint: "http://127.0.0.1:1234", modelName: "openai/whisper-small"),
+        modes: [.standard],
+        activeModeId: "standard"
     )
 }
 
@@ -257,6 +311,7 @@ struct DiagnosticsDTO: Codable {
 struct RuntimeStatusDTO: Codable {
     var isRecording: Bool
     var isTranscribing: Bool
+    var isPostProcessing: Bool
     var lastStatus: String
     var lastTranscript: String
     var dictationTriggerCount: UInt64
@@ -264,11 +319,13 @@ struct RuntimeStatusDTO: Codable {
     var hotkeyText: String
     var startupSummary: String
     var providerSummary: String
+    var activeModeName: String
     var onboardingCompleted: Bool
 
     static let empty = RuntimeStatusDTO(
         isRecording: false,
         isTranscribing: false,
+        isPostProcessing: false,
         lastStatus: "Open Whisper wird gestartet.",
         lastTranscript: "",
         dictationTriggerCount: 0,
@@ -276,6 +333,7 @@ struct RuntimeStatusDTO: Codable {
         hotkeyText: "Ctrl+Shift+Space",
         startupSummary: "Systemstart noch nicht synchronisiert.",
         providerSummary: "Local Whisper",
+        activeModeName: "Standard",
         onboardingCompleted: false
     )
 }

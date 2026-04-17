@@ -48,6 +48,8 @@ struct SettingsView: View {
         switch section {
         case .recording:
             recordingContent
+        case .modes:
+            modesContent
         case .model:
             modelContent
         case .startup:
@@ -61,7 +63,7 @@ struct SettingsView: View {
 
     private var recordingContent: some View {
         VStack(alignment: .leading, spacing: 18) {
-            AppCard(title: "Audioquelle", subtitle: "Mikrofon und Aufnahmemodus") {
+            AppCard(title: "Audioquelle", subtitle: "Mikrofon, Sprache und empfohlener Aufnahmemodus") {
                 Picker("Mikrofon", selection: model.binding(for: \.inputDeviceName)) {
                     ForEach(deviceNames, id: \.self) { device in
                         Text(device).tag(device)
@@ -74,6 +76,10 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+
+                Text("Toggle ist fuer laengeres Diktieren der Standard. Push-to-talk beendet die Aufnahme weiter beim Loslassen.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
                 Picker("Sprache", selection: model.languageBinding()) {
                     ForEach(model.availableLanguageOptions) { option in
@@ -109,6 +115,75 @@ struct SettingsView: View {
             AppCard(title: "Textausgabe", subtitle: "Wie das Transkript in die aktive App gelangt") {
                 Toggle("Text automatisch in aktive App einfuegen", isOn: model.binding(for: \.insertTextAutomatically))
                 Toggle("Clipboard nach Einfuegen wiederherstellen", isOn: model.binding(for: \.restoreClipboardAfterInsert))
+            }
+        }
+    }
+
+    private var modesContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AppCard(title: "Modi", subtitle: "Kontextprofile fuer die optionale Nachverarbeitung nach Whisper") {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(model.availableModes) { mode in
+                        ModeListTile(
+                            mode: mode,
+                            isSelected: model.selectedModeID == mode.id,
+                            isActive: model.settings.activeModeId == mode.id
+                        ) {
+                            model.setSelectedMode(mode.id)
+                        }
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    Button("Modus anlegen") {
+                        model.createMode()
+                    }
+
+                    Button("Auswahl loeschen") {
+                        model.deleteSelectedMode()
+                    }
+                    .disabled(!model.canDeleteSelectedMode)
+
+                    Spacer()
+
+                    Button(model.settings.activeModeId == model.selectedMode.id ? "Aktiver Modus" : "Als aktiv setzen") {
+                        model.setActiveMode(model.selectedMode.id)
+                    }
+                    .disabled(model.settings.activeModeId == model.selectedMode.id)
+                }
+            }
+
+            AppCard(title: "Modusdetails", subtitle: "Name, Prompt und optionaler Zweitprovider fuer '\(model.selectedMode.name)'") {
+                TextField("Name", text: model.modeBinding(for: \.name))
+                    .textFieldStyle(.roundedBorder)
+
+                Toggle(
+                    "Nachverarbeitung nach Whisper aktivieren",
+                    isOn: model.modeBinding(for: \.postProcessingEnabled)
+                )
+
+                Picker("Zweitprovider", selection: model.modeBinding(for: \.postProcessingProvider)) {
+                    ForEach(PostProcessingProvider.allCases) { provider in
+                        Text(provider.label).tag(provider)
+                    }
+                }
+
+                TextEditor(text: model.modeBinding(for: \.prompt))
+                    .font(.body)
+                    .frame(minHeight: 150)
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color(nsColor: .textBackgroundColor))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                    )
+
+                Text("Der Prompt wird nur verwendet, wenn die Nachverarbeitung aktiv ist. Whisper liefert zuerst immer das Rohtranskript.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -159,8 +234,12 @@ struct SettingsView: View {
                 }
             }
 
-            AppCard(title: "Diktatverhalten", subtitle: "Stopp bei Stille und Recorder-Verhalten") {
+            AppCard(title: "Diktat-Stopp", subtitle: "Manueller Stopp ist Standard, Silence-Stop bleibt optional") {
                 Toggle("Voice Activity Detection aktivieren", isOn: model.binding(for: \.vadEnabled))
+
+                Text("Wenn VAD aus ist, endet die Aufnahme nur durch den Hotkey oder den Toggle-Stop.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -183,24 +262,18 @@ struct SettingsView: View {
                 }
             }
 
-            AppCard(title: "Aktive Registrierung", subtitle: "Was im laufenden Prozess aktuell gilt") {
+            AppCard(title: "Laufende Registrierung", subtitle: "Was im aktuellen Prozess bereits aktiv ist") {
                 MetricRow(label: "Systemstart", value: model.runtime.startupSummary)
                 MetricRow(label: "Registrierter Hotkey", value: model.runtime.hotkeyText)
-                MetricRow(label: "Ausloesungen", value: "\(model.runtime.dictationTriggerCount)")
+                MetricRow(label: "Aktiver Modus", value: model.activeModeName)
             }
         }
     }
 
     private var providersContent: some View {
         VStack(alignment: .leading, spacing: 18) {
-            AppCard(title: "Provider-Auswahl", subtitle: "Optional fuer spaetere Erweiterungen") {
-                Picker("Aktiver Provider", selection: model.binding(for: \.activeProvider)) {
-                    ForEach(ProviderKind.allCases) { provider in
-                        Text(provider.label).tag(provider)
-                    }
-                }
-
-                Text("Das produktive Standard-Diktat bleibt lokal auf Whisper Base, Whisper Small und Whisper Medium. Ollama und LM Studio bleiben optional.")
+            AppCard(title: "Globale Provider-Konfiguration", subtitle: "Modi waehlen nur den Zweitprovider, Endpunkt und Modell bleiben hier zentral") {
+                Text("Das produktive Diktat bleibt lokal auf Whisper Base, Whisper Small und Whisper Medium. Ollama und LM Studio greifen nur im zweiten Verarbeitungsschritt, wenn ein Modus sie aktiviert.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -257,7 +330,8 @@ struct SettingsView: View {
                 HStack(spacing: 8) {
                     InlineStatusPill(title: "Hotkey", value: hotkeyDisplayString(model.hotkeyDisplayText), accent: .blue)
                     InlineStatusPill(title: "Runtime", value: runtimeLabel, accent: runtimeAccent)
-                    InlineStatusPill(title: "Provider", value: model.activeProviderLabel, accent: .green)
+                    InlineStatusPill(title: "Modus", value: model.activeModeName, accent: .purple)
+                    InlineStatusPill(title: "Pipeline", value: model.activeProviderLabel, accent: .green)
                 }
             }
 
@@ -299,6 +373,9 @@ struct SettingsView: View {
         if model.runtime.isRecording {
             return "Aufnahme aktiv"
         }
+        if model.runtime.isPostProcessing {
+            return "Nachverarbeitung laeuft"
+        }
         if model.runtime.isTranscribing {
             return "Transkription laeuft"
         }
@@ -308,6 +385,9 @@ struct SettingsView: View {
     private var runtimeAccent: Color {
         if model.runtime.isRecording {
             return .red
+        }
+        if model.runtime.isPostProcessing {
+            return .purple
         }
         if model.runtime.isTranscribing {
             return .orange

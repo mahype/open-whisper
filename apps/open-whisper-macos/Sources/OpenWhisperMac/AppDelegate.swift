@@ -10,11 +10,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var dictationItem: NSMenuItem!
     private var settingsItem: NSMenuItem!
     private var onboardingItem: NSMenuItem!
+    private var modeSummaryItem: NSMenuItem!
+    private var modeSwitchItem: NSMenuItem!
     private var modelItem: NSMenuItem!
     private var statusItemLine: NSMenuItem!
     private var quitItem: NSMenuItem!
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private let modeMenu = NSMenu()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -26,6 +29,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         dictationItem = NSMenuItem(title: "Diktat starten", action: #selector(toggleDictation), keyEquivalent: "")
         settingsItem = NSMenuItem(title: "Einstellungen...", action: #selector(showSettings), keyEquivalent: ",")
         onboardingItem = NSMenuItem(title: "Onboarding erneut oeffnen", action: #selector(showOnboarding), keyEquivalent: "")
+        modeSummaryItem = NSMenuItem(title: "Modus wird geladen...", action: nil, keyEquivalent: "")
+        modeSummaryItem.isEnabled = false
+        modeSwitchItem = NSMenuItem(title: "Modus wechseln", action: nil, keyEquivalent: "")
+        modeSwitchItem.submenu = modeMenu
         modelItem = NSMenuItem(title: "Modellstatus wird geladen...", action: nil, keyEquivalent: "")
         modelItem.isEnabled = false
         statusItemLine = NSMenuItem(title: "Status wird geladen...", action: nil, keyEquivalent: "")
@@ -38,6 +45,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .separator(),
             settingsItem,
             onboardingItem,
+            .separator(),
+            modeSummaryItem,
+            modeSwitchItem,
             .separator(),
             modelItem,
             statusItemLine,
@@ -97,13 +107,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.terminate(nil)
     }
 
+    @objc private func selectMode(_ sender: NSMenuItem) {
+        guard let modeID = sender.representedObject as? String else {
+            return
+        }
+        model.persistActiveModeImmediately(modeID)
+    }
+
     private func refreshMenuState() {
         let runtime = model.runtime
         dictationItem.title = runtime.isRecording ? "Diktat stoppen" : "Diktat starten"
+        modeSummaryItem.title = model.trayModeLabel
+        rebuildModeMenu()
         modelItem.title = model.trayModelLabel
         statusItemLine.title = model.bridgeError ?? runtime.lastStatus
         statusItem.button?.image = statusImage(recording: runtime.isRecording)
         statusItem.button?.toolTip = model.bridgeError ?? runtime.lastStatus
+    }
+
+    private func rebuildModeMenu() {
+        modeMenu.removeAllItems()
+
+        for mode in model.persistedModes {
+            let item = NSMenuItem(
+                title: mode.name,
+                action: #selector(selectMode(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = mode.id
+            item.state = model.persistedActiveModeID == mode.id ? .on : .off
+            modeMenu.addItem(item)
+        }
     }
 
     private func show(_ window: NSWindow) {

@@ -1,4 +1,5 @@
 use std::{
+    f32::consts::PI,
     path::PathBuf,
     sync::{
         Arc, Mutex,
@@ -10,11 +11,16 @@ use std::{
 
 use crate::model_manager::{default_model_path, resolve_model_path};
 use cpal::{
-    Device, SampleFormat, Stream, SupportedStreamConfig,
+    Device, FromSample, I24, Sample, SampleFormat, SizedSample, Stream, SupportedStreamConfig, U24,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
-use open_whisper_core::{AppSettings, ProviderKind, TriggerMode};
+use open_whisper_core::{AppSettings, TriggerMode};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
+
+const CUE_NOTE_GAP_MS: u32 = 18;
+const CUE_VOLUME: f32 = 0.12;
+const RECORDING_START_NOTES: [(f32, u32); 2] = [(523.25, 60), (659.25, 92)];
+const RECORDING_STOP_NOTES: [(f32, u32); 2] = [(659.25, 54), (523.25, 98)];
 
 pub enum DictationOutcome {
     Status(String),
@@ -154,6 +160,7 @@ impl DictationController {
 
         let recording = ActiveRecording::start(settings)?;
         self.recording = Some(recording);
+        play_recording_cue(RecordingCue::Start);
 
         Ok(format!(
             "Aufnahme gestartet ueber '{}'{}.",
@@ -161,7 +168,7 @@ impl DictationController {
             if settings.vad_enabled {
                 ", Silence-Stop aktiv"
             } else {
-                ""
+                ", manueller Stopp aktiv"
             }
         ))
     }
@@ -176,17 +183,11 @@ impl DictationController {
         };
 
         let audio = recording.finish()?;
+        play_recording_cue(RecordingCue::Stop);
         if audio.samples.is_empty() || audio.duration < Duration::from_millis(200) {
             return Ok(vec![DictationOutcome::Status(
                 "Aufnahme war zu kurz oder leer.".to_owned(),
             )]);
-        }
-
-        if settings.active_provider != ProviderKind::LocalWhisper {
-            return Ok(vec![DictationOutcome::Status(format!(
-                "Provider '{}' ist fuer Live-Diktat noch nicht umgesetzt. Nutze vorerst 'Local Whisper'.",
-                settings.active_provider.label()
-            ))]);
         }
 
         let context = self.ensure_whisper_context(settings)?;
@@ -776,6 +777,208 @@ fn system_default_label() -> &'static str {
     "System Default"
 }
 
+#[derive(Clone, Copy)]
+enum RecordingCue {
+    Start,
+    Stop,
+}
+
+fn play_recording_cue(cue: RecordingCue) {
+    thread::spawn(move || {
+        let _ = play_recording_cue_blocking(cue);
+    });
+}
+
+fn play_recording_cue_blocking(cue: RecordingCue) -> Result<(), String> {
+    let Some(device) = cpal::default_host().default_output_device() else {
+        return Ok(());
+    };
+
+    let config = device
+        .default_output_config()
+        .map_err(|err| format!("Output-Konfiguration konnte nicht geladen werden: {err}"))?;
+    let stream_config = config.config();
+    let sample_rate = stream_config.sample_rate;
+    let channels = stream_config.channels as usize;
+    let samples = render_recording_cue(cue, sample_rate);
+    if samples.is_empty() {
+        return Ok(());
+    }
+
+    let playback_duration = cue_playback_duration(cue);
+    let stream = match config.sample_format() {
+        SampleFormat::I8 => {
+            build_cue_output_stream::<i8>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::I16 => {
+            build_cue_output_stream::<i16>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::I24 => {
+            build_cue_output_stream::<I24>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::I32 => {
+            build_cue_output_stream::<i32>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::I64 => {
+            build_cue_output_stream::<i64>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::U8 => {
+            build_cue_output_stream::<u8>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::U16 => {
+            build_cue_output_stream::<u16>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::U24 => {
+            build_cue_output_stream::<U24>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::U32 => {
+            build_cue_output_stream::<u32>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::U64 => {
+            build_cue_output_stream::<u64>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::F32 => {
+            build_cue_output_stream::<f32>(&device, &stream_config, channels, samples)?
+        }
+        SampleFormat::F64 => {
+            build_cue_output_stream::<f64>(&device, &stream_config, channels, samples)?
+        }
+        other => {
+            return Err(format!(
+                "Sampleformat '{other}' fuer Ausgabesignal wird aktuell nicht unterstuetzt."
+            ));
+        }
+    };
+
+    stream
+        .play()
+        .map_err(|err| format!("Ausgabesignal konnte nicht gestartet werden: {err}"))?;
+    thread::sleep(playback_duration);
+    Ok(())
+}
+
+fn build_cue_output_stream<T>(
+    device: &Device,
+    config: &cpal::StreamConfig,
+    channels: usize,
+    samples: Vec<f32>,
+) -> Result<Stream, String>
+where
+    T: Sample + SizedSample + FromSample<f32>,
+{
+    let mut cursor = 0usize;
+    device
+        .build_output_stream(
+            config,
+            move |data: &mut [T], _| write_cue_output_data(data, channels, &samples, &mut cursor),
+            |_err| {},
+            None,
+        )
+        .map_err(|err| err.to_string())
+}
+
+fn write_cue_output_data<T>(output: &mut [T], channels: usize, samples: &[f32], cursor: &mut usize)
+where
+    T: Sample + FromSample<f32>,
+{
+    for frame in output.chunks_mut(channels) {
+        let value = if *cursor < samples.len() {
+            let sample = samples[*cursor];
+            *cursor += 1;
+            sample
+        } else {
+            0.0
+        };
+        let output_sample = T::from_sample(value);
+        for channel in frame {
+            *channel = output_sample;
+        }
+    }
+}
+
+fn render_recording_cue(cue: RecordingCue, sample_rate: u32) -> Vec<f32> {
+    let notes = cue_notes(cue);
+    let gap_samples = ms_to_output_samples(CUE_NOTE_GAP_MS, sample_rate);
+    let total_samples = notes
+        .iter()
+        .map(|(_, duration_ms)| ms_to_output_samples(*duration_ms, sample_rate))
+        .sum::<usize>()
+        + gap_samples * notes.len().saturating_sub(1);
+    let mut rendered = Vec::with_capacity(total_samples);
+
+    for (index, (frequency_hz, duration_ms)) in notes.iter().copied().enumerate() {
+        append_cue_note(&mut rendered, sample_rate, frequency_hz, duration_ms);
+        if index + 1 < notes.len() {
+            rendered.extend(std::iter::repeat(0.0).take(gap_samples));
+        }
+    }
+
+    rendered
+}
+
+fn cue_notes(cue: RecordingCue) -> &'static [(f32, u32)] {
+    match cue {
+        RecordingCue::Start => &RECORDING_START_NOTES,
+        RecordingCue::Stop => &RECORDING_STOP_NOTES,
+    }
+}
+
+fn append_cue_note(output: &mut Vec<f32>, sample_rate: u32, frequency_hz: f32, duration_ms: u32) {
+    let sample_count = ms_to_output_samples(duration_ms, sample_rate);
+    let attack_samples = ms_to_output_samples(5, sample_rate)
+        .min(sample_count)
+        .max(1);
+    let release_samples = ms_to_output_samples(28, sample_rate)
+        .min(sample_count)
+        .max(1);
+
+    for sample_index in 0..sample_count {
+        let seconds = sample_index as f32 / sample_rate as f32;
+        let phase = 2.0 * PI * frequency_hz * seconds;
+        let tone = phase.sin() * 0.94 + (phase * 2.0).sin() * 0.06;
+        let envelope = cue_envelope(sample_index, sample_count, attack_samples, release_samples);
+        output.push(tone * envelope * CUE_VOLUME);
+    }
+}
+
+fn cue_envelope(
+    sample_index: usize,
+    sample_count: usize,
+    attack_samples: usize,
+    release_samples: usize,
+) -> f32 {
+    let attack = if sample_index >= attack_samples {
+        1.0
+    } else {
+        let progress = sample_index as f32 / attack_samples as f32;
+        (progress * PI * 0.5).sin()
+    };
+
+    let remaining_samples = sample_count.saturating_sub(sample_index + 1);
+    let release = if remaining_samples >= release_samples {
+        1.0
+    } else {
+        let progress = remaining_samples as f32 / release_samples as f32;
+        (progress * PI * 0.5).sin()
+    };
+
+    attack.min(release)
+}
+
+fn ms_to_output_samples(duration_ms: u32, sample_rate: u32) -> usize {
+    ((sample_rate as u64 * duration_ms as u64) / 1_000).max(1) as usize
+}
+
+fn cue_playback_duration(cue: RecordingCue) -> Duration {
+    let total_ms = cue_notes(cue)
+        .iter()
+        .map(|(_, duration_ms)| *duration_ms)
+        .sum::<u32>()
+        + CUE_NOTE_GAP_MS * cue_notes(cue).len().saturating_sub(1) as u32
+        + 80;
+    Duration::from_millis(total_ms as u64)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -798,5 +1001,21 @@ mod tests {
     fn auto_language_maps_to_none() {
         assert_eq!(normalized_language("auto"), None);
         assert_eq!(normalized_language("de"), Some("de".to_owned()));
+    }
+
+    #[test]
+    fn recording_cues_are_short_and_distinct() {
+        let sample_rate = 48_000;
+        let start = render_recording_cue(RecordingCue::Start, sample_rate);
+        let stop = render_recording_cue(RecordingCue::Stop, sample_rate);
+        let max_samples = ms_to_output_samples(260, sample_rate);
+
+        assert!(!start.is_empty());
+        assert!(!stop.is_empty());
+        assert!(start.len() <= max_samples);
+        assert!(stop.len() <= max_samples);
+        assert!(start.iter().any(|sample| sample.abs() > 0.001));
+        assert!(stop.iter().any(|sample| sample.abs() > 0.001));
+        assert_ne!(start, stop);
     }
 }

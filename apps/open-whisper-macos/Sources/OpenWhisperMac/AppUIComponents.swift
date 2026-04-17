@@ -2,6 +2,7 @@ import SwiftUI
 
 enum SettingsSection: String, CaseIterable, Identifiable {
     case recording
+    case modes
     case model
     case startup
     case providers
@@ -13,6 +14,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .recording:
             return "Aufnahme"
+        case .modes:
+            return "Modi"
         case .model:
             return "Sprachmodell"
         case .startup:
@@ -28,6 +31,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .recording:
             return "Mikrofon, Hotkey und Sprache"
+        case .modes:
+            return "Kontext und Nachverarbeitung"
         case .model:
             return "Whisper Base, Small und Medium"
         case .startup:
@@ -43,6 +48,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .recording:
             return "mic.fill"
+        case .modes:
+            return "square.text.square"
         case .model:
             return "square.stack.3d.up.fill"
         case .startup:
@@ -52,6 +59,56 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .diagnostics:
             return "checklist"
         }
+    }
+}
+
+struct ModeListTile: View {
+    let mode: ProcessingMode
+    let isSelected: Bool
+    let isActive: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(mode.name)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        if isActive {
+                            Text("Aktiv")
+                                .font(.caption.weight(.semibold))
+                                .padding(.vertical, 3)
+                                .padding(.horizontal, 7)
+                                .background(Color.accentColor.opacity(0.14), in: Capsule())
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+
+                    Text(mode.postProcessingSummary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 12)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.10) : Color(nsColor: .textBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.45) : Color.primary.opacity(0.06), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

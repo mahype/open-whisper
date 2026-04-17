@@ -50,7 +50,7 @@ impl TriggerMode {
 
 impl Default for TriggerMode {
     fn default() -> Self {
-        Self::PushToTalk
+        Self::Toggle
     }
 }
 
@@ -154,6 +154,32 @@ impl Default for ProviderKind {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PostProcessingProvider {
+    Disabled,
+    Ollama,
+    LmStudio,
+}
+
+impl PostProcessingProvider {
+    pub const ALL: [Self; 3] = [Self::Disabled, Self::Ollama, Self::LmStudio];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Disabled => "Aus",
+            Self::Ollama => "Ollama",
+            Self::LmStudio => "LM Studio",
+        }
+    }
+}
+
+impl Default for PostProcessingProvider {
+    fn default() -> Self {
+        Self::Disabled
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExternalProviderSettings {
     pub endpoint: String,
@@ -173,6 +199,45 @@ impl ExternalProviderSettings {
             endpoint: "http://127.0.0.1:1234".to_owned(),
             model_name: "openai/whisper-small".to_owned(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProcessingMode {
+    pub id: String,
+    pub name: String,
+    pub post_processing_enabled: bool,
+    pub post_processing_provider: PostProcessingProvider,
+    pub prompt: String,
+}
+
+impl ProcessingMode {
+    pub fn standard() -> Self {
+        Self {
+            id: "standard".to_owned(),
+            name: "Standard".to_owned(),
+            post_processing_enabled: false,
+            post_processing_provider: PostProcessingProvider::Disabled,
+            prompt: String::new(),
+        }
+    }
+
+    pub fn post_processing_summary(&self) -> &'static str {
+        if !self.post_processing_enabled {
+            return "Direktes Diktat ohne Nachverarbeitung";
+        }
+
+        match self.post_processing_provider {
+            PostProcessingProvider::Disabled => "Direktes Diktat ohne Nachverarbeitung",
+            PostProcessingProvider::Ollama => "Nachverarbeitung ueber Ollama",
+            PostProcessingProvider::LmStudio => "Nachverarbeitung ueber LM Studio",
+        }
+    }
+}
+
+impl Default for ProcessingMode {
+    fn default() -> Self {
+        Self::standard()
     }
 }
 
@@ -196,27 +261,72 @@ pub struct AppSettings {
     pub active_provider: ProviderKind,
     pub ollama: ExternalProviderSettings,
     pub lm_studio: ExternalProviderSettings,
+    pub modes: Vec<ProcessingMode>,
+    pub active_mode_id: String,
 }
 
 impl AppSettings {
+    pub fn normalize(&mut self) {
+        if self.modes.is_empty() {
+            self.modes.push(ProcessingMode::standard());
+        }
+
+        if !self.modes.iter().any(|mode| mode.id == "standard") {
+            self.modes.insert(0, ProcessingMode::standard());
+        }
+
+        if self.active_mode_id.trim().is_empty()
+            || !self.modes.iter().any(|mode| mode.id == self.active_mode_id)
+        {
+            self.active_mode_id = self
+                .modes
+                .first()
+                .map(|mode| mode.id.clone())
+                .unwrap_or_else(|| "standard".to_owned());
+        }
+
+        for mode in &mut self.modes {
+            if mode.name.trim().is_empty() {
+                mode.name = "Neuer Modus".to_owned();
+            }
+        }
+    }
+
+    pub fn active_mode(&self) -> &ProcessingMode {
+        self.modes
+            .iter()
+            .find(|mode| mode.id == self.active_mode_id)
+            .or_else(|| self.modes.first())
+            .expect("normalized settings must always contain at least one mode")
+    }
+
+    pub fn active_mode_name(&self) -> &str {
+        &self.active_mode().name
+    }
+
+    pub fn active_mode_provider(&self) -> PostProcessingProvider {
+        let mode = self.active_mode();
+        if !mode.post_processing_enabled {
+            PostProcessingProvider::Disabled
+        } else {
+            mode.post_processing_provider
+        }
+    }
+
     pub fn active_provider_summary(&self) -> String {
-        match self.active_provider {
-            ProviderKind::LocalWhisper => format!(
-                "{} mit lokalem Modell '{}'",
-                self.active_provider.label(),
-                self.local_model.whisper_model()
+        let mode = self.active_mode();
+        match self.active_mode_provider() {
+            PostProcessingProvider::Disabled => format!(
+                "Lokales Whisper mit {}",
+                self.local_model.display_label()
             ),
-            ProviderKind::Ollama => format!(
-                "{} ueber {} mit Modell '{}'",
-                self.active_provider.label(),
-                self.ollama.endpoint,
-                self.ollama.model_name
+            PostProcessingProvider::Ollama => format!(
+                "Lokales Whisper + Ollama im Modus '{}'",
+                mode.name
             ),
-            ProviderKind::LmStudio => format!(
-                "{} ueber {} mit Modell '{}'",
-                self.active_provider.label(),
-                self.lm_studio.endpoint,
-                self.lm_studio.model_name
+            PostProcessingProvider::LmStudio => format!(
+                "Lokales Whisper + LM Studio im Modus '{}'",
+                mode.name
             ),
         }
     }
@@ -234,7 +344,7 @@ impl Default for AppSettings {
             insert_text_automatically: true,
             insert_delay_ms: 120,
             restore_clipboard_after_insert: true,
-            vad_enabled: true,
+            vad_enabled: false,
             vad_threshold: 0.014,
             vad_silence_ms: 900,
             local_model: ModelPreset::default(),
@@ -242,6 +352,8 @@ impl Default for AppSettings {
             active_provider: ProviderKind::default(),
             ollama: ExternalProviderSettings::ollama_defaults(),
             lm_studio: ExternalProviderSettings::lm_studio_defaults(),
+            modes: vec![ProcessingMode::standard()],
+            active_mode_id: "standard".to_owned(),
         }
     }
 }
@@ -301,6 +413,7 @@ pub struct DiagnosticsDto {
 pub struct RuntimeStatusDto {
     pub is_recording: bool,
     pub is_transcribing: bool,
+    pub is_post_processing: bool,
     pub last_status: String,
     pub last_transcript: String,
     pub dictation_trigger_count: u64,
@@ -308,6 +421,7 @@ pub struct RuntimeStatusDto {
     pub hotkey_text: String,
     pub startup_summary: String,
     pub provider_summary: String,
+    pub active_mode_name: String,
     pub onboarding_completed: bool,
 }
 
@@ -324,6 +438,9 @@ mod tests {
         assert!(!settings.onboarding_completed);
         assert!(settings.insert_text_automatically);
         assert!(settings.restore_clipboard_after_insert);
+        assert_eq!(settings.trigger_mode, TriggerMode::Toggle);
+        assert!(!settings.vad_enabled);
+        assert_eq!(settings.active_mode_name(), "Standard");
     }
 
     #[test]
@@ -348,13 +465,18 @@ mod tests {
 
     #[test]
     fn remote_provider_summary_uses_endpoint_and_model() {
-        let settings = AppSettings {
-            active_provider: ProviderKind::Ollama,
-            ..AppSettings::default()
-        };
+        let mut settings = AppSettings::default();
+        settings.modes.push(ProcessingMode {
+            id: "dev".to_owned(),
+            name: "Entwickler".to_owned(),
+            post_processing_enabled: true,
+            post_processing_provider: PostProcessingProvider::Ollama,
+            prompt: "Arbeite wie ein Entwickler.".to_owned(),
+        });
+        settings.active_mode_id = "dev".to_owned();
 
-        assert!(settings.active_provider_summary().contains("11434"));
-        assert!(settings.active_provider_summary().contains("whisper"));
+        assert!(settings.active_provider_summary().contains("Ollama"));
+        assert!(settings.active_provider_summary().contains("Entwickler"));
     }
 
     #[test]
@@ -370,5 +492,19 @@ mod tests {
         };
 
         assert!(dto.is_selected);
+    }
+
+    #[test]
+    fn normalize_recovers_missing_modes() {
+        let mut settings = AppSettings {
+            modes: Vec::new(),
+            active_mode_id: String::new(),
+            ..AppSettings::default()
+        };
+
+        settings.normalize();
+
+        assert_eq!(settings.modes.len(), 1);
+        assert_eq!(settings.active_mode_id, "standard");
     }
 }

@@ -40,6 +40,8 @@ struct OnboardingView: View {
                     Text("Open Whisper lebt in der Menueleiste, reagiert auf einen globalen Hotkey und fuegt den diktierten Text direkt in die aktive App ein.")
                     Text("Ollama und LM Studio bleiben optional. Das Standard-Diktat nutzt immer lokales Whisper mit Whisper Base, Whisper Small und Whisper Medium.")
                         .foregroundStyle(.secondary)
+                    Text("Laengeres Diktieren laeuft standardmaessig ueber Toggle und manuellen Stopp. Silence-Stop bleibt nur optional.")
+                        .foregroundStyle(.secondary)
                 }
 
                 AppCard(title: "Was du gleich festlegst", subtitle: "Die produktiven Basis-Einstellungen fuer den ersten Start") {
@@ -64,6 +66,10 @@ struct OnboardingView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+
+                    Text("Toggle ist fuer laengeres Diktieren empfohlen. Push-to-talk stoppt weiter direkt beim Loslassen.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
 
                     Picker("Sprache", selection: model.languageBinding()) {
                         ForEach(model.availableLanguageOptions) { option in
@@ -139,6 +145,7 @@ struct OnboardingView: View {
 
                     Toggle("Text automatisch in aktive App einfuegen", isOn: model.binding(for: \.insertTextAutomatically))
                     Toggle("Clipboard nach Einfuegen wiederherstellen", isOn: model.binding(for: \.restoreClipboardAfterInsert))
+                    Toggle("Silence-Stop optional aktivieren", isOn: model.binding(for: \.vadEnabled))
                 }
             }
         default:

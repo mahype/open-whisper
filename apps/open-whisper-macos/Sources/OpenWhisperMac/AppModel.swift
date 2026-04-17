@@ -11,6 +11,7 @@ final class AppModel: ObservableObject {
     @Published var runtime: RuntimeStatusDTO = .empty
     @Published var bridgeError: String?
     @Published var onboardingStep: Int = 0
+    @Published var selectedModeID: String = "standard"
     @Published var isDirty = false
     @Published var isCapturingHotkey = false
     @Published var hotkeyCapturePreview = ""
@@ -21,6 +22,7 @@ final class AppModel: ObservableObject {
     private let bridge = BridgeClient()
     private var timer: Timer?
     private var hotkeyBeforeCapture = AppSettings.default.hotkey
+    private var persistedSettingsSnapshot: AppSettings = .default
 
     init() {
         reloadAll()
@@ -56,7 +58,7 @@ final class AppModel: ObservableObject {
     }
 
     var activeProviderLabel: String {
-        settings.activeProvider.label
+        runtime.providerSummary
     }
 
     var selectedModelDisplayName: String {
@@ -85,11 +87,59 @@ final class AppModel: ObservableObject {
             : nil
     }
 
+    var availableModes: [ProcessingMode] {
+        settings.modes
+    }
+
+    var activeMode: ProcessingMode {
+        settings.modes.first(where: { $0.id == settings.activeModeId }) ?? settings.modes.first ?? .standard
+    }
+
+    var selectedMode: ProcessingMode {
+        settings.modes.first(where: { $0.id == selectedModeID }) ?? activeMode
+    }
+
+    var activeModeName: String {
+        runtime.activeModeName.isEmpty ? activeMode.name : runtime.activeModeName
+    }
+
+    var trayModeLabel: String {
+        "Modus: \(activeModeName)"
+    }
+
+    var canDeleteSelectedMode: Bool {
+        selectedMode.id != "standard"
+    }
+
+    var persistedModes: [ProcessingMode] {
+        persistedSettingsSnapshot.modes
+    }
+
+    var persistedActiveModeID: String {
+        persistedSettingsSnapshot.activeModeId
+    }
+
     func binding<Value>(for keyPath: WritableKeyPath<AppSettings, Value>) -> Binding<Value> {
         Binding(
             get: { self.settings[keyPath: keyPath] },
             set: { newValue in
                 self.settings[keyPath: keyPath] = newValue
+                self.isDirty = true
+            }
+        )
+    }
+
+    func modeBinding<Value>(for keyPath: WritableKeyPath<ProcessingMode, Value>) -> Binding<Value> {
+        Binding(
+            get: {
+                self.settings.modes.first(where: { $0.id == self.selectedModeID })?[keyPath: keyPath]
+                    ?? self.activeMode[keyPath: keyPath]
+            },
+            set: { newValue in
+                guard let index = self.settings.modes.firstIndex(where: { $0.id == self.selectedModeID }) else {
+                    return
+                }
+                self.settings.modes[index][keyPath: keyPath] = newValue
                 self.isDirty = true
             }
         )
@@ -108,6 +158,7 @@ final class AppModel: ObservableObject {
     func reloadAll() {
         do {
             settings = try bridge.loadSettings()
+            persistedSettingsSnapshot = settings
             devices = try bridge.listInputDevices()
             modelStatus = try bridge.getModelStatus()
             diagnostics = try bridge.runPermissionDiagnostics()
@@ -118,6 +169,7 @@ final class AppModel: ObservableObject {
             hotkeyCapturePreview = ""
             hotkeyCaptureError = nil
             hotkeyBeforeCapture = settings.hotkey
+            ensureSelectedMode()
             onStateChanged?()
         } catch {
             publish(error)
@@ -196,6 +248,67 @@ final class AppModel: ObservableObject {
             }
         }
 
+        isDirty = true
+    }
+
+    func setSelectedMode(_ modeID: String) {
+        selectedModeID = modeID
+    }
+
+    func setActiveMode(_ modeID: String) {
+        settings.activeModeId = modeID
+        selectedModeID = modeID
+        isDirty = true
+    }
+
+    func persistActiveModeImmediately(_ modeID: String) {
+        do {
+            var freshSettings = try bridge.loadSettings()
+            if !freshSettings.modes.contains(where: { $0.id == modeID }) {
+                return
+            }
+            freshSettings.activeModeId = modeID
+            _ = try bridge.saveSettings(freshSettings)
+            reloadAll()
+        } catch {
+            publish(error)
+        }
+    }
+
+    func createMode() {
+        let existingNames = Set(settings.modes.map(\.name))
+        let baseName = "Neuer Modus"
+        var suffix = 1
+        var candidate = baseName
+        while existingNames.contains(candidate) {
+            suffix += 1
+            candidate = "\(baseName) \(suffix)"
+        }
+
+        let mode = ProcessingMode(
+            id: UUID().uuidString.lowercased(),
+            name: candidate,
+            postProcessingEnabled: false,
+            postProcessingProvider: .disabled,
+            prompt: ""
+        )
+        settings.modes.append(mode)
+        selectedModeID = mode.id
+        isDirty = true
+    }
+
+    func deleteSelectedMode() {
+        guard canDeleteSelectedMode,
+              let index = settings.modes.firstIndex(where: { $0.id == selectedModeID }) else {
+            return
+        }
+
+        let deletedModeID = settings.modes[index].id
+        settings.modes.remove(at: index)
+        if settings.activeModeId == deletedModeID {
+            settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.standard.id
+        }
+        ensureSelectedMode()
         isDirty = true
     }
 
@@ -301,6 +414,20 @@ final class AppModel: ObservableObject {
         isCapturingHotkey = false
         bridgeError = error.localizedDescription
         onStateChanged?()
+    }
+
+    private func ensureSelectedMode() {
+        if settings.modes.isEmpty {
+            settings.modes = [.standard]
+        }
+
+        if !settings.modes.contains(where: { $0.id == settings.activeModeId }) {
+            settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.standard.id
+        }
+
+        if !settings.modes.contains(where: { $0.id == selectedModeID }) {
+            selectedModeID = settings.activeModeId
+        }
     }
 }
 
