@@ -5,8 +5,10 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+arboard = "3.6.1"
 cpal = "0.17.3"
 directories = "6.0.0"
+enigo = { version = "0.6.1", features = ["wayland"] }
 eframe = "0.34.1"
 global-hotkey = "0.7.0"
 open-whisper-core = { path = "../../crates/open-whisper-core" }

@@ -1,11 +1,13 @@
 mod desktop_integration;
 mod dictation;
 mod settings_store;
+mod text_inserter;
 
 use desktop_integration::{DesktopAction, DesktopIntegration, POLL_INTERVAL};
 use dictation::{DictationController, DictationOutcome};
 use eframe::egui::{self, RichText};
 use open_whisper_core::{AppSettings, ModelPreset, ProviderKind, StartupBehavior, TriggerMode};
+use text_inserter::insert_text_into_active_app;
 
 fn main() -> eframe::Result<()> {
     let initial_settings = settings_store::load().unwrap_or_else(|err| {
@@ -87,7 +89,14 @@ impl OpenWhisperDesktopApp {
                 DictationOutcome::Status(message) => self.set_status(message),
                 DictationOutcome::TranscriptReady(transcript) => {
                     self.last_transcript = transcript.clone();
-                    self.set_status("Transkript bereit.");
+                    if self.settings.insert_text_automatically {
+                        match insert_text_into_active_app(&transcript, &self.settings) {
+                            Ok(message) => self.set_status(message),
+                            Err(err) => self.set_status(err),
+                        }
+                    } else {
+                        self.set_status("Transkript bereit.");
+                    }
                 }
             }
         }
@@ -284,6 +293,24 @@ impl eframe::App for OpenWhisperDesktopApp {
                         )
                         .changed();
 
+                    ui.horizontal(|ui| {
+                        ui.label("Einfuege-Verzoegerung (ms)");
+                        self.dirty |= ui
+                            .add(
+                                egui::DragValue::new(&mut self.settings.insert_delay_ms)
+                                    .speed(10)
+                                    .range(0..=2_000),
+                            )
+                            .changed();
+                    });
+
+                    self.dirty |= ui
+                        .checkbox(
+                            &mut self.settings.restore_clipboard_after_insert,
+                            "Vorheriges Clipboard nach dem Einfuegen wiederherstellen",
+                        )
+                        .changed();
+
                     self.dirty |= ui
                         .checkbox(
                             &mut self.settings.vad_enabled,
@@ -453,6 +480,15 @@ impl eframe::App for OpenWhisperDesktopApp {
                     if self.last_transcript.is_empty() {
                         ui.label("Noch kein Transkript vorhanden.");
                     } else {
+                        if ui.button("In aktive App einfuegen").clicked() {
+                            match insert_text_into_active_app(&self.last_transcript, &self.settings)
+                            {
+                                Ok(message) => self.set_status(message),
+                                Err(err) => self.set_status(err),
+                            }
+                        }
+
+                        ui.add_space(8.0);
                         ui.label(&self.last_transcript);
                     }
                 });

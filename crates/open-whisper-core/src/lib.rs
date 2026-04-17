@@ -158,6 +158,8 @@ pub struct AppSettings {
     pub trigger_mode: TriggerMode,
     pub transcription_language: String,
     pub insert_text_automatically: bool,
+    pub insert_delay_ms: u32,
+    pub restore_clipboard_after_insert: bool,
     pub vad_enabled: bool,
     pub vad_threshold: f32,
     pub vad_silence_ms: u32,
@@ -201,6 +203,8 @@ impl Default for AppSettings {
             trigger_mode: TriggerMode::default(),
             transcription_language: "de".to_owned(),
             insert_text_automatically: true,
+            insert_delay_ms: 120,
+            restore_clipboard_after_insert: true,
             vad_enabled: true,
             vad_threshold: 0.014,
             vad_silence_ms: 900,
@@ -224,6 +228,7 @@ mod tests {
         assert_eq!(settings.active_provider, ProviderKind::LocalWhisper);
         assert_eq!(settings.local_model, ModelPreset::Standard);
         assert!(settings.insert_text_automatically);
+        assert!(settings.restore_clipboard_after_insert);
     }
 
     #[test]
