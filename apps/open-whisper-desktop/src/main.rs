@@ -1,11 +1,15 @@
+mod autostart;
 mod desktop_integration;
 mod dictation;
+mod model_manager;
 mod settings_store;
 mod text_inserter;
 
+use autostart::AutostartManager;
 use desktop_integration::{DesktopAction, DesktopIntegration, POLL_INTERVAL};
 use dictation::{DictationController, DictationOutcome};
 use eframe::egui::{self, RichText};
+use model_manager::ModelDownloadManager;
 use open_whisper_core::{AppSettings, ModelPreset, ProviderKind, StartupBehavior, TriggerMode};
 use text_inserter::insert_text_into_active_app;
 
@@ -14,23 +18,33 @@ fn main() -> eframe::Result<()> {
         eprintln!("failed to load settings: {err}");
         AppSettings::default()
     });
+    let start_hidden = AutostartManager::start_hidden_requested();
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([960.0, 780.0]),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([960.0, 780.0])
+            .with_visible(!start_hidden),
         ..Default::default()
     };
 
     eframe::run_native(
         "Open Whisper",
         options,
-        Box::new(|_cc| Ok(Box::new(OpenWhisperDesktopApp::new(initial_settings)))),
+        Box::new(move |_cc| {
+            Ok(Box::new(OpenWhisperDesktopApp::new(
+                initial_settings,
+                start_hidden,
+            )))
+        }),
     )
 }
 
 struct OpenWhisperDesktopApp {
+    autostart: AutostartManager,
     settings: AppSettings,
     desktop: DesktopIntegration,
     dictation: DictationController,
+    model_downloads: ModelDownloadManager,
     dirty: bool,
     dictation_trigger_count: u64,
     exit_requested: bool,
@@ -40,8 +54,10 @@ struct OpenWhisperDesktopApp {
 }
 
 impl OpenWhisperDesktopApp {
-    fn new(mut settings: AppSettings) -> Self {
+    fn new(mut settings: AppSettings, start_hidden: bool) -> Self {
+        let mut autostart = AutostartManager::new();
         let mut dictation = DictationController::new();
+        let mut model_downloads = ModelDownloadManager::new();
         let mut status = "Bereit".to_owned();
 
         for outcome in dictation.refresh_input_devices(&mut settings) {
@@ -54,16 +70,26 @@ impl OpenWhisperDesktopApp {
             settings.local_model_path = path.display().to_string();
         }
 
+        model_downloads.refresh_local_state(&settings);
+
+        match autostart.sync_saved_settings(&settings) {
+            Ok(Some(message)) => status = message,
+            Ok(None) => {}
+            Err(err) => status = err,
+        }
+
         Self {
+            autostart,
             settings,
             desktop: DesktopIntegration::new(),
             dictation,
+            model_downloads,
             dirty: false,
             dictation_trigger_count: 0,
             exit_requested: false,
             last_transcript: String::new(),
             status,
-            window_visible: true,
+            window_visible: !start_hidden,
         }
     }
 
@@ -72,6 +98,11 @@ impl OpenWhisperDesktopApp {
             Ok(path) => {
                 self.dirty = false;
                 self.status = format!("Gespeichert unter {}", path.display());
+                match self.autostart.sync_saved_settings(&self.settings) {
+                    Ok(Some(message)) => self.status = message,
+                    Ok(None) => {}
+                    Err(err) => self.status = err,
+                }
             }
             Err(err) => {
                 self.status = format!("Speichern fehlgeschlagen: {err}");
@@ -128,6 +159,7 @@ impl OpenWhisperDesktopApp {
     fn sync_model_path_from_preset(&mut self) {
         if let Ok(path) = self.dictation.suggested_model_path(&self.settings) {
             self.settings.local_model_path = path.display().to_string();
+            self.model_downloads.refresh_local_state(&self.settings);
             self.dirty = true;
         }
     }
@@ -163,6 +195,10 @@ impl eframe::App for OpenWhisperDesktopApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let dictation_outcomes = self.dictation.poll(&self.settings);
         self.apply_dictation_outcomes(dictation_outcomes);
+
+        for message in self.model_downloads.poll() {
+            self.set_status(message);
+        }
 
         for message in self.desktop.sync(&self.settings, self.window_visible) {
             self.set_status(message);
@@ -233,6 +269,17 @@ impl eframe::App for OpenWhisperDesktopApp {
                             }
                         });
                     self.dirty |= old != self.settings.startup_behavior;
+
+                    ui.label(self.autostart.summary());
+                    if self.settings.startup_behavior == StartupBehavior::AskOnFirstLaunch {
+                        ui.label(
+                            "Die eigentliche Erststart-Abfrage folgt noch. Beim Speichern bleibt der aktuelle OS-Status bis dahin unveraendert.",
+                        );
+                    } else {
+                        ui.label(
+                            "Die Auswahl wird beim Speichern direkt auf den Systemstart angewendet.",
+                        );
+                    }
                 });
 
                 ui.add_space(12.0);
@@ -419,9 +466,13 @@ impl eframe::App for OpenWhisperDesktopApp {
                     ));
 
                     ui.label("Lokaler Modellpfad");
-                    self.dirty |= ui
+                    if ui
                         .text_edit_singleline(&mut self.settings.local_model_path)
-                        .changed();
+                        .changed()
+                    {
+                        self.model_downloads.refresh_local_state(&self.settings);
+                        self.dirty = true;
+                    }
 
                     if let Ok(path) = self.dictation.suggested_model_path(&self.settings) {
                         ui.label(format!("Standardpfad: {}", path.display()));
@@ -430,6 +481,47 @@ impl eframe::App for OpenWhisperDesktopApp {
                     if ui.button("Standardpfad uebernehmen").clicked() {
                         self.sync_model_path_from_preset();
                     }
+
+                    ui.label(self.model_downloads.summary(&self.settings));
+                    if let Some(progress) = self.model_downloads.progress_fraction() {
+                        ui.add(egui::ProgressBar::new(progress).show_percentage());
+                    }
+
+                    ui.horizontal(|ui| {
+                        if ui
+                            .add_enabled(
+                                !self.model_downloads.is_downloading(),
+                                egui::Button::new("Ausgewaehltes Modell herunterladen"),
+                            )
+                            .clicked()
+                        {
+                            match self.model_downloads.start_download(&self.settings) {
+                                Ok(message) => self.set_status(message),
+                                Err(err) => self.set_status(err),
+                            }
+                        }
+
+                        if ui
+                            .add_enabled(
+                                !self.model_downloads.is_downloading(),
+                                egui::Button::new("Lokales Modell loeschen"),
+                            )
+                            .clicked()
+                        {
+                            match self.model_downloads.delete_downloaded_model(&self.settings) {
+                                Ok(message) => {
+                                    self.dictation.invalidate_model_cache();
+                                    self.set_status(message);
+                                }
+                                Err(err) => self.set_status(err),
+                            }
+                        }
+                    });
+
+                    ui.label(format!(
+                        "Downloadquelle: {}",
+                        self.settings.local_model.download_url()
+                    ));
                 });
 
                 ui.add_space(12.0);
@@ -464,6 +556,7 @@ impl eframe::App for OpenWhisperDesktopApp {
                     ui.heading("Desktop-Status");
                     ui.label(self.desktop.summary());
                     ui.label(self.dictation.summary());
+                    ui.label(self.autostart.summary());
                     ui.label(format!(
                         "Hotkey-Ausloesungen in dieser Sitzung: {}",
                         self.dictation_trigger_count

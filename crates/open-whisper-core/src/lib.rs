@@ -96,6 +96,20 @@ impl ModelPreset {
             Self::Quality => "Hoehere Genauigkeit, aber mehr CPU/RAM-Bedarf.",
         }
     }
+
+    pub fn download_url(self) -> &'static str {
+        match self {
+            Self::Light => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
+            }
+            Self::Standard => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+            }
+            Self::Quality => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin"
+            }
+        }
+    }
 }
 
 impl Default for ModelPreset {
@@ -239,6 +253,11 @@ mod tests {
     #[test]
     fn standard_preset_uses_small_model_filename() {
         assert_eq!(ModelPreset::Standard.default_filename(), "ggml-small.bin");
+    }
+
+    #[test]
+    fn light_preset_uses_expected_download_url() {
+        assert!(ModelPreset::Light.download_url().contains("ggml-base.bin"));
     }
 
     #[test]

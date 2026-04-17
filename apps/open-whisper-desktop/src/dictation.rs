@@ -8,12 +8,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::model_manager::{default_model_path, resolve_model_path};
 use cpal::{
     Device, SampleFormat, Stream, SupportedStreamConfig,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
-use directories::ProjectDirs;
-use open_whisper_core::{AppSettings, ModelPreset, ProviderKind, TriggerMode};
+use open_whisper_core::{AppSettings, ProviderKind, TriggerMode};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 pub enum DictationOutcome {
@@ -102,6 +102,10 @@ impl DictationController {
 
     pub fn is_transcribing(&self) -> bool {
         self.transcription_rx.is_some()
+    }
+
+    pub fn invalidate_model_cache(&mut self) {
+        self.model_cache = None;
     }
 
     pub fn handle_hotkey(
@@ -254,7 +258,7 @@ impl DictationController {
         &mut self,
         settings: &AppSettings,
     ) -> Result<Arc<WhisperContext>, String> {
-        let model_path = resolved_model_path(settings)?;
+        let model_path = resolve_model_path(settings)?;
 
         if let Some(cache) = &self.model_cache
             && cache.path == model_path
@@ -699,23 +703,6 @@ fn normalized_language(language: &str) -> Option<String> {
     } else {
         Some(trimmed)
     }
-}
-
-fn resolved_model_path(settings: &AppSettings) -> Result<PathBuf, String> {
-    if !settings.local_model_path.trim().is_empty() {
-        return Ok(PathBuf::from(settings.local_model_path.trim()));
-    }
-
-    default_model_path(settings.local_model)
-}
-
-fn default_model_path(preset: ModelPreset) -> Result<PathBuf, String> {
-    let project_dirs = ProjectDirs::from("dev", "awesome", "open-whisper")
-        .ok_or_else(|| "Config-Verzeichnis fuer Modelle nicht verfuegbar.".to_owned())?;
-    Ok(project_dirs
-        .config_dir()
-        .join("models")
-        .join(preset.default_filename()))
 }
 
 fn discover_input_devices() -> Result<Vec<String>, String> {
