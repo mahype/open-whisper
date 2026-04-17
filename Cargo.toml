@@ -1,0 +1,10 @@
+[workspace]
+members = ["apps/open-whisper-desktop", "crates/open-whisper-core"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+serde = { version = "1.0.228", features = ["derive"] }

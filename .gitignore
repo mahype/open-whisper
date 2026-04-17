@@ -1,5 +1,5 @@
-node_modules
-build
-release
-npm-debug.log*
+target
 .DS_Store
+*.log
+.idea
+.vscode
