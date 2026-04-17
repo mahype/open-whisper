@@ -11,7 +11,7 @@ use directories::ProjectDirs;
 use open_whisper_core::{AppSettings, ModelPreset};
 use reqwest::blocking::Client;
 
-const USER_AGENT: &str = "open-whisper-desktop/0.1";
+const USER_AGENT: &str = "open-whisper/0.1";
 const DOWNLOAD_BUFFER_SIZE: usize = 64 * 1024;
 const DOWNLOAD_PROGRESS_INTERVAL: Duration = Duration::from_millis(150);
 

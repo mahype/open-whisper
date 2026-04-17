@@ -1,19 +1,14 @@
 #[allow(dead_code)]
-#[path = "../../../apps/open-whisper-desktop/src/autostart.rs"]
 mod autostart;
 #[allow(dead_code)]
-#[path = "../../../apps/open-whisper-desktop/src/dictation.rs"]
 mod dictation;
 #[allow(dead_code)]
-#[path = "../../../apps/open-whisper-desktop/src/model_manager.rs"]
 mod model_manager;
 mod permission_diagnostics;
 mod post_processing;
 #[allow(dead_code)]
-#[path = "../../../apps/open-whisper-desktop/src/settings_store.rs"]
 mod settings_store;
 #[allow(dead_code)]
-#[path = "../../../apps/open-whisper-desktop/src/text_inserter.rs"]
 mod text_inserter;
 
 use std::{

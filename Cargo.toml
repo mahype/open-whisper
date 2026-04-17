@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "apps/open-whisper-desktop",
     "crates/open-whisper-bridge",
     "crates/open-whisper-core",
 ]

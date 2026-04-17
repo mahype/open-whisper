@@ -1,13 +1,12 @@
 # Open Whisper
 
-Tray-first voice-to-text desktop app with a Rust core, a legacy egui shell and a new native macOS menu bar app.
+Tray-first voice-to-text desktop app with a Rust core and a native macOS menu bar app.
 
 ## Current milestone
 
 - Shared Rust core crate for settings, presets and provider configuration.
 - Rust bridge crate with JSON-based FFI for native UI shells.
 - Local persistence for onboarding and settings.
-- Legacy egui desktop UI for cross-platform development and regression coverage.
 - Native macOS menu bar app in SwiftUI/AppKit with dedicated onboarding and settings windows.
 - UI for startup behavior, hotkey, input device, local Whisper presets, Ollama and LM Studio.
 - Tray/menu bar integration, close-to-tray behavior and global hotkey registration.
@@ -21,7 +20,6 @@ Tray-first voice-to-text desktop app with a Rust core, a legacy egui shell and a
 
 ## Run locally
 
-- Legacy Rust UI: `cargo run --bin open-whisper-desktop`
 - Native macOS menu bar app: `./scripts/run-macos-native.sh`
 
 ## Planned next steps
