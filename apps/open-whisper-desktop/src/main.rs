@@ -1,7 +1,9 @@
 mod desktop_integration;
+mod dictation;
 mod settings_store;
 
 use desktop_integration::{DesktopAction, DesktopIntegration, POLL_INTERVAL};
+use dictation::{DictationController, DictationOutcome};
 use eframe::egui::{self, RichText};
 use open_whisper_core::{AppSettings, ModelPreset, ProviderKind, StartupBehavior, TriggerMode};
 
@@ -12,7 +14,7 @@ fn main() -> eframe::Result<()> {
     });
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([960.0, 720.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([960.0, 780.0]),
         ..Default::default()
     };
 
@@ -26,22 +28,39 @@ fn main() -> eframe::Result<()> {
 struct OpenWhisperDesktopApp {
     settings: AppSettings,
     desktop: DesktopIntegration,
+    dictation: DictationController,
     dirty: bool,
     dictation_trigger_count: u64,
     exit_requested: bool,
+    last_transcript: String,
     status: String,
     window_visible: bool,
 }
 
 impl OpenWhisperDesktopApp {
-    fn new(settings: AppSettings) -> Self {
+    fn new(mut settings: AppSettings) -> Self {
+        let mut dictation = DictationController::new();
+        let mut status = "Bereit".to_owned();
+
+        for outcome in dictation.refresh_input_devices(&mut settings) {
+            status = outcome;
+        }
+
+        if settings.local_model_path.is_empty()
+            && let Ok(path) = dictation.suggested_model_path(&settings)
+        {
+            settings.local_model_path = path.display().to_string();
+        }
+
         Self {
             settings,
             desktop: DesktopIntegration::new(),
+            dictation,
             dirty: false,
             dictation_trigger_count: 0,
             exit_requested: false,
-            status: "Noch nicht gespeichert".to_owned(),
+            last_transcript: String::new(),
+            status,
             window_visible: true,
         }
     }
@@ -62,6 +81,18 @@ impl OpenWhisperDesktopApp {
         self.status = status.into();
     }
 
+    fn apply_dictation_outcomes(&mut self, outcomes: Vec<DictationOutcome>) {
+        for outcome in outcomes {
+            match outcome {
+                DictationOutcome::Status(message) => self.set_status(message),
+                DictationOutcome::TranscriptReady(transcript) => {
+                    self.last_transcript = transcript.clone();
+                    self.set_status("Transkript bereit.");
+                }
+            }
+        }
+    }
+
     fn show_window(&mut self, ctx: &egui::Context) {
         ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
         ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
@@ -71,6 +102,25 @@ impl OpenWhisperDesktopApp {
     fn hide_window(&mut self, ctx: &egui::Context) {
         ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         self.window_visible = false;
+    }
+
+    fn refresh_devices(&mut self) {
+        let messages = self.dictation.refresh_input_devices(&mut self.settings);
+        self.apply_status_messages(messages);
+        self.dirty = true;
+    }
+
+    fn apply_status_messages(&mut self, messages: Vec<String>) {
+        for message in messages {
+            self.set_status(message);
+        }
+    }
+
+    fn sync_model_path_from_preset(&mut self) {
+        if let Ok(path) = self.dictation.suggested_model_path(&self.settings) {
+            self.settings.local_model_path = path.display().to_string();
+            self.dirty = true;
+        }
     }
 
     fn handle_desktop_action(&mut self, ctx: &egui::Context, action: DesktopAction) {
@@ -87,12 +137,14 @@ impl OpenWhisperDesktopApp {
                 self.exit_requested = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
-            DesktopAction::TriggerDictation => {
+            DesktopAction::HotkeyPressed => {
                 self.dictation_trigger_count += 1;
-                self.set_status(format!(
-                    "Hotkey erkannt ({}). Audioaufnahme folgt im naechsten Meilenstein.",
-                    self.dictation_trigger_count
-                ));
+                let outcomes = self.dictation.handle_hotkey(&self.settings, true);
+                self.apply_dictation_outcomes(outcomes);
+            }
+            DesktopAction::HotkeyReleased => {
+                let outcomes = self.dictation.handle_hotkey(&self.settings, false);
+                self.apply_dictation_outcomes(outcomes);
             }
         }
     }
@@ -100,6 +152,9 @@ impl OpenWhisperDesktopApp {
 
 impl eframe::App for OpenWhisperDesktopApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let dictation_outcomes = self.dictation.poll(&self.settings);
+        self.apply_dictation_outcomes(dictation_outcomes);
+
         for message in self.desktop.sync(&self.settings, self.window_visible) {
             self.set_status(message);
         }
@@ -148,8 +203,8 @@ impl eframe::App for OpenWhisperDesktopApp {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.heading("Ersteinrichtung");
                 ui.label(
-                    "Dieses Grundgeruest bildet bereits Startup-Verhalten, Eingabegeraet, \
-                     Modellwahl und externe Provider fuer die spaetere Tray-App ab.",
+                    "Die App kann jetzt Eingabegeraete erkennen, Audio aufnehmen, \
+                     bei Stille stoppen und lokal ueber Whisper transkribieren.",
                 );
                 ui.add_space(12.0);
 
@@ -176,10 +231,29 @@ impl eframe::App for OpenWhisperDesktopApp {
                 ui.group(|ui| {
                     ui.heading("Aufnahme");
 
-                    ui.label("Eingabegeraet");
-                    self.dirty |= ui
-                        .text_edit_singleline(&mut self.settings.input_device_name)
-                        .changed();
+                    ui.horizontal(|ui| {
+                        ui.label("Eingabegeraet");
+                        if ui.button("Aktualisieren").clicked() {
+                            self.refresh_devices();
+                        }
+                    });
+
+                    egui::ComboBox::from_id_salt("input-device")
+                        .selected_text(self.settings.input_device_name.as_str())
+                        .show_ui(ui, |ui| {
+                            for device in self.dictation.available_input_devices() {
+                                if ui
+                                    .selectable_value(
+                                        &mut self.settings.input_device_name,
+                                        device.clone(),
+                                        device,
+                                    )
+                                    .changed()
+                                {
+                                    self.dirty = true;
+                                }
+                            }
+                        });
 
                     ui.label("Globaler Shortcut");
                     self.dirty |= ui.text_edit_singleline(&mut self.settings.hotkey).changed();
@@ -198,12 +272,76 @@ impl eframe::App for OpenWhisperDesktopApp {
                         });
                     self.dirty |= old != self.settings.trigger_mode;
 
+                    ui.label("Sprache (`auto`, `de`, `en`, ...)");
+                    self.dirty |= ui
+                        .text_edit_singleline(&mut self.settings.transcription_language)
+                        .changed();
+
                     self.dirty |= ui
                         .checkbox(
                             &mut self.settings.insert_text_automatically,
                             "Transkript automatisch in die aktive App einfuegen",
                         )
                         .changed();
+
+                    self.dirty |= ui
+                        .checkbox(
+                            &mut self.settings.vad_enabled,
+                            "Silence-Stop fuer Toggle-Aufnahmen aktivieren",
+                        )
+                        .changed();
+
+                    ui.horizontal(|ui| {
+                        ui.label("VAD-Schwelle");
+                        self.dirty |= ui
+                            .add(
+                                egui::DragValue::new(&mut self.settings.vad_threshold)
+                                    .speed(0.001)
+                                    .range(0.001..=0.2),
+                            )
+                            .changed();
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Stille bis Stop (ms)");
+                        self.dirty |= ui
+                            .add(
+                                egui::DragValue::new(&mut self.settings.vad_silence_ms)
+                                    .speed(25)
+                                    .range(200..=5_000),
+                            )
+                            .changed();
+                    });
+
+                    ui.horizontal(|ui| {
+                        if ui
+                            .add_enabled(
+                                !self.dictation.is_recording() && !self.dictation.is_transcribing(),
+                                egui::Button::new("Aufnahme starten"),
+                            )
+                            .clicked()
+                        {
+                            let outcomes = self.dictation.start_recording(&self.settings).map_or_else(
+                                |err| vec![DictationOutcome::Status(err)],
+                                |message| vec![DictationOutcome::Status(message)],
+                            );
+                            self.apply_dictation_outcomes(outcomes);
+                        }
+
+                        if ui
+                            .add_enabled(
+                                self.dictation.is_recording(),
+                                egui::Button::new("Aufnahme stoppen"),
+                            )
+                            .clicked()
+                        {
+                            let outcomes = self
+                                .dictation
+                                .stop_recording_and_transcribe(&self.settings, "Manuell gestoppt")
+                                .unwrap_or_else(|err| vec![DictationOutcome::Status(err)]);
+                            self.apply_dictation_outcomes(outcomes);
+                        }
+                    });
                 });
 
                 ui.add_space(12.0);
@@ -243,13 +381,28 @@ impl eframe::App for OpenWhisperDesktopApp {
                                 );
                             }
                         });
-                    self.dirty |= old_preset != self.settings.local_model;
+                    if old_preset != self.settings.local_model {
+                        self.sync_model_path_from_preset();
+                    }
 
                     ui.label(self.settings.local_model.description());
                     ui.label(format!(
-                        "Geplanter Download fuer lokale Nutzung: {}",
-                        self.settings.local_model.whisper_model()
+                        "Erwarteter Dateiname: {}",
+                        self.settings.local_model.default_filename()
                     ));
+
+                    ui.label("Lokaler Modellpfad");
+                    self.dirty |= ui
+                        .text_edit_singleline(&mut self.settings.local_model_path)
+                        .changed();
+
+                    if let Ok(path) = self.dictation.suggested_model_path(&self.settings) {
+                        ui.label(format!("Standardpfad: {}", path.display()));
+                    }
+
+                    if ui.button("Standardpfad uebernehmen").clicked() {
+                        self.sync_model_path_from_preset();
+                    }
                 });
 
                 ui.add_space(12.0);
@@ -281,16 +434,9 @@ impl eframe::App for OpenWhisperDesktopApp {
                 ui.add_space(12.0);
 
                 ui.group(|ui| {
-                    ui.heading("Aktiver Pfad");
-                    ui.label(self.settings.active_provider_summary());
-                    ui.label("Tray und globaler Hotkey sind jetzt als Desktop-Basis verdrahtet.");
-                });
-
-                ui.add_space(12.0);
-
-                ui.group(|ui| {
                     ui.heading("Desktop-Status");
                     ui.label(self.desktop.summary());
+                    ui.label(self.dictation.summary());
                     ui.label(format!(
                         "Hotkey-Ausloesungen in dieser Sitzung: {}",
                         self.dictation_trigger_count
@@ -298,6 +444,17 @@ impl eframe::App for OpenWhisperDesktopApp {
                     ui.label(
                         "Fenster-Schliessen blendet die App in den Tray aus. Ueber den Tray kannst du das Fenster wieder anzeigen oder die App komplett beenden.",
                     );
+                });
+
+                ui.add_space(12.0);
+
+                ui.group(|ui| {
+                    ui.heading("Transkript");
+                    if self.last_transcript.is_empty() {
+                        ui.label("Noch kein Transkript vorhanden.");
+                    } else {
+                        ui.label(&self.last_transcript);
+                    }
                 });
             });
         });

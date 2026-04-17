@@ -14,7 +14,8 @@ pub enum DesktopAction {
     ShowSettings,
     HideWindow,
     Quit,
-    TriggerDictation,
+    HotkeyPressed,
+    HotkeyReleased,
 }
 
 pub struct DesktopIntegration {
@@ -185,13 +186,15 @@ impl HotKeyController {
         let mut actions = Vec::new();
 
         while let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
-            if event.state == HotKeyState::Pressed
-                && self
-                    .registered_hotkey
-                    .as_ref()
-                    .is_some_and(|registered| registered.id() == event.id)
+            if self
+                .registered_hotkey
+                .as_ref()
+                .is_some_and(|registered| registered.id() == event.id)
             {
-                actions.push(DesktopAction::TriggerDictation);
+                match event.state {
+                    HotKeyState::Pressed => actions.push(DesktopAction::HotkeyPressed),
+                    HotKeyState::Released => actions.push(DesktopAction::HotkeyReleased),
+                }
             }
         }
 

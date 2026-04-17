@@ -81,6 +81,14 @@ impl ModelPreset {
         }
     }
 
+    pub fn default_filename(self) -> &'static str {
+        match self {
+            Self::Light => "ggml-base.bin",
+            Self::Standard => "ggml-small.bin",
+            Self::Quality => "ggml-medium.bin",
+        }
+    }
+
     pub fn description(self) -> &'static str {
         match self {
             Self::Light => "Schnellster Start, niedrigere Genauigkeit, fuer schwache Rechner.",
@@ -142,14 +150,19 @@ impl ExternalProviderSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AppSettings {
     pub startup_behavior: StartupBehavior,
     pub input_device_name: String,
     pub hotkey: String,
     pub trigger_mode: TriggerMode,
+    pub transcription_language: String,
     pub insert_text_automatically: bool,
+    pub vad_enabled: bool,
+    pub vad_threshold: f32,
+    pub vad_silence_ms: u32,
     pub local_model: ModelPreset,
+    pub local_model_path: String,
     pub active_provider: ProviderKind,
     pub ollama: ExternalProviderSettings,
     pub lm_studio: ExternalProviderSettings,
@@ -186,8 +199,13 @@ impl Default for AppSettings {
             input_device_name: "System Default".to_owned(),
             hotkey: "Ctrl+Shift+Space".to_owned(),
             trigger_mode: TriggerMode::default(),
+            transcription_language: "de".to_owned(),
             insert_text_automatically: true,
+            vad_enabled: true,
+            vad_threshold: 0.014,
+            vad_silence_ms: 900,
             local_model: ModelPreset::default(),
+            local_model_path: String::new(),
             active_provider: ProviderKind::default(),
             ollama: ExternalProviderSettings::ollama_defaults(),
             lm_studio: ExternalProviderSettings::lm_studio_defaults(),
@@ -211,6 +229,11 @@ mod tests {
     #[test]
     fn quality_maps_to_medium_model() {
         assert_eq!(ModelPreset::Quality.whisper_model(), "medium");
+    }
+
+    #[test]
+    fn standard_preset_uses_small_model_filename() {
+        assert_eq!(ModelPreset::Standard.default_filename(), "ggml-small.bin");
     }
 
     #[test]
