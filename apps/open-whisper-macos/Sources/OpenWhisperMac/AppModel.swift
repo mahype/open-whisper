@@ -212,12 +212,20 @@ final class AppModel: ObservableObject {
     @discardableResult
     func saveSettings() -> Bool {
         do {
-            let normalizedHotkey = try bridge.validateHotkey(settings.hotkey)
+            let normalizedHotkey = try prepareHotkeyForAssignment(
+                settings.hotkey,
+                allowNoOpHotkeys: [persistedSettingsSnapshot.hotkey, runtime.hotkeyRegistered ? runtime.hotkeyText : nil]
+            )
             settings.hotkey = normalizedHotkey
+            hotkeyCaptureError = nil
+            bridgeError = nil
             _ = try bridge.saveSettings(settings)
             isDirty = false
             reloadAll()
             return true
+        } catch let error as InlineHotkeyValidationError {
+            failHotkeyCapture(error.message)
+            return false
         } catch {
             publish(error)
             return false
@@ -326,10 +334,14 @@ final class AppModel: ObservableObject {
 
     func commitCapturedHotkey(_ hotkey: String) {
         do {
-            let normalized = try bridge.validateHotkey(hotkey)
+            let normalized = try prepareHotkeyForAssignment(
+                hotkey,
+                allowNoOpHotkeys: [hotkeyBeforeCapture, runtime.hotkeyRegistered ? runtime.hotkeyText : nil]
+            )
             settings.hotkey = normalized
             hotkeyCapturePreview = normalized
             hotkeyCaptureError = nil
+            bridgeError = nil
             isCapturingHotkey = false
             isDirty = true
         } catch {
@@ -353,6 +365,7 @@ final class AppModel: ObservableObject {
 
     func failHotkeyCapture(_ message: String) {
         hotkeyCaptureError = message
+        bridgeError = nil
     }
 
     func startModelDownload() {
@@ -416,6 +429,29 @@ final class AppModel: ObservableObject {
         onStateChanged?()
     }
 
+    private func prepareHotkeyForAssignment(
+        _ hotkey: String,
+        allowNoOpHotkeys: [String?]
+    ) throws -> String {
+        let normalized: String
+        do {
+            normalized = try bridge.validateHotkey(hotkey)
+        } catch {
+            throw InlineHotkeyValidationError(message: error.localizedDescription)
+        }
+
+        do {
+            try HotkeyAssignmentAdvisor.assertCanAssign(
+                normalized,
+                allowNoOpHotkeys: allowNoOpHotkeys.compactMap { $0 }
+            )
+        } catch {
+            throw InlineHotkeyValidationError(message: error.localizedDescription)
+        }
+
+        return normalized
+    }
+
     private func ensureSelectedMode() {
         if settings.modes.isEmpty {
             settings.modes = [.standard]
@@ -434,4 +470,10 @@ final class AppModel: ObservableObject {
 private func isSingleKeyHotkey(_ hotkey: String) -> Bool {
     let normalized = hotkey.trimmingCharacters(in: .whitespacesAndNewlines)
     return !normalized.isEmpty && !normalized.contains("+")
+}
+
+private struct InlineHotkeyValidationError: LocalizedError {
+    let message: String
+
+    var errorDescription: String? { message }
 }

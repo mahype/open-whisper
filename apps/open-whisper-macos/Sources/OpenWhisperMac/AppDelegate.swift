@@ -81,10 +81,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showSettings(_ sender: Any?) {
         let window = settingsWindow ?? makeWindow(
             title: "Open Whisper Einstellungen",
-            size: NSSize(width: 980, height: 720),
+            size: NSSize(width: 820, height: 560),
             rootView: SettingsView(model: model)
         )
-        window.contentMinSize = NSSize(width: 920, height: 660)
         settingsWindow = window
         show(window)
     }
@@ -93,12 +92,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.reopenOnboarding()
         let window = onboardingWindow ?? makeWindow(
             title: "Open Whisper Setup",
-            size: NSSize(width: 880, height: 620),
+            size: NSSize(width: 760, height: 520),
             rootView: OnboardingView(model: model) { [weak self] in
                 self?.onboardingWindow?.orderOut(nil)
             }
         )
-        window.contentMinSize = NSSize(width: 840, height: 560)
         onboardingWindow = window
         show(window)
     }
@@ -149,7 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func makeWindow<Content: View>(title: String, size: NSSize, rootView: Content) -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )

@@ -16,16 +16,13 @@ struct HotkeyRecorderField: View {
     let onInvalid: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.subheadline.weight(.medium))
-
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(Color(nsColor: .textBackgroundColor))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .stroke(isCapturing ? Color.accentColor : Color.secondary.opacity(0.16), lineWidth: isCapturing ? 1.5 : 1)
                         )
 
@@ -37,8 +34,8 @@ struct HotkeyRecorderField: View {
                             .foregroundStyle(displayText == placeholderText ? .secondary : .primary)
                         Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
 
                     if isCapturing {
                         HotkeyCaptureHost(
@@ -51,13 +48,13 @@ struct HotkeyRecorderField: View {
                         .frame(width: 0, height: 0)
                     }
                 }
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .frame(maxWidth: .infinity, minHeight: 30)
 
                 if isCapturing {
                     Button("Abbrechen", action: onCancel)
                     Button("Loeschen", action: onClear)
                 } else {
-                    Button("Tastenkombination aufnehmen", action: onStartCapture)
+                    Button("Aufnehmen", action: onStartCapture)
                         .buttonStyle(.borderedProminent)
                 }
             }
@@ -70,10 +67,6 @@ struct HotkeyRecorderField: View {
                 Text(warningText)
                     .font(.caption)
                     .foregroundStyle(.orange)
-            } else {
-                Text(isCapturing ? "Einzelne Tasten oder Kombinationen sind moeglich. Escape bricht ab." : "Der neue Hotkey wird erst nach dem Speichern aktiv.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -163,7 +156,7 @@ private final class HotkeyCaptureView: NSView {
 
         let modifierTokens = hotkeyModifierTokens(from: modifiers)
         guard let keyToken = hotkeyKeyToken(for: event) else {
-            onInvalid?("Diese Taste kann gerade nicht als Hotkey verwendet werden.")
+            onInvalid?(unsupportedHotkeyMessage)
             return
         }
 
@@ -182,7 +175,67 @@ private final class HotkeyCaptureView: NSView {
     }
 }
 
-private let hotkeyRelevantModifierMask: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+struct HotkeyNamedKeySpec {
+    let token: String
+    let keyCodes: [UInt16]
+    let aliases: [String]
+}
+
+let hotkeyRelevantModifierMask: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+let unsupportedHotkeyMessage = "Diese Taste wird in der nativen macOS-App derzeit nicht als globaler Hotkey unterstuetzt."
+
+let hotkeyNamedKeySpecs: [HotkeyNamedKeySpec] = [
+    HotkeyNamedKeySpec(token: "Enter", keyCodes: [36, 76], aliases: ["Return"]),
+    HotkeyNamedKeySpec(token: "Tab", keyCodes: [48], aliases: []),
+    HotkeyNamedKeySpec(token: "Space", keyCodes: [49], aliases: []),
+    HotkeyNamedKeySpec(token: "Backspace", keyCodes: [51], aliases: []),
+    HotkeyNamedKeySpec(token: "Escape", keyCodes: [53], aliases: ["Esc"]),
+    HotkeyNamedKeySpec(token: "Delete", keyCodes: [117], aliases: ["ForwardDelete"]),
+    HotkeyNamedKeySpec(token: "Insert", keyCodes: [114], aliases: []),
+    HotkeyNamedKeySpec(token: "Home", keyCodes: [115], aliases: []),
+    HotkeyNamedKeySpec(token: "End", keyCodes: [119], aliases: []),
+    HotkeyNamedKeySpec(token: "PageUp", keyCodes: [116], aliases: []),
+    HotkeyNamedKeySpec(token: "PageDown", keyCodes: [121], aliases: []),
+    HotkeyNamedKeySpec(token: "Left", keyCodes: [123], aliases: ["ArrowLeft"]),
+    HotkeyNamedKeySpec(token: "Right", keyCodes: [124], aliases: ["ArrowRight"]),
+    HotkeyNamedKeySpec(token: "Down", keyCodes: [125], aliases: ["ArrowDown"]),
+    HotkeyNamedKeySpec(token: "Up", keyCodes: [126], aliases: ["ArrowUp"]),
+    HotkeyNamedKeySpec(token: "F1", keyCodes: [122], aliases: []),
+    HotkeyNamedKeySpec(token: "F2", keyCodes: [120], aliases: []),
+    HotkeyNamedKeySpec(token: "F3", keyCodes: [99], aliases: []),
+    HotkeyNamedKeySpec(token: "F4", keyCodes: [118], aliases: []),
+    HotkeyNamedKeySpec(token: "F5", keyCodes: [96], aliases: []),
+    HotkeyNamedKeySpec(token: "F6", keyCodes: [97], aliases: []),
+    HotkeyNamedKeySpec(token: "F7", keyCodes: [98], aliases: []),
+    HotkeyNamedKeySpec(token: "F8", keyCodes: [100], aliases: []),
+    HotkeyNamedKeySpec(token: "F9", keyCodes: [101], aliases: []),
+    HotkeyNamedKeySpec(token: "F10", keyCodes: [109], aliases: []),
+    HotkeyNamedKeySpec(token: "F11", keyCodes: [103], aliases: []),
+    HotkeyNamedKeySpec(token: "F12", keyCodes: [111], aliases: []),
+]
+
+let hotkeyNamedTokenByKeyCode: [UInt16: String] = {
+    var map: [UInt16: String] = [:]
+    for spec in hotkeyNamedKeySpecs {
+        for keyCode in spec.keyCodes {
+            map[keyCode] = spec.token
+        }
+    }
+    return map
+}()
+
+let hotkeyNamedKeyCodeByNormalizedToken: [String: UInt16] = {
+    var map: [String: UInt16] = [:]
+    for spec in hotkeyNamedKeySpecs {
+        guard let keyCode = spec.keyCodes.first else {
+            continue
+        }
+        for token in [spec.token] + spec.aliases {
+            map[hotkeyNormalizedToken(token)] = keyCode
+        }
+    }
+    return map
+}()
 
 private func hotkeyModifierTokens(from flags: NSEvent.ModifierFlags) -> [String] {
     let relevant = flags.intersection(hotkeyRelevantModifierMask)
@@ -205,61 +258,8 @@ private func hotkeyModifierTokens(from flags: NSEvent.ModifierFlags) -> [String]
 }
 
 private func hotkeyKeyToken(for event: NSEvent) -> String? {
-    switch Int(event.keyCode) {
-    case 36, 76:
-        return "Enter"
-    case 48:
-        return "Tab"
-    case 49:
-        return "Space"
-    case 51:
-        return "Backspace"
-    case 53:
-        return "Escape"
-    case 117:
-        return "Delete"
-    case 115:
-        return "Home"
-    case 119:
-        return "End"
-    case 116:
-        return "PageUp"
-    case 121:
-        return "PageDown"
-    case 123:
-        return "Left"
-    case 124:
-        return "Right"
-    case 125:
-        return "Down"
-    case 126:
-        return "Up"
-    case 122:
-        return "F1"
-    case 120:
-        return "F2"
-    case 99:
-        return "F3"
-    case 118:
-        return "F4"
-    case 96:
-        return "F5"
-    case 97:
-        return "F6"
-    case 98:
-        return "F7"
-    case 100:
-        return "F8"
-    case 101:
-        return "F9"
-    case 109:
-        return "F10"
-    case 103:
-        return "F11"
-    case 111:
-        return "F12"
-    default:
-        break
+    if let namedToken = hotkeyNamedTokenByKeyCode[event.keyCode] {
+        return namedToken
     }
 
     guard let character = event.charactersIgnoringModifiers?.trimmingCharacters(in: .whitespacesAndNewlines), character.count == 1 else {
@@ -300,6 +300,12 @@ private func hotkeyKeyToken(for event: NSEvent) -> String? {
     default:
         return nil
     }
+}
+
+func hotkeyNormalizedToken(_ token: String) -> String {
+    token
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .lowercased()
 }
 
 func hotkeyDisplayString(_ hotkey: String) -> String {

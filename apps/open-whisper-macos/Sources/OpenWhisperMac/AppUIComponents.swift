@@ -27,23 +27,6 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         }
     }
 
-    var subtitle: String {
-        switch self {
-        case .recording:
-            return "Mikrofon, Hotkey und Sprache"
-        case .modes:
-            return "Kontext und Nachverarbeitung"
-        case .model:
-            return "Whisper Base, Small und Medium"
-        case .startup:
-            return "Autostart und Diktatverhalten"
-        case .providers:
-            return "Ollama und LM Studio"
-        case .diagnostics:
-            return "Rechte, Status und Hinweise"
-        }
-    }
-
     var symbolName: String {
         switch self {
         case .recording:
@@ -70,153 +53,35 @@ struct ModeListTile: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
                         Text(mode.name)
-                            .font(.headline)
+                            .font(.body.weight(.medium))
                             .foregroundStyle(.primary)
                         if isActive {
                             Text("Aktiv")
-                                .font(.caption.weight(.semibold))
-                                .padding(.vertical, 3)
-                                .padding(.horizontal, 7)
+                                .font(.caption2.weight(.semibold))
+                                .padding(.vertical, 2)
+                                .padding(.horizontal, 6)
                                 .background(Color.accentColor.opacity(0.14), in: Capsule())
                                 .foregroundStyle(Color.accentColor)
                         }
                     }
-
                     Text(mode.postProcessingSummary)
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
 
-                Spacer(minLength: 12)
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
+                Spacer(minLength: 8)
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.10) : Color(nsColor: .textBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.45) : Color.primary.opacity(0.06), lineWidth: 1)
-            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-struct AppCard<Content: View>: View {
-    let title: String
-    let subtitle: String?
-    @ViewBuilder var content: Content
-
-    init(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.subtitle = subtitle
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            content
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        )
-    }
-}
-
-struct DetailHeader: View {
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.system(size: 28, weight: .semibold))
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-struct StatusBadge: View {
-    let title: String
-    let value: String
-    var accent: Color = .accentColor
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title.uppercased())
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
-        .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-}
-
-struct MetricRow: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(label)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 12)
-            Text(value)
-                .multilineTextAlignment(.trailing)
-        }
-        .font(.subheadline)
-    }
-}
-
-struct InlineStatusPill: View {
-    let title: String
-    let value: String
-    var accent: Color = .secondary
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .fontWeight(.semibold)
-        }
-        .font(.caption)
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-        .background(accent.opacity(0.10), in: Capsule())
     }
 }
 
@@ -227,33 +92,23 @@ struct ModelPresetTile: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
+
+                VStack(alignment: .leading, spacing: 2) {
                     Text(preset.displayName)
-                        .font(.headline)
+                        .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
                     Text(preset.description)
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading)
+                        .lineLimit(1)
                 }
 
-                Spacer(minLength: 12)
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
+                Spacer(minLength: 8)
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.10) : Color(nsColor: .textBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.45) : Color.primary.opacity(0.06), lineWidth: 1)
-            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -265,8 +120,8 @@ struct DiagnosticStatusBadge: View {
     var body: some View {
         Text(status.label)
             .font(.caption.weight(.semibold))
-            .padding(.vertical, 5)
-            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 7)
             .background(backgroundColor.opacity(0.14), in: Capsule())
             .foregroundStyle(backgroundColor)
     }
@@ -290,31 +145,22 @@ struct DiagnosticDisclosureCard: View {
 
     var body: some View {
         DisclosureGroup {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(item.problem)
+                    .font(.caption)
                 Text(item.recommendation)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .padding(.top, 8)
+            .padding(.top, 6)
         } label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.title)
-                        .font(.headline)
-                    Text(item.problem)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
+            HStack(spacing: 10) {
+                Text(item.title)
+                    .font(.body.weight(.medium))
                 Spacer()
                 DiagnosticStatusBadge(status: item.status)
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
     }
 }
 
@@ -329,38 +175,46 @@ struct StepRail: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 2) {
             Text("Einrichtung")
-                .font(.headline)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
 
             ForEach(Array(steps.enumerated()), id: \.offset) { index, title in
-                HStack(alignment: .top, spacing: 12) {
+                HStack(spacing: 10) {
                     ZStack {
                         Circle()
                             .fill(index == currentStep ? Color.accentColor : Color.secondary.opacity(0.18))
-                            .frame(width: 28, height: 28)
-                        Text("\(index + 1)")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(index == currentStep ? Color.white : Color.secondary)
+                            .frame(width: 20, height: 20)
+                        if index < currentStep {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                        } else {
+                            Text("\(index + 1)")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(index == currentStep ? Color.white : Color.secondary)
+                        }
                     }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(title)
-                            .font(.subheadline.weight(index == currentStep ? .semibold : .regular))
-                        Text(index < currentStep ? "Fertig" : index == currentStep ? "Aktiver Schritt" : "Ausstehend")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(index == currentStep ? .semibold : .regular)
+                        .foregroundStyle(index == currentStep ? Color.primary : Color.secondary)
+
+                    Spacer()
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
             }
 
             Spacer()
         }
-        .padding(20)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(nsColor: .underPageBackgroundColor))
-        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color(nsColor: .underPageBackgroundColor))
     }
 }
