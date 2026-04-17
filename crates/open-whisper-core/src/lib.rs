@@ -203,10 +203,10 @@ impl ExternalProviderSettings {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
 pub struct ProcessingMode {
     pub id: String,
     pub name: String,
-    pub post_processing_enabled: bool,
     pub post_processing_provider: PostProcessingProvider,
     pub prompt: String,
 }
@@ -216,17 +216,12 @@ impl ProcessingMode {
         Self {
             id: "standard".to_owned(),
             name: "Standard".to_owned(),
-            post_processing_enabled: false,
             post_processing_provider: PostProcessingProvider::Disabled,
             prompt: String::new(),
         }
     }
 
     pub fn post_processing_summary(&self) -> &'static str {
-        if !self.post_processing_enabled {
-            return "Direktes Diktat ohne Nachverarbeitung";
-        }
-
         match self.post_processing_provider {
             PostProcessingProvider::Disabled => "Direktes Diktat ohne Nachverarbeitung",
             PostProcessingProvider::Ollama => "Nachverarbeitung ueber Ollama",
@@ -256,6 +251,7 @@ pub struct AppSettings {
     pub vad_enabled: bool,
     pub vad_threshold: f32,
     pub vad_silence_ms: u32,
+    pub show_recording_indicator: bool,
     pub local_model: ModelPreset,
     pub local_model_path: String,
     pub active_provider: ProviderKind,
@@ -305,12 +301,7 @@ impl AppSettings {
     }
 
     pub fn active_mode_provider(&self) -> PostProcessingProvider {
-        let mode = self.active_mode();
-        if !mode.post_processing_enabled {
-            PostProcessingProvider::Disabled
-        } else {
-            mode.post_processing_provider
-        }
+        self.active_mode().post_processing_provider
     }
 
     pub fn active_provider_summary(&self) -> String {
@@ -347,6 +338,7 @@ impl Default for AppSettings {
             vad_enabled: false,
             vad_threshold: 0.014,
             vad_silence_ms: 900,
+            show_recording_indicator: false,
             local_model: ModelPreset::default(),
             local_model_path: String::new(),
             active_provider: ProviderKind::default(),
@@ -409,6 +401,11 @@ pub struct DiagnosticsDto {
     pub items: Vec<DiagnosticItemDto>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecordingLevelsDto {
+    pub levels: Vec<f32>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RuntimeStatusDto {
     pub is_recording: bool,
@@ -469,7 +466,6 @@ mod tests {
         settings.modes.push(ProcessingMode {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),
-            post_processing_enabled: true,
             post_processing_provider: PostProcessingProvider::Ollama,
             prompt: "Arbeite wie ein Entwickler.".to_owned(),
         });

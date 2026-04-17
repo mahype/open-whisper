@@ -12,7 +12,6 @@ final class AppModel: ObservableObject {
     @Published var bridgeError: String?
     @Published var onboardingStep: Int = 0
     @Published var selectedModeID: String = "standard"
-    @Published var isDirty = false
     @Published var isCapturingHotkey = false
     @Published var hotkeyCapturePreview = ""
     @Published var hotkeyCaptureError: String?
@@ -23,6 +22,8 @@ final class AppModel: ObservableObject {
     private var timer: Timer?
     private var hotkeyBeforeCapture = AppSettings.default.hotkey
     private var persistedSettingsSnapshot: AppSettings = .default
+    private var pendingAutoSaveTask: Task<Void, Never>?
+    private static let autoSaveDebounceNanoseconds: UInt64 = 500_000_000
 
     init() {
         reloadAll()
@@ -124,7 +125,7 @@ final class AppModel: ObservableObject {
             get: { self.settings[keyPath: keyPath] },
             set: { newValue in
                 self.settings[keyPath: keyPath] = newValue
-                self.isDirty = true
+                self.requestAutoSave()
             }
         )
     }
@@ -140,7 +141,7 @@ final class AppModel: ObservableObject {
                     return
                 }
                 self.settings.modes[index][keyPath: keyPath] = newValue
-                self.isDirty = true
+                self.requestAutoSave()
             }
         )
     }
@@ -150,7 +151,7 @@ final class AppModel: ObservableObject {
             get: { self.selectedLanguageCode },
             set: { newValue in
                 self.settings.transcriptionLanguage = newValue == "auto" ? "auto" : newValue
-                self.isDirty = true
+                self.requestAutoSave()
             }
         )
     }
@@ -164,7 +165,6 @@ final class AppModel: ObservableObject {
             diagnostics = try bridge.runPermissionDiagnostics()
             runtime = try bridge.getRuntimeStatus()
             bridgeError = nil
-            isDirty = false
             isCapturingHotkey = false
             hotkeyCapturePreview = ""
             hotkeyCaptureError = nil
@@ -192,7 +192,7 @@ final class AppModel: ObservableObject {
             devices = try bridge.listInputDevices()
             if !devices.contains(where: { $0.name == settings.inputDeviceName }) && !devices.isEmpty {
                 settings.inputDeviceName = devices[0].name
-                isDirty = true
+                requestAutoSave()
             }
             bridgeError = nil
         } catch {
@@ -211,16 +211,10 @@ final class AppModel: ObservableObject {
 
     @discardableResult
     func saveSettings() -> Bool {
+        pendingAutoSaveTask?.cancel()
+        pendingAutoSaveTask = nil
         do {
-            let normalizedHotkey = try prepareHotkeyForAssignment(
-                settings.hotkey,
-                allowNoOpHotkeys: [persistedSettingsSnapshot.hotkey, runtime.hotkeyRegistered ? runtime.hotkeyText : nil]
-            )
-            settings.hotkey = normalizedHotkey
-            hotkeyCaptureError = nil
-            bridgeError = nil
-            _ = try bridge.saveSettings(settings)
-            isDirty = false
+            try persistSettings()
             reloadAll()
             return true
         } catch let error as InlineHotkeyValidationError {
@@ -230,6 +224,44 @@ final class AppModel: ObservableObject {
             publish(error)
             return false
         }
+    }
+
+    func requestAutoSave() {
+        pendingAutoSaveTask?.cancel()
+        pendingAutoSaveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: AppModel.autoSaveDebounceNanoseconds)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.flushAutoSave()
+            }
+        }
+    }
+
+    func flushAutoSave() {
+        pendingAutoSaveTask?.cancel()
+        pendingAutoSaveTask = nil
+        guard settings != persistedSettingsSnapshot else { return }
+        do {
+            try persistSettings()
+            runtime = try bridge.getRuntimeStatus()
+            onStateChanged?()
+        } catch let error as InlineHotkeyValidationError {
+            failHotkeyCapture(error.message)
+        } catch {
+            publish(error)
+        }
+    }
+
+    private func persistSettings() throws {
+        let normalizedHotkey = try prepareHotkeyForAssignment(
+            settings.hotkey,
+            allowNoOpHotkeys: [persistedSettingsSnapshot.hotkey, runtime.hotkeyRegistered ? runtime.hotkeyText : nil]
+        )
+        settings.hotkey = normalizedHotkey
+        hotkeyCaptureError = nil
+        bridgeError = nil
+        _ = try bridge.saveSettings(settings)
+        persistedSettingsSnapshot = settings
     }
 
     func completeOnboarding() -> Bool {
@@ -256,7 +288,7 @@ final class AppModel: ObservableObject {
             }
         }
 
-        isDirty = true
+        requestAutoSave()
     }
 
     func setSelectedMode(_ modeID: String) {
@@ -266,7 +298,7 @@ final class AppModel: ObservableObject {
     func setActiveMode(_ modeID: String) {
         settings.activeModeId = modeID
         selectedModeID = modeID
-        isDirty = true
+        flushAutoSave()
     }
 
     func persistActiveModeImmediately(_ modeID: String) {
@@ -296,13 +328,12 @@ final class AppModel: ObservableObject {
         let mode = ProcessingMode(
             id: UUID().uuidString.lowercased(),
             name: candidate,
-            postProcessingEnabled: false,
-            postProcessingProvider: .disabled,
+            postProcessingProvider: .ollama,
             prompt: ""
         )
         settings.modes.append(mode)
         selectedModeID = mode.id
-        isDirty = true
+        flushAutoSave()
     }
 
     func deleteSelectedMode() {
@@ -317,7 +348,7 @@ final class AppModel: ObservableObject {
             settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.standard.id
         }
         ensureSelectedMode()
-        isDirty = true
+        flushAutoSave()
     }
 
     func startHotkeyCapture() {
@@ -343,7 +374,7 @@ final class AppModel: ObservableObject {
             hotkeyCaptureError = nil
             bridgeError = nil
             isCapturingHotkey = false
-            isDirty = true
+            flushAutoSave()
         } catch {
             failHotkeyCapture(error.localizedDescription)
         }

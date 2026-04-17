@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     f32::consts::PI,
     path::PathBuf,
     sync::{
@@ -108,6 +109,13 @@ impl DictationController {
 
     pub fn is_transcribing(&self) -> bool {
         self.transcription_rx.is_some()
+    }
+
+    pub fn current_levels(&self) -> Vec<f32> {
+        self.recording
+            .as_ref()
+            .map(ActiveRecording::levels_snapshot)
+            .unwrap_or_default()
     }
 
     pub fn invalidate_model_cache(&mut self) {
@@ -337,6 +345,13 @@ impl ActiveRecording {
         self.event_rx.try_recv().ok()
     }
 
+    fn levels_snapshot(&self) -> Vec<f32> {
+        self.shared
+            .lock()
+            .map(|guard| guard.levels_snapshot())
+            .unwrap_or_default()
+    }
+
     fn finish(self) -> Result<RecordedAudio, String> {
         let duration = self.started_at.elapsed();
         let mut guard = self
@@ -352,6 +367,8 @@ enum RecordingEvent {
     StreamError(String),
 }
 
+const LEVEL_HISTORY_CAPACITY: usize = 120;
+
 struct RecordingBuffer {
     samples: Vec<f32>,
     sample_rate: u32,
@@ -362,6 +379,7 @@ struct RecordingBuffer {
     voice_detected: bool,
     last_voice_sample_index: usize,
     silence_notification_sent: bool,
+    level_history: VecDeque<f32>,
 }
 
 impl RecordingBuffer {
@@ -379,6 +397,7 @@ impl RecordingBuffer {
             voice_detected: false,
             last_voice_sample_index: 0,
             silence_notification_sent: false,
+            level_history: VecDeque::with_capacity(LEVEL_HISTORY_CAPACITY),
         }
     }
 
@@ -390,6 +409,11 @@ impl RecordingBuffer {
         self.samples.extend_from_slice(chunk);
 
         let rms = root_mean_square(chunk);
+        if self.level_history.len() == LEVEL_HISTORY_CAPACITY {
+            self.level_history.pop_front();
+        }
+        self.level_history.push_back(rms);
+
         if rms >= self.vad_threshold {
             self.voice_detected = true;
             self.last_voice_sample_index = self.samples.len();
@@ -407,6 +431,10 @@ impl RecordingBuffer {
                 let _ = event_tx.send(RecordingEvent::SilenceDetected);
             }
         }
+    }
+
+    fn levels_snapshot(&self) -> Vec<f32> {
+        self.level_history.iter().copied().collect()
     }
 
     fn finish(&mut self, duration: Duration) -> RecordedAudio {

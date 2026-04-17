@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
+# Kept for backwards compatibility. Prefer ./scripts/dev.sh going forward.
+
 set -euo pipefail
-
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$repo_root"
-
-cargo build -p open-whisper-bridge
-swift run --package-path apps/open-whisper-macos OpenWhisperMac
+echo "[run-macos-native.sh] This script has been renamed to dev.sh. Forwarding…" >&2
+exec "$repo_root/scripts/dev.sh" "$@"

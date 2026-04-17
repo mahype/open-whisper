@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     let model = AppModel()
 
     private var statusItem: NSStatusItem!
@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var quitItem: NSMenuItem!
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private var recordingIndicatorWindow: NSWindow?
     private let modeMenu = NSMenu()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -84,8 +85,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             size: NSSize(width: 820, height: 560),
             rootView: SettingsView(model: model)
         )
+        if settingsWindow == nil {
+            window.delegate = self
+        }
         settingsWindow = window
         show(window)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === settingsWindow else {
+            return
+        }
+        model.flushAutoSave()
     }
 
     @objc private func showOnboarding(_ sender: Any?) {
@@ -121,6 +132,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItemLine.title = model.bridgeError ?? runtime.lastStatus
         statusItem.button?.image = statusImage(recording: runtime.isRecording)
         statusItem.button?.toolTip = model.bridgeError ?? runtime.lastStatus
+        updateRecordingIndicatorVisibility()
+    }
+
+    private func updateRecordingIndicatorVisibility() {
+        let shouldShow = model.settings.showRecordingIndicator && model.runtime.isRecording
+        if shouldShow {
+            let window = recordingIndicatorWindow ?? makeRecordingIndicatorWindow()
+            recordingIndicatorWindow = window
+            positionRecordingIndicatorWindow(window)
+            window.orderFrontRegardless()
+        } else {
+            recordingIndicatorWindow?.orderOut(nil)
+        }
+    }
+
+    private func makeRecordingIndicatorWindow() -> NSWindow {
+        let size = NSSize(width: 220, height: 64)
+        let panel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isFloatingPanel = true
+        panel.becomesKeyOnlyIfNeeded = true
+        panel.level = .floating
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.ignoresMouseEvents = true
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+        panel.isReleasedWhenClosed = false
+
+        let hosting = NSHostingController(rootView: RecordingIndicatorView())
+        hosting.view.frame = NSRect(origin: .zero, size: size)
+        panel.contentViewController = hosting
+        return panel
+    }
+
+    private func positionRecordingIndicatorWindow(_ window: NSWindow) {
+        guard let screenFrame = NSScreen.main?.visibleFrame else { return }
+        let margin: CGFloat = 16
+        let size = window.frame.size
+        let origin = NSPoint(
+            x: screenFrame.maxX - size.width - margin,
+            y: screenFrame.maxY - size.height - margin
+        )
+        window.setFrameOrigin(origin)
     }
 
     private func rebuildModeMenu() {

@@ -17,7 +17,6 @@ struct SettingsView: View {
                 detailContent(for: detailSection)
             }
             .formStyle(.grouped)
-            .scrollDisabled(true)
             .navigationTitle(detailSection.title)
         }
         .navigationSplitViewStyle(.balanced)
@@ -99,21 +98,34 @@ struct SettingsView: View {
             Toggle("Text automatisch einfuegen", isOn: model.binding(for: \.insertTextAutomatically))
             Toggle("Clipboard wiederherstellen", isOn: model.binding(for: \.restoreClipboardAfterInsert))
         }
+
+        Section("Aufnahme-Anzeige") {
+            Toggle(
+                "Wellenform-Fenster waehrend Aufnahme anzeigen",
+                isOn: model.binding(for: \.showRecordingIndicator)
+            )
+        }
     }
 
     @ViewBuilder
     private var modesContent: some View {
         Section("Modi") {
-            ForEach(model.availableModes) { mode in
-                ModeListTile(
-                    mode: mode,
-                    isSelected: model.selectedModeID == mode.id,
-                    isActive: model.settings.activeModeId == mode.id
-                ) {
-                    model.setSelectedMode(mode.id)
+            ScrollView {
+                VStack(spacing: 4) {
+                    ForEach(model.availableModes) { mode in
+                        ModeListTile(
+                            mode: mode,
+                            isSelected: model.selectedModeID == mode.id,
+                            isActive: model.settings.activeModeId == mode.id
+                        ) {
+                            model.setSelectedMode(mode.id)
+                        }
+                    }
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                .padding(.vertical, 2)
             }
+            .frame(maxHeight: 220)
+            .listRowInsets(EdgeInsets())
 
             HStack(spacing: 10) {
                 Button("Neuer Modus") { model.createMode() }
@@ -130,13 +142,15 @@ struct SettingsView: View {
         Section("Details") {
             TextField("Name", text: model.modeBinding(for: \.name))
 
-            Toggle("Nachverarbeitung aktivieren", isOn: model.modeBinding(for: \.postProcessingEnabled))
-
-            Picker("Zweitprovider", selection: model.modeBinding(for: \.postProcessingProvider)) {
+            Picker("Nachverarbeitung", selection: model.modeBinding(for: \.postProcessingProvider)) {
                 ForEach(PostProcessingProvider.allCases) { provider in
                     Text(provider.label).tag(provider)
                 }
             }
+
+            Text(model.selectedMode.postProcessingSummary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Prompt")
@@ -211,7 +225,7 @@ struct SettingsView: View {
                             get: { Double(model.settings.vadSilenceMs) },
                             set: {
                                 model.settings.vadSilenceMs = UInt32($0.rounded())
-                                model.isDirty = true
+                                model.requestAutoSave()
                             }
                         ),
                         in: 300...2_500,
@@ -282,24 +296,9 @@ struct SettingsView: View {
 
             Spacer()
 
-            if model.isDirty {
-                Text("Ungespeichert")
-                    .font(.caption.weight(.semibold))
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 8)
-                    .background(Color.orange.opacity(0.14), in: Capsule())
-                    .foregroundStyle(.orange)
-            }
-
             Button(model.runtime.isRecording ? "Stoppen" : "Diktat starten") {
                 model.toggleDictation()
             }
-
-            Button("Speichern") {
-                model.saveSettings()
-            }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut("s", modifiers: [.command])
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 10)

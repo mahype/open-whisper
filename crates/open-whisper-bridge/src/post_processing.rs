@@ -11,7 +11,7 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
     let mode = settings.active_mode();
     let provider = settings.active_mode_provider();
 
-    if !mode.post_processing_enabled || provider == PostProcessingProvider::Disabled {
+    if provider == PostProcessingProvider::Disabled {
         return Ok(raw_transcript.to_owned());
     }
 
@@ -212,7 +212,6 @@ mod tests {
         settings.modes.push(ProcessingMode {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),
-            post_processing_enabled: true,
             post_processing_provider: PostProcessingProvider::Ollama,
             prompt: "Nutze Entwickler-Sprache.".to_owned(),
         });

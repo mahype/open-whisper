@@ -21,7 +21,8 @@ use dictation::{DictationController, DictationOutcome};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
 use model_manager::ModelDownloadManager;
 use open_whisper_core::{
-    AppSettings, DeviceDto, DiagnosticsDto, ModelPreset, ModelStatusDto, RuntimeStatusDto,
+    AppSettings, DeviceDto, DiagnosticsDto, ModelPreset, ModelStatusDto, RecordingLevelsDto,
+    RuntimeStatusDto,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -177,9 +178,7 @@ impl BridgeRuntime {
                 DictationOutcome::TranscriptReady(transcript) => {
                     let mode = self.settings.active_mode().clone();
                     let provider = self.settings.active_mode_provider();
-                    if mode.post_processing_enabled
-                        && provider != open_whisper_core::PostProcessingProvider::Disabled
-                    {
+                    if provider != open_whisper_core::PostProcessingProvider::Disabled {
                         let provider_label = provider.label().to_owned();
                         let mode_name = mode.name.clone();
                         let raw_transcript = transcript.clone();
@@ -367,6 +366,12 @@ impl BridgeRuntime {
             .stop_recording_and_transcribe(&self.settings, "Menueleisten-Aktion")?;
         self.apply_dictation_outcomes(outcomes);
         Ok(self.last_status.clone())
+    }
+
+    fn recording_levels(&mut self) -> RecordingLevelsDto {
+        RecordingLevelsDto {
+            levels: self.dictation.current_levels(),
+        }
     }
 
     fn runtime_status(&mut self) -> RuntimeStatusDto {
@@ -661,6 +666,11 @@ pub extern "C" fn ow_stop_dictation() -> *mut c_char {
 #[unsafe(no_mangle)]
 pub extern "C" fn ow_get_runtime_status() -> *mut c_char {
     response_ok(with_runtime_value(BridgeRuntime::runtime_status))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_get_recording_levels() -> *mut c_char {
+    response_ok(with_runtime_value(BridgeRuntime::recording_levels))
 }
 
 #[unsafe(no_mangle)]

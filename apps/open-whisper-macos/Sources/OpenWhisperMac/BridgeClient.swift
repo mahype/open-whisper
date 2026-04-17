@@ -61,6 +61,10 @@ final class BridgeClient {
         try decodeResponse(from: ow_get_runtime_status())
     }
 
+    func getRecordingLevels() throws -> RecordingLevelsDTO {
+        try decodeResponse(from: ow_get_recording_levels())
+    }
+
     func validateHotkey(_ hotkey: String) throws -> String {
         try encodeAndCall(["hotkey": hotkey], function: ow_validate_hotkey)
     }

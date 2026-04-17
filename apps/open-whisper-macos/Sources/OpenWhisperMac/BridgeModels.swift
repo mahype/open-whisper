@@ -156,7 +156,7 @@ enum DiagnosticStatus: String, Codable {
     }
 }
 
-struct ExternalProviderSettings: Codable {
+struct ExternalProviderSettings: Codable, Equatable {
     var endpoint: String
     var modelName: String
 }
@@ -164,23 +164,17 @@ struct ExternalProviderSettings: Codable {
 struct ProcessingMode: Codable, Identifiable, Hashable {
     var id: String
     var name: String
-    var postProcessingEnabled: Bool
     var postProcessingProvider: PostProcessingProvider
     var prompt: String
 
     static let standard = ProcessingMode(
         id: "standard",
         name: "Standard",
-        postProcessingEnabled: false,
         postProcessingProvider: .disabled,
         prompt: ""
     )
 
     var postProcessingSummary: String {
-        guard postProcessingEnabled else {
-            return "Direktes Diktat ohne Nachverarbeitung"
-        }
-
         switch postProcessingProvider {
         case .disabled:
             return "Direktes Diktat ohne Nachverarbeitung"
@@ -221,7 +215,7 @@ struct TranscriptionLanguageOption: Identifiable, Hashable {
     }
 }
 
-struct AppSettings: Codable {
+struct AppSettings: Codable, Equatable {
     var onboardingCompleted: Bool
     var startupBehavior: StartupBehavior
     var inputDeviceName: String
@@ -234,6 +228,7 @@ struct AppSettings: Codable {
     var vadEnabled: Bool
     var vadThreshold: Float
     var vadSilenceMs: UInt32
+    var showRecordingIndicator: Bool
     var localModel: ModelPreset
     var localModelPath: String
     var activeProvider: ProviderKind
@@ -255,6 +250,7 @@ struct AppSettings: Codable {
         vadEnabled: false,
         vadThreshold: 0.014,
         vadSilenceMs: 900,
+        showRecordingIndicator: false,
         localModel: .standard,
         localModelPath: "",
         activeProvider: .localWhisper,
@@ -306,6 +302,12 @@ struct DiagnosticsDTO: Codable {
     var items: [DiagnosticItemDTO]
 
     static let empty = DiagnosticsDTO(summary: "Diagnose wird geladen.", items: [])
+}
+
+struct RecordingLevelsDTO: Codable {
+    var levels: [Float]
+
+    static let empty = RecordingLevelsDTO(levels: [])
 }
 
 struct RuntimeStatusDTO: Codable {
