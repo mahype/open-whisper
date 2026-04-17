@@ -1,0 +1,571 @@
+#[allow(dead_code)]
+#[path = "../../../apps/open-whisper-desktop/src/autostart.rs"]
+mod autostart;
+#[allow(dead_code)]
+#[path = "../../../apps/open-whisper-desktop/src/dictation.rs"]
+mod dictation;
+#[allow(dead_code)]
+#[path = "../../../apps/open-whisper-desktop/src/model_manager.rs"]
+mod model_manager;
+mod permission_diagnostics;
+#[allow(dead_code)]
+#[path = "../../../apps/open-whisper-desktop/src/settings_store.rs"]
+mod settings_store;
+#[allow(dead_code)]
+#[path = "../../../apps/open-whisper-desktop/src/text_inserter.rs"]
+mod text_inserter;
+
+use std::{
+    cell::RefCell,
+    ffi::{CStr, CString, c_char},
+};
+
+use autostart::AutostartManager;
+use dictation::{DictationController, DictationOutcome};
+use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
+use model_manager::ModelDownloadManager;
+use open_whisper_core::{
+    AppSettings, DeviceDto, DiagnosticsDto, ModelPreset, ModelStatusDto, RuntimeStatusDto,
+};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+
+thread_local! {
+    static RUNTIME: RefCell<BridgeRuntime> = RefCell::new(BridgeRuntime::new());
+}
+
+struct BridgeRuntime {
+    autostart: AutostartManager,
+    settings: AppSettings,
+    dictation: DictationController,
+    model_downloads: ModelDownloadManager,
+    hotkey: Option<HotKeyController>,
+    dictation_trigger_count: u64,
+    last_status: String,
+    last_transcript: String,
+}
+
+impl BridgeRuntime {
+    fn new() -> Self {
+        let mut last_status = "Bereit".to_owned();
+        let mut settings = settings_store::load().unwrap_or_else(|err| {
+            last_status = format!("Settings konnten nicht geladen werden: {err}");
+            AppSettings::default()
+        });
+
+        let mut autostart = AutostartManager::new();
+        let mut dictation = DictationController::new();
+        let mut model_downloads = ModelDownloadManager::new();
+
+        for message in dictation.refresh_input_devices(&mut settings) {
+            last_status = message;
+        }
+
+        if settings.local_model_path.trim().is_empty()
+            && let Ok(path) = dictation.suggested_model_path(&settings)
+        {
+            settings.local_model_path = path.display().to_string();
+        }
+
+        model_downloads.refresh_local_state(&settings);
+
+        if let Ok(Some(message)) = autostart.sync_saved_settings(&settings) {
+            last_status = message;
+        }
+
+        let mut hotkey = HotKeyController::new().ok();
+        if let Some(controller) = &mut hotkey
+            && let Err(err) = controller.apply_settings(&settings)
+        {
+            last_status = err;
+        }
+
+        Self {
+            autostart,
+            settings,
+            dictation,
+            model_downloads,
+            hotkey,
+            dictation_trigger_count: 0,
+            last_status,
+            last_transcript: String::new(),
+        }
+    }
+
+    fn poll(&mut self) {
+        for message in self.model_downloads.poll() {
+            self.last_status = message;
+        }
+
+        let pending_actions = self
+            .hotkey
+            .as_mut()
+            .map(HotKeyController::poll_actions)
+            .unwrap_or_default();
+        for action in pending_actions {
+            match action {
+                HotKeyAction::Pressed => {
+                    self.dictation_trigger_count += 1;
+                    let outcomes = self.dictation.handle_hotkey(&self.settings, true);
+                    self.apply_dictation_outcomes(outcomes);
+                }
+                HotKeyAction::Released => {
+                    let outcomes = self.dictation.handle_hotkey(&self.settings, false);
+                    self.apply_dictation_outcomes(outcomes);
+                }
+            }
+        }
+
+        let outcomes = self.dictation.poll(&self.settings);
+        self.apply_dictation_outcomes(outcomes);
+    }
+
+    fn apply_dictation_outcomes(&mut self, outcomes: Vec<DictationOutcome>) {
+        for outcome in outcomes {
+            match outcome {
+                DictationOutcome::Status(message) => self.last_status = message,
+                DictationOutcome::TranscriptReady(transcript) => {
+                    self.last_transcript = transcript.clone();
+                    if self.settings.insert_text_automatically {
+                        match text_inserter::insert_text_into_active_app(&transcript, &self.settings)
+                        {
+                            Ok(message) => self.last_status = message,
+                            Err(err) => self.last_status = err,
+                        }
+                    } else {
+                        self.last_status = "Transkript bereit.".to_owned();
+                    }
+                }
+            }
+        }
+    }
+
+    fn load_settings(&mut self) -> AppSettings {
+        self.poll();
+        self.settings.clone()
+    }
+
+    fn save_settings(&mut self, mut next_settings: AppSettings) -> Result<String, String> {
+        let previous_path = self.settings.local_model_path.clone();
+        let previous_model = self.settings.local_model;
+
+        if next_settings.local_model_path.trim().is_empty() {
+            if let Ok(path) = self.dictation.suggested_model_path(&next_settings) {
+                next_settings.local_model_path = path.display().to_string();
+            }
+        }
+
+        for message in self.dictation.refresh_input_devices(&mut next_settings) {
+            self.last_status = message;
+        }
+
+        settings_store::save(&next_settings)
+            .map_err(|err| format!("Settings konnten nicht gespeichert werden: {err}"))?;
+        self.settings = next_settings;
+
+        match self.autostart.sync_saved_settings(&self.settings) {
+            Ok(Some(message)) => self.last_status = message,
+            Ok(None) => {}
+            Err(err) => self.last_status = err,
+        }
+
+        if let Some(hotkey) = &mut self.hotkey {
+            if let Err(err) = hotkey.apply_settings(&self.settings) {
+                self.last_status = err;
+            }
+        }
+
+        self.model_downloads.refresh_local_state(&self.settings);
+
+        if previous_path != self.settings.local_model_path || previous_model != self.settings.local_model {
+            self.dictation.invalidate_model_cache();
+        }
+
+        Ok(self.last_status.clone())
+    }
+
+    fn list_input_devices(&mut self) -> Vec<DeviceDto> {
+        self.poll();
+        for message in self.dictation.refresh_input_devices(&mut self.settings) {
+            self.last_status = message;
+        }
+
+        self.dictation
+            .available_input_devices()
+            .iter()
+            .map(|device| DeviceDto {
+                name: device.clone(),
+                is_selected: *device == self.settings.input_device_name,
+            })
+            .collect()
+    }
+
+    fn model_status(&mut self) -> ModelStatusDto {
+        self.poll();
+        self.model_downloads.refresh_local_state(&self.settings);
+
+        let path = model_manager::resolve_model_path(&self.settings)
+            .ok()
+            .map(|value| value.display().to_string())
+            .unwrap_or_else(|| self.settings.local_model_path.clone());
+
+        let is_downloaded = model_manager::resolve_model_path(&self.settings)
+            .ok()
+            .is_some_and(|value| value.exists());
+        let progress_basis_points = self
+            .model_downloads
+            .progress_fraction()
+            .map(|progress| (progress.clamp(0.0, 1.0) * 10_000.0).round() as u16);
+
+        ModelStatusDto {
+            preset_label: self.settings.local_model.label().to_owned(),
+            backend_model_name: self.settings.local_model.whisper_model().to_owned(),
+            path,
+            summary: self.model_downloads.summary(&self.settings),
+            is_downloaded,
+            is_downloading: self.model_downloads.is_downloading(),
+            progress_basis_points,
+        }
+    }
+
+    fn start_model_download(&mut self, preset: Option<ModelPreset>) -> Result<String, String> {
+        self.poll();
+        if let Some(preset) = preset {
+            self.settings.local_model = preset;
+            if let Ok(path) = self.dictation.suggested_model_path(&self.settings) {
+                self.settings.local_model_path = path.display().to_string();
+            }
+        }
+
+        let message = self.model_downloads.start_download(&self.settings)?;
+        self.last_status = message.clone();
+        Ok(message)
+    }
+
+    fn delete_model(&mut self, preset: Option<ModelPreset>) -> Result<String, String> {
+        self.poll();
+        if let Some(preset) = preset {
+            self.settings.local_model = preset;
+            if let Ok(path) = self.dictation.suggested_model_path(&self.settings) {
+                self.settings.local_model_path = path.display().to_string();
+            }
+        }
+
+        let message = self.model_downloads.delete_downloaded_model(&self.settings)?;
+        self.last_status = message.clone();
+        self.dictation.invalidate_model_cache();
+        Ok(message)
+    }
+
+    fn run_permission_diagnostics(&mut self) -> DiagnosticsDto {
+        self.poll();
+        permission_diagnostics::collect(
+            &self.settings,
+            &self.dictation,
+            self.hotkey.as_ref(),
+            self.autostart.summary(),
+        )
+    }
+
+    fn start_dictation(&mut self) -> Result<String, String> {
+        self.poll();
+        let message = self.dictation.start_recording(&self.settings)?;
+        self.last_status = message.clone();
+        Ok(message)
+    }
+
+    fn stop_dictation(&mut self) -> Result<String, String> {
+        self.poll();
+        let outcomes = self
+            .dictation
+            .stop_recording_and_transcribe(&self.settings, "Menueleisten-Aktion")?;
+        self.apply_dictation_outcomes(outcomes);
+        Ok(self.last_status.clone())
+    }
+
+    fn runtime_status(&mut self) -> RuntimeStatusDto {
+        self.poll();
+        RuntimeStatusDto {
+            is_recording: self.dictation.is_recording(),
+            is_transcribing: self.dictation.is_transcribing(),
+            last_status: self.last_status.clone(),
+            last_transcript: self.last_transcript.clone(),
+            dictation_trigger_count: self.dictation_trigger_count,
+            hotkey_registered: self
+                .hotkey
+                .as_ref()
+                .is_some_and(HotKeyController::is_registered),
+            hotkey_text: self
+                .hotkey
+                .as_ref()
+                .and_then(HotKeyController::registered_text)
+                .unwrap_or_else(|| self.settings.hotkey.clone()),
+            startup_summary: self.autostart.summary().to_owned(),
+            provider_summary: self.settings.active_provider_summary(),
+            onboarding_completed: self.settings.onboarding_completed,
+        }
+    }
+}
+
+mod hotkey {
+    use super::*;
+
+    pub enum HotKeyAction {
+        Pressed,
+        Released,
+    }
+
+    pub struct HotKeyController {
+        manager: GlobalHotKeyManager,
+        registered_hotkey: Option<HotKey>,
+        registered_text: Option<String>,
+    }
+
+    impl HotKeyController {
+        pub fn new() -> Result<Self, String> {
+            let manager = GlobalHotKeyManager::new().map_err(|err| err.to_string())?;
+            Ok(Self {
+                manager,
+                registered_hotkey: None,
+                registered_text: None,
+            })
+        }
+
+        pub fn apply_settings(&mut self, settings: &AppSettings) -> Result<(), String> {
+            if self.registered_text.as_deref() == Some(settings.hotkey.as_str()) {
+                return Ok(());
+            }
+
+            if let Some(old) = self.registered_hotkey.take() {
+                self.manager.unregister(old).map_err(|err| {
+                    format!("Vorherigen Hotkey konnte ich nicht abmelden: {err}")
+                })?;
+            }
+
+            let parsed: HotKey = settings
+                .hotkey
+                .parse()
+                .map_err(|err| format!("Hotkey '{}' ist ungueltig: {err}", settings.hotkey))?;
+
+            self.manager.register(parsed).map_err(|err| {
+                format!(
+                    "Hotkey '{}' konnte nicht registriert werden: {err}",
+                    settings.hotkey
+                )
+            })?;
+
+            self.registered_hotkey = Some(parsed);
+            self.registered_text = Some(settings.hotkey.clone());
+            Ok(())
+        }
+
+        pub fn poll_actions(&mut self) -> Vec<HotKeyAction> {
+            let mut actions = Vec::new();
+
+            while let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
+                if self
+                    .registered_hotkey
+                    .as_ref()
+                    .is_some_and(|registered| registered.id() == event.id)
+                {
+                    match event.state {
+                        HotKeyState::Pressed => actions.push(HotKeyAction::Pressed),
+                        HotKeyState::Released => actions.push(HotKeyAction::Released),
+                    }
+                }
+            }
+
+            actions
+        }
+
+        pub fn is_registered(&self) -> bool {
+            self.registered_hotkey.is_some()
+        }
+
+        pub fn registered_text(&self) -> Option<String> {
+            self.registered_text.clone()
+        }
+    }
+}
+
+use hotkey::{HotKeyAction, HotKeyController};
+
+#[derive(Serialize)]
+struct BridgeResponse<T> {
+    ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ModelPresetRequest {
+    preset: Option<ModelPreset>,
+}
+
+fn with_runtime<T>(f: impl FnOnce(&mut BridgeRuntime) -> Result<T, String>) -> Result<T, String> {
+    RUNTIME.with(|runtime| {
+        let mut runtime = runtime.borrow_mut();
+        f(&mut runtime)
+    })
+}
+
+fn with_runtime_value<T>(f: impl FnOnce(&mut BridgeRuntime) -> T) -> T {
+    RUNTIME.with(|runtime| {
+        let mut runtime = runtime.borrow_mut();
+        f(&mut runtime)
+    })
+}
+
+fn response_ok<T: Serialize>(value: T) -> *mut c_char {
+    response_from_result::<T>(Ok(value))
+}
+
+fn response_from_result<T: Serialize>(result: Result<T, String>) -> *mut c_char {
+    let payload = match result {
+        Ok(value) => BridgeResponse {
+            ok: true,
+            value: Some(value),
+            error: None,
+        },
+        Err(error) => BridgeResponse::<T> {
+            ok: false,
+            value: None,
+            error: Some(error),
+        },
+    };
+
+    let json = serde_json::to_string(&payload).unwrap_or_else(|err| {
+        format!(
+            "{{\"ok\":false,\"error\":\"Bridge-Serialisierung fehlgeschlagen: {}\"}}",
+            err
+        )
+    });
+    CString::new(json)
+        .expect("bridge json must not contain interior nul bytes")
+        .into_raw()
+}
+
+fn parse_json_arg<T: DeserializeOwned>(raw: *const c_char, label: &str) -> Result<T, String> {
+    if raw.is_null() {
+        return Err(format!("{label} fehlt."));
+    }
+
+    let text = unsafe { CStr::from_ptr(raw) }
+        .to_str()
+        .map_err(|err| format!("{label} ist kein gueltiges UTF-8: {err}"))?;
+    serde_json::from_str(text).map_err(|err| format!("{label} ist ungueltig: {err}"))
+}
+
+fn parse_optional_preset(raw: *const c_char) -> Result<Option<ModelPreset>, String> {
+    if raw.is_null() {
+        return Ok(None);
+    }
+
+    let request: ModelPresetRequest = parse_json_arg(raw, "ModelPresetRequest")?;
+    Ok(request.preset)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_load_settings() -> *mut c_char {
+    response_ok(with_runtime_value(BridgeRuntime::load_settings))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_save_settings(settings_json: *const c_char) -> *mut c_char {
+    let settings = match parse_json_arg::<AppSettings>(settings_json, "AppSettings") {
+        Ok(settings) => settings,
+        Err(err) => return response_from_result::<String>(Err(err)),
+    };
+
+    response_from_result(with_runtime(|runtime| runtime.save_settings(settings)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_list_input_devices() -> *mut c_char {
+    response_ok(with_runtime_value(BridgeRuntime::list_input_devices))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_get_model_status() -> *mut c_char {
+    response_ok(with_runtime_value(BridgeRuntime::model_status))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_start_model_download(request_json: *const c_char) -> *mut c_char {
+    let preset = match parse_optional_preset(request_json) {
+        Ok(value) => value,
+        Err(err) => return response_from_result::<String>(Err(err)),
+    };
+
+    response_from_result(with_runtime(|runtime| runtime.start_model_download(preset)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_delete_model(request_json: *const c_char) -> *mut c_char {
+    let preset = match parse_optional_preset(request_json) {
+        Ok(value) => value,
+        Err(err) => return response_from_result::<String>(Err(err)),
+    };
+
+    response_from_result(with_runtime(|runtime| runtime.delete_model(preset)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_run_permission_diagnostics() -> *mut c_char {
+    response_ok(with_runtime_value(BridgeRuntime::run_permission_diagnostics))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_start_dictation() -> *mut c_char {
+    response_from_result(with_runtime(BridgeRuntime::start_dictation))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_stop_dictation() -> *mut c_char {
+    response_from_result(with_runtime(BridgeRuntime::stop_dictation))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_get_runtime_status() -> *mut c_char {
+    response_ok(with_runtime_value(BridgeRuntime::runtime_status))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ow_string_free(raw: *mut c_char) {
+    if raw.is_null() {
+        return;
+    }
+
+    let _ = unsafe { CString::from_raw(raw) };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use open_whisper_core::DiagnosticStatus;
+
+    #[test]
+    fn bridge_response_serializes_success_shape() {
+        let payload = BridgeResponse {
+            ok: true,
+            value: Some("ok"),
+            error: None,
+        };
+
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("\"ok\":true"));
+        assert!(json.contains("\"value\":\"ok\""));
+    }
+
+    #[test]
+    fn model_preset_request_parses() {
+        let parsed: ModelPresetRequest = serde_json::from_str("{\"preset\":\"quality\"}").unwrap();
+        assert_eq!(parsed.preset, Some(ModelPreset::Quality));
+    }
+
+    #[test]
+    fn diagnostics_status_is_stable_for_swift() {
+        assert_eq!(DiagnosticStatus::Warning.label(), "Warnung");
+    }
+}

@@ -1,0 +1,4 @@
+module OpenWhisperBridgeFFI [system] {
+    header "OpenWhisperBridgeFFI.h"
+    export *
+}

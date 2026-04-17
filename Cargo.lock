@@ -3300,6 +3300,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "open-whisper-bridge"
+version = "0.1.0"
+dependencies = [
+ "arboard",
+ "auto-launch",
+ "cpal",
+ "directories",
+ "enigo",
+ "global-hotkey",
+ "once_cell",
+ "open-whisper-core",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "whisper-rs",
+]
+
+[[package]]
 name = "open-whisper-core"
 version = "0.1.0"
 dependencies = [

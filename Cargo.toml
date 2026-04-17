@@ -1,5 +1,9 @@
 [workspace]
-members = ["apps/open-whisper-desktop", "crates/open-whisper-core"]
+members = [
+    "apps/open-whisper-desktop",
+    "crates/open-whisper-bridge",
+    "crates/open-whisper-core",
+]
 resolver = "2"
 
 [workspace.package]

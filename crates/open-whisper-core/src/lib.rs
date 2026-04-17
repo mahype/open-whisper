@@ -238,6 +238,71 @@ impl Default for AppSettings {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DeviceDto {
+    pub name: String,
+    pub is_selected: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ModelStatusDto {
+    pub preset_label: String,
+    pub backend_model_name: String,
+    pub path: String,
+    pub summary: String,
+    pub is_downloaded: bool,
+    pub is_downloading: bool,
+    pub progress_basis_points: Option<u16>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagnosticStatus {
+    Ok,
+    Info,
+    Warning,
+    Error,
+}
+
+impl DiagnosticStatus {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Ok => "OK",
+            Self::Info => "Hinweis",
+            Self::Warning => "Warnung",
+            Self::Error => "Fehler",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DiagnosticItemDto {
+    pub title: String,
+    pub status: DiagnosticStatus,
+    pub problem: String,
+    pub recommendation: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DiagnosticsDto {
+    pub summary: String,
+    pub items: Vec<DiagnosticItemDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeStatusDto {
+    pub is_recording: bool,
+    pub is_transcribing: bool,
+    pub last_status: String,
+    pub last_transcript: String,
+    pub dictation_trigger_count: u64,
+    pub hotkey_registered: bool,
+    pub hotkey_text: String,
+    pub startup_summary: String,
+    pub provider_summary: String,
+    pub onboarding_completed: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +347,20 @@ mod tests {
 
         assert!(settings.active_provider_summary().contains("11434"));
         assert!(settings.active_provider_summary().contains("whisper"));
+    }
+
+    #[test]
+    fn diagnostics_status_has_stable_label() {
+        assert_eq!(DiagnosticStatus::Warning.label(), "Warnung");
+    }
+
+    #[test]
+    fn device_dto_marks_selection() {
+        let dto = DeviceDto {
+            name: "Mic".to_owned(),
+            is_selected: true,
+        };
+
+        assert!(dto.is_selected);
     }
 }
