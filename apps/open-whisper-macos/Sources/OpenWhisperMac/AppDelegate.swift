@@ -100,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func refreshMenuState() {
         let runtime = model.runtime
         dictationItem.title = runtime.isRecording ? "Diktat stoppen" : "Diktat starten"
-        modelItem.title = model.modelStatus.summary
+        modelItem.title = model.trayModelLabel
         statusItemLine.title = model.bridgeError ?? runtime.lastStatus
         statusItem.button?.image = statusImage(recording: runtime.isRecording)
         statusItem.button?.toolTip = model.bridgeError ?? runtime.lastStatus

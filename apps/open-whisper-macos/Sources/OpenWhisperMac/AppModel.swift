@@ -70,6 +70,14 @@ final class AppModel: ObservableObject {
         return modelStatus.isDownloaded ? "Bereit" : "Noch nicht geladen"
     }
 
+    var trayModelLabel: String {
+        let name = modelStatus.presetLabel.isEmpty ? selectedModelDisplayName : modelStatus.presetLabel
+        if modelStatus.isDownloading {
+            return "Modell: \(name) (Download laeuft)"
+        }
+        return "Modell: \(name)"
+    }
+
     var hotkeyRiskHint: String? {
         let source = isCapturingHotkey && !hotkeyCapturePreview.isEmpty ? hotkeyCapturePreview : settings.hotkey
         return isSingleKeyHotkey(source)
