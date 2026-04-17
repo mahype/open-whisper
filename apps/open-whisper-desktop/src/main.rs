@@ -1,5 +1,7 @@
+mod desktop_integration;
 mod settings_store;
 
+use desktop_integration::{DesktopAction, DesktopIntegration, POLL_INTERVAL};
 use eframe::egui::{self, RichText};
 use open_whisper_core::{AppSettings, ModelPreset, ProviderKind, StartupBehavior, TriggerMode};
 
@@ -23,16 +25,24 @@ fn main() -> eframe::Result<()> {
 
 struct OpenWhisperDesktopApp {
     settings: AppSettings,
+    desktop: DesktopIntegration,
     dirty: bool,
+    dictation_trigger_count: u64,
+    exit_requested: bool,
     status: String,
+    window_visible: bool,
 }
 
 impl OpenWhisperDesktopApp {
     fn new(settings: AppSettings) -> Self {
         Self {
             settings,
+            desktop: DesktopIntegration::new(),
             dirty: false,
+            dictation_trigger_count: 0,
+            exit_requested: false,
             status: "Noch nicht gespeichert".to_owned(),
+            window_visible: true,
         }
     }
 
@@ -47,9 +57,72 @@ impl OpenWhisperDesktopApp {
             }
         }
     }
+
+    fn set_status(&mut self, status: impl Into<String>) {
+        self.status = status.into();
+    }
+
+    fn show_window(&mut self, ctx: &egui::Context) {
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        self.window_visible = true;
+    }
+
+    fn hide_window(&mut self, ctx: &egui::Context) {
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        self.window_visible = false;
+    }
+
+    fn handle_desktop_action(&mut self, ctx: &egui::Context, action: DesktopAction) {
+        match action {
+            DesktopAction::ShowSettings => {
+                self.show_window(ctx);
+                self.set_status("Fenster aus dem Tray geoeffnet.");
+            }
+            DesktopAction::HideWindow => {
+                self.hide_window(ctx);
+                self.set_status("Fenster im Tray versteckt.");
+            }
+            DesktopAction::Quit => {
+                self.exit_requested = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            DesktopAction::TriggerDictation => {
+                self.dictation_trigger_count += 1;
+                self.set_status(format!(
+                    "Hotkey erkannt ({}). Audioaufnahme folgt im naechsten Meilenstein.",
+                    self.dictation_trigger_count
+                ));
+            }
+        }
+    }
 }
 
 impl eframe::App for OpenWhisperDesktopApp {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        for message in self.desktop.sync(&self.settings, self.window_visible) {
+            self.set_status(message);
+        }
+
+        for action in self.desktop.poll_actions() {
+            self.handle_desktop_action(ctx, action);
+        }
+
+        if ctx.input(|input| input.viewport().close_requested()) {
+            if self.exit_requested {
+                return;
+            }
+
+            if self.desktop.can_hide_to_tray() {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                self.hide_window(ctx);
+                self.set_status("Fenster geschlossen, App laeuft weiter im Tray.");
+            }
+        }
+
+        ctx.request_repaint_after(POLL_INTERVAL);
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
@@ -210,9 +283,20 @@ impl eframe::App for OpenWhisperDesktopApp {
                 ui.group(|ui| {
                     ui.heading("Aktiver Pfad");
                     ui.label(self.settings.active_provider_summary());
+                    ui.label("Tray und globaler Hotkey sind jetzt als Desktop-Basis verdrahtet.");
+                });
+
+                ui.add_space(12.0);
+
+                ui.group(|ui| {
+                    ui.heading("Desktop-Status");
+                    ui.label(self.desktop.summary());
+                    ui.label(format!(
+                        "Hotkey-Ausloesungen in dieser Sitzung: {}",
+                        self.dictation_trigger_count
+                    ));
                     ui.label(
-                        "Naechste Integrationsschritte: Tray, globaler Hotkey, Audioaufnahme, \
-                         Text-Einfuegen ins aktive Fremdprogramm.",
+                        "Fenster-Schliessen blendet die App in den Tray aus. Ueber den Tray kannst du das Fenster wieder anzeigen oder die App komplett beenden.",
                     );
                 });
             });
