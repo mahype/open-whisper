@@ -29,7 +29,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .recording:
             return "Mikrofon, Hotkey und Sprache"
         case .model:
-            return "Klein, Mittel oder Gross"
+            return "Whisper Base, Small und Medium"
         case .startup:
             return "Autostart und Diktatverhalten"
         case .providers:
@@ -141,6 +141,64 @@ struct MetricRow: View {
                 .multilineTextAlignment(.trailing)
         }
         .font(.subheadline)
+    }
+}
+
+struct InlineStatusPill: View {
+    let title: String
+    let value: String
+    var accent: Color = .secondary
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .fontWeight(.semibold)
+        }
+        .font(.caption)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(accent.opacity(0.10), in: Capsule())
+    }
+}
+
+struct ModelPresetTile: View {
+    let preset: ModelPreset
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(preset.displayName)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(preset.description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer(minLength: 12)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.10) : Color(nsColor: .textBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.45) : Color.primary.opacity(0.06), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -42,11 +42,56 @@ final class AppModel: ObservableObject {
         isCapturingHotkey ? "Jetzt Tastenkombination druecken" : "Globaler Hotkey"
     }
 
+    var selectedLanguageCode: String {
+        TranscriptionLanguageOption.option(for: settings.transcriptionLanguage)?.code ?? "auto"
+    }
+
+    var availableLanguageOptions: [TranscriptionLanguageOption] {
+        if let current = TranscriptionLanguageOption.option(for: settings.transcriptionLanguage) {
+            return TranscriptionLanguageOption.common.contains(current)
+                ? TranscriptionLanguageOption.common
+                : [current] + TranscriptionLanguageOption.common
+        }
+        return TranscriptionLanguageOption.common
+    }
+
+    var activeProviderLabel: String {
+        settings.activeProvider.label
+    }
+
+    var selectedModelDisplayName: String {
+        settings.localModel.displayName
+    }
+
+    var selectedModelStatusText: String {
+        if modelStatus.isDownloading {
+            return "Download laeuft"
+        }
+        return modelStatus.isDownloaded ? "Bereit" : "Noch nicht geladen"
+    }
+
+    var hotkeyRiskHint: String? {
+        let source = isCapturingHotkey && !hotkeyCapturePreview.isEmpty ? hotkeyCapturePreview : settings.hotkey
+        return isSingleKeyHotkey(source)
+            ? "Eine einzelne globale Taste kann mit normaler Texteingabe kollidieren. Kombinationen bleiben sicherer."
+            : nil
+    }
+
     func binding<Value>(for keyPath: WritableKeyPath<AppSettings, Value>) -> Binding<Value> {
         Binding(
             get: { self.settings[keyPath: keyPath] },
             set: { newValue in
                 self.settings[keyPath: keyPath] = newValue
+                self.isDirty = true
+            }
+        )
+    }
+
+    func languageBinding() -> Binding<String> {
+        Binding(
+            get: { self.selectedLanguageCode },
+            set: { newValue in
+                self.settings.transcriptionLanguage = newValue == "auto" ? "auto" : newValue
                 self.isDirty = true
             }
         )
@@ -181,7 +226,7 @@ final class AppModel: ObservableObject {
     func clearHotkeyCapture() {
         settings.hotkey = hotkeyBeforeCapture
         hotkeyCapturePreview = ""
-        hotkeyCaptureError = "Open Whisper braucht einen globalen Hotkey mit Zusatztaste."
+        hotkeyCaptureError = "Open Whisper braucht einen globalen Hotkey. Leere Eingaben sind nicht erlaubt."
         isCapturingHotkey = false
     }
 
@@ -249,4 +294,9 @@ final class AppModel: ObservableObject {
         bridgeError = error.localizedDescription
         onStateChanged?()
     }
+}
+
+private func isSingleKeyHotkey(_ hotkey: String) -> Bool {
+    let normalized = hotkey.trimmingCharacters(in: .whitespacesAndNewlines)
+    return !normalized.isEmpty && !normalized.contains("+")
 }

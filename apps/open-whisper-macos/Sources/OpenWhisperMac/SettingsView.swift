@@ -25,7 +25,6 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     DetailHeader(title: detailSection.title, subtitle: detailSection.subtitle)
-                    statusOverview
                     detailContent(for: detailSection)
                 }
                 .padding(24)
@@ -42,29 +41,6 @@ struct SettingsView: View {
 
     private var detailSection: SettingsSection {
         selectedSection ?? .recording
-    }
-
-    private var statusOverview: some View {
-        AppCard(title: "Statusuebersicht", subtitle: "Aktiver Stand aus Tray, Runtime und Bridge") {
-            HStack(spacing: 12) {
-                StatusBadge(title: "Hotkey", value: hotkeySummary, accent: .blue)
-                StatusBadge(title: "Runtime", value: runtimeLabel, accent: runtimeAccent)
-                StatusBadge(title: "Provider", value: model.runtime.providerSummary, accent: .green)
-            }
-
-            if !model.runtime.lastTranscript.isEmpty {
-                Divider()
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Letztes Transkript")
-                        .font(.subheadline.weight(.medium))
-                    Text(model.runtime.lastTranscript)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                        .lineLimit(4)
-                }
-            }
-        }
     }
 
     @ViewBuilder
@@ -99,8 +75,11 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
 
-                TextField("Sprache", text: model.binding(for: \.transcriptionLanguage))
-                    .textFieldStyle(.roundedBorder)
+                Picker("Sprache", selection: model.languageBinding()) {
+                    ForEach(model.availableLanguageOptions) { option in
+                        Text(option.label).tag(option.code)
+                    }
+                }
 
                 HStack {
                     Button("Geraete aktualisieren") {
@@ -117,6 +96,7 @@ struct SettingsView: View {
                     isCapturing: model.isCapturingHotkey,
                     preview: model.hotkeyCapturePreview,
                     errorText: model.hotkeyCaptureError,
+                    warningText: model.hotkeyRiskHint,
                     onStartCapture: { model.startHotkeyCapture() },
                     onCommit: { model.commitCapturedHotkey($0) },
                     onCancel: { model.cancelHotkeyCapture() },
@@ -135,34 +115,19 @@ struct SettingsView: View {
 
     private var modelContent: some View {
         VStack(alignment: .leading, spacing: 18) {
-            AppCard(title: "Standardmodell", subtitle: "Lokales Whisper mit drei festen Stufen") {
-                Picker("Modell", selection: Binding(
-                    get: { model.settings.localModel },
-                    set: { model.choosePreset($0) }
-                )) {
+            AppCard(title: "Standardmodell", subtitle: "Waehl das lokale Whisper-Modell fuer deinen Rechner") {
+                VStack(alignment: .leading, spacing: 12) {
                     ForEach(ModelPreset.allCases) { preset in
-                        Text(preset.label).tag(preset)
+                        ModelPresetTile(preset: preset, isSelected: model.settings.localModel == preset) {
+                            model.choosePreset(preset)
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
-
-                Text(model.settings.localModel.description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                MetricRow(label: "Backend", value: model.modelStatus.backendModelName)
-                MetricRow(label: "Status", value: model.modelStatus.summary)
             }
 
-            AppCard(title: "Modelldatei", subtitle: "Pfad und Download fuer das aktuell gewaehle Modell") {
-                TextField("Modellpfad", text: model.binding(for: \.localModelPath))
-                    .textFieldStyle(.roundedBorder)
-
-                Text(model.modelStatus.path)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-
+            AppCard(title: "Downloadstatus", subtitle: "Nur nutzerrelevante Infos zum aktuell gewaehlten Modell") {
+                MetricRow(label: "Auswahl", value: model.selectedModelDisplayName)
+                MetricRow(label: "Status", value: model.selectedModelStatusText)
                 if let progress = model.modelDownloadProgress {
                     ProgressView(value: progress) {
                         Text("Download")
@@ -235,7 +200,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Text("Das produktive Standard-Diktat bleibt lokal auf Whisper mit Klein, Mittel und Gross. Ollama und LM Studio bleiben optional.")
+                Text("Das produktive Standard-Diktat bleibt lokal auf Whisper Base, Whisper Small und Whisper Medium. Ollama und LM Studio bleiben optional.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -283,10 +248,18 @@ struct SettingsView: View {
 
     private var bottomBar: some View {
         HStack(spacing: 14) {
-            Text(model.bridgeError ?? model.runtime.lastStatus)
-                .font(.callout)
-                .foregroundStyle(model.bridgeError == nil ? Color.secondary : Color.red)
-                .lineLimit(2)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(model.bridgeError ?? model.runtime.lastStatus)
+                    .font(.callout)
+                    .foregroundStyle(model.bridgeError == nil ? Color.secondary : Color.red)
+                    .lineLimit(2)
+
+                HStack(spacing: 8) {
+                    InlineStatusPill(title: "Hotkey", value: hotkeyDisplayString(model.hotkeyDisplayText), accent: .blue)
+                    InlineStatusPill(title: "Runtime", value: runtimeLabel, accent: runtimeAccent)
+                    InlineStatusPill(title: "Provider", value: model.activeProviderLabel, accent: .green)
+                }
+            }
 
             Spacer()
 
@@ -330,10 +303,6 @@ struct SettingsView: View {
             return "Transkription laeuft"
         }
         return "Bereit"
-    }
-
-    private var hotkeySummary: String {
-        hotkeyDisplayString(model.hotkeyDisplayText)
     }
 
     private var runtimeAccent: Color {

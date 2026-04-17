@@ -35,12 +35,10 @@ impl ModelDownloadManager {
 
         let target_path = resolve_model_path(settings)?;
         if target_path.exists() {
-            self.state = ModelDownloadState::Ready {
-                path: target_path.clone(),
-            };
+            self.state = ModelDownloadState::Ready { path: target_path.clone() };
             return Ok(format!(
-                "Modell ist bereits vorhanden: {}",
-                target_path.display()
+                "{} ist bereits vorhanden.",
+                settings.local_model.display_label()
             ));
         }
 
@@ -53,7 +51,6 @@ impl ModelDownloadManager {
         self.download_rx = Some(rx);
         self.state = ModelDownloadState::Downloading {
             preset,
-            path: target_path.clone(),
             downloaded_bytes: 0,
             total_bytes: None,
             started_at: Instant::now(),
@@ -67,10 +64,7 @@ impl ModelDownloadManager {
             }
         });
 
-        Ok(format!(
-            "Modelldownload fuer '{}' gestartet.",
-            preset.label()
-        ))
+        Ok(format!("Download fuer {} gestartet.", preset.display_label()))
     }
 
     pub fn delete_downloaded_model(&mut self, settings: &AppSettings) -> Result<String, String> {
@@ -82,18 +76,18 @@ impl ModelDownloadManager {
 
         let path = resolve_model_path(settings)?;
         if !path.exists() {
-            self.state = ModelDownloadState::Missing { path: path.clone() };
+            self.state = ModelDownloadState::Missing;
             return Ok(format!(
-                "Kein lokales Modell unter {} gefunden.",
-                path.display()
+                "{} war lokal bereits nicht vorhanden.",
+                settings.local_model.display_label()
             ));
         }
 
         fs::remove_file(&path)
             .map_err(|err| format!("Modell konnte nicht geloescht werden: {err}"))?;
-        self.state = ModelDownloadState::Missing { path: path.clone() };
+        self.state = ModelDownloadState::Missing;
 
-        Ok(format!("Lokales Modell geloescht: {}", path.display()))
+        Ok(format!("{} wurde lokal geloescht.", settings.local_model.display_label()))
     }
 
     pub fn poll(&mut self) -> Vec<String> {
@@ -120,11 +114,12 @@ impl ModelDownloadManager {
                         path,
                         downloaded_bytes,
                     }) => {
+                        let label = model_label_for_path(&path);
                         self.download_rx = None;
                         self.state = ModelDownloadState::Ready { path: path.clone() };
                         messages.push(format!(
-                            "Modelldownload abgeschlossen: {} ({})",
-                            path.display(),
+                            "Download abgeschlossen: {} ({})",
+                            label,
                             human_readable_size(downloaded_bytes)
                         ));
                         break;
@@ -162,7 +157,7 @@ impl ModelDownloadManager {
             self.state = if path.exists() {
                 ModelDownloadState::Ready { path }
             } else {
-                ModelDownloadState::Missing { path }
+                ModelDownloadState::Missing
             };
         }
     }
@@ -185,13 +180,12 @@ impl ModelDownloadManager {
     pub fn summary(&self, settings: &AppSettings) -> String {
         match &self.state {
             ModelDownloadState::Idle => summary_for_path(resolve_model_path(settings).ok()),
-            ModelDownloadState::Missing { path } => {
-                format!("Lokales Modell fehlt unter {}.", path.display())
+            ModelDownloadState::Missing => {
+                format!("{} ist noch nicht heruntergeladen.", settings.local_model.display_label())
             }
             ModelDownloadState::Ready { path } => summary_for_existing_path(path),
             ModelDownloadState::Downloading {
                 preset,
-                path,
                 downloaded_bytes,
                 total_bytes,
                 started_at,
@@ -205,9 +199,8 @@ impl ModelDownloadManager {
                     _ => format!("{} geladen", human_readable_size(*downloaded_bytes)),
                 };
                 format!(
-                    "Download fuer '{}' nach {} laeuft seit {} ({progress}).",
-                    preset.label(),
-                    path.display(),
+                    "Download fuer {} laeuft seit {} ({progress}).",
+                    preset.display_label(),
                     human_readable_duration(started_at.elapsed())
                 )
             }
@@ -220,15 +213,12 @@ impl ModelDownloadManager {
 
 enum ModelDownloadState {
     Idle,
-    Missing {
-        path: PathBuf,
-    },
+    Missing,
     Ready {
         path: PathBuf,
     },
     Downloading {
         preset: ModelPreset,
-        path: PathBuf,
         downloaded_bytes: u64,
         total_bytes: Option<u64>,
         started_at: Instant,
@@ -352,7 +342,7 @@ fn cleanup_temp_file(path: &Path) -> Result<(), String> {
 fn summary_for_path(path: Option<PathBuf>) -> String {
     match path {
         Some(path) if path.exists() => summary_for_existing_path(&path),
-        Some(path) => format!("Lokales Modell fehlt unter {}.", path.display()),
+        Some(_) => "Lokales Modell ist noch nicht heruntergeladen.".to_owned(),
         None => "Lokaler Modellpfad ist aktuell nicht aufloesbar.".to_owned(),
     }
 }
@@ -360,11 +350,19 @@ fn summary_for_path(path: Option<PathBuf>) -> String {
 fn summary_for_existing_path(path: &Path) -> String {
     match fs::metadata(path) {
         Ok(metadata) => format!(
-            "Lokales Modell bereit: {} ({})",
-            path.display(),
+            "Lokales Modell bereit ({})",
             human_readable_size(metadata.len())
         ),
-        Err(_) => format!("Lokales Modell bereit: {}", path.display()),
+        Err(_) => "Lokales Modell bereit.".to_owned(),
+    }
+}
+
+fn model_label_for_path(path: &Path) -> &'static str {
+    match path.file_name().and_then(|value| value.to_str()) {
+        Some("ggml-base.bin") => "Whisper Base (klein)",
+        Some("ggml-small.bin") => "Whisper Small (mittel)",
+        Some("ggml-medium.bin") => "Whisper Medium (gross)",
+        _ => "lokales Modell",
     }
 }
 

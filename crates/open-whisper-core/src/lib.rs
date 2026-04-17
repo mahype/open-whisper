@@ -73,6 +73,14 @@ impl ModelPreset {
         }
     }
 
+    pub fn display_label(self) -> &'static str {
+        match self {
+            Self::Light => "Whisper Base (klein)",
+            Self::Standard => "Whisper Small (mittel)",
+            Self::Quality => "Whisper Medium (gross)",
+        }
+    }
+
     pub fn whisper_model(self) -> &'static str {
         match self {
             Self::Light => "base",
@@ -222,7 +230,7 @@ impl Default for AppSettings {
             input_device_name: "System Default".to_owned(),
             hotkey: "Ctrl+Shift+Space".to_owned(),
             trigger_mode: TriggerMode::default(),
-            transcription_language: "de".to_owned(),
+            transcription_language: "auto".to_owned(),
             insert_text_automatically: true,
             insert_delay_ms: 120,
             restore_clipboard_after_insert: true,

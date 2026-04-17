@@ -217,7 +217,7 @@ impl BridgeRuntime {
             .map(|progress| (progress.clamp(0.0, 1.0) * 10_000.0).round() as u16);
 
         ModelStatusDto {
-            preset_label: self.settings.local_model.label().to_owned(),
+            preset_label: self.settings.local_model.display_label().to_owned(),
             backend_model_name: self.settings.local_model.whisper_model().to_owned(),
             path,
             summary: self.model_downloads.summary(&self.settings),
@@ -477,13 +477,34 @@ fn validate_hotkey_text(raw_hotkey: &str) -> Result<String, String> {
         return Err("Hotkey darf nicht leer sein.".to_owned());
     }
 
-    let parsed: HotKey = hotkey
-        .parse()
-        .map_err(|err| format!("Hotkey '{hotkey}' ist ungueltig: {err}"))?;
+    let _: HotKey = hotkey.parse().map_err(|err| {
+        let normalized = hotkey.to_ascii_lowercase();
+        let tokens: Vec<_> = normalized.split('+').map(str::trim).collect();
+        let modifier_only = !tokens.is_empty()
+            && tokens.iter().all(|token| {
+                matches!(
+                    *token,
+                    "shift"
+                        | "ctrl"
+                        | "control"
+                        | "cmd"
+                        | "command"
+                        | "super"
+                        | "option"
+                        | "alt"
+                        | "cmdorctrl"
+                        | "commandorcontrol"
+                        | "commandorctrl"
+                        | "cmdorcontrol"
+                )
+            });
 
-    if parsed.mods.is_empty() {
-        return Err("Hotkey braucht mindestens eine Zusatztaste wie Cmd, Ctrl, Shift oder Option.".to_owned());
-    }
+        if modifier_only {
+            "Hotkey braucht neben Zusatztasten auch eine echte Taste wie Space, R oder F8.".to_owned()
+        } else {
+            format!("Hotkey '{hotkey}' ist ungueltig: {err}")
+        }
+    })?;
 
     Ok(hotkey.to_owned())
 }
@@ -602,14 +623,20 @@ mod tests {
     }
 
     #[test]
-    fn validate_hotkey_rejects_missing_modifiers() {
-        let error = validate_hotkey_text("Space").unwrap_err();
-        assert!(error.contains("mindestens eine Zusatztaste"));
+    fn validate_hotkey_rejects_modifier_only_combo() {
+        let error = validate_hotkey_text("Ctrl+Shift").unwrap_err();
+        assert!(error.contains("echte Taste"));
     }
 
     #[test]
     fn validate_hotkey_accepts_trimmed_combo() {
         let validated = validate_hotkey_text("  Cmd+Shift+Space  ").unwrap();
         assert_eq!(validated, "Cmd+Shift+Space");
+    }
+
+    #[test]
+    fn validate_hotkey_accepts_single_key() {
+        let validated = validate_hotkey_text("F8").unwrap();
+        assert_eq!(validated, "F8");
     }
 }

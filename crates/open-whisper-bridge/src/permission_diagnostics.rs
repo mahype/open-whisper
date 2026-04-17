@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use open_whisper_core::{AppSettings, DiagnosticItemDto, DiagnosticStatus, DiagnosticsDto};
 
 use crate::{dictation::DictationController, hotkey::HotKeyController, model_manager};
@@ -59,16 +57,15 @@ pub fn collect(
         Ok(path) if path.exists() => items.push(item(
             "Lokales Modell",
             DiagnosticStatus::Ok,
-            &model_ready_message(path),
+            &model_ready_message(settings),
             "Das lokale Diktat ist einsatzbereit.",
         )),
-        Ok(path) => items.push(item(
+        Ok(_) => items.push(item(
             "Lokales Modell",
             DiagnosticStatus::Warning,
             &format!(
-                "Das Modell '{}' liegt noch nicht unter {}.",
-                settings.local_model.label(),
-                path.display()
+                "{} ist noch nicht heruntergeladen.",
+                settings.local_model.display_label()
             ),
             "Lade das ausgewaehlte Modell vor dem ersten Diktat herunter.",
         )),
@@ -177,8 +174,8 @@ fn item(
     }
 }
 
-fn model_ready_message(path: PathBuf) -> String {
-    format!("Lokales Modell gefunden unter {}.", path.display())
+fn model_ready_message(settings: &AppSettings) -> String {
+    format!("{} ist lokal verfuegbar.", settings.local_model.display_label())
 }
 
 #[cfg(test)]

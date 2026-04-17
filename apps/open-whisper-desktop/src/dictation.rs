@@ -268,9 +268,8 @@ impl DictationController {
 
         if !model_path.exists() {
             return Err(format!(
-                "Whisper-Modell fehlt: {}. Lade dort '{}' ab oder setze in den Einstellungen einen anderen Pfad.",
-                model_path.display(),
-                settings.local_model.default_filename()
+                "{} ist noch nicht heruntergeladen. Lade es zuerst in den Einstellungen herunter.",
+                settings.local_model.display_label()
             ));
         }
 

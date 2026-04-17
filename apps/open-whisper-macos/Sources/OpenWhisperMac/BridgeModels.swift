@@ -53,6 +53,17 @@ enum ModelPreset: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    var displayName: String {
+        switch self {
+        case .light:
+            return "Whisper Base (klein)"
+        case .standard:
+            return "Whisper Small (mittel)"
+        case .quality:
+            return "Whisper Medium (gross)"
+        }
+    }
+
     var whisperModel: String {
         switch self {
         case .light:
@@ -131,6 +142,35 @@ struct ExternalProviderSettings: Codable {
     var modelName: String
 }
 
+struct TranscriptionLanguageOption: Identifiable, Hashable {
+    let code: String
+    let label: String
+
+    var id: String { code }
+
+    static let automatic = TranscriptionLanguageOption(code: "auto", label: "Automatisch")
+
+    static let common: [TranscriptionLanguageOption] = [
+        .automatic,
+        TranscriptionLanguageOption(code: "de", label: "Deutsch"),
+        TranscriptionLanguageOption(code: "en", label: "Englisch"),
+        TranscriptionLanguageOption(code: "fr", label: "Franzoesisch"),
+        TranscriptionLanguageOption(code: "es", label: "Spanisch"),
+        TranscriptionLanguageOption(code: "it", label: "Italienisch"),
+        TranscriptionLanguageOption(code: "nl", label: "Niederlaendisch"),
+        TranscriptionLanguageOption(code: "pt", label: "Portugiesisch"),
+        TranscriptionLanguageOption(code: "tr", label: "Tuerkisch"),
+    ]
+
+    static func option(for storedValue: String) -> TranscriptionLanguageOption? {
+        let normalized = storedValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if normalized.isEmpty || normalized == "auto" {
+            return automatic
+        }
+        return common.first(where: { $0.code == normalized })
+    }
+}
+
 struct AppSettings: Codable {
     var onboardingCompleted: Bool
     var startupBehavior: StartupBehavior
@@ -156,7 +196,7 @@ struct AppSettings: Codable {
         inputDeviceName: "System Default",
         hotkey: "Ctrl+Shift+Space",
         triggerMode: .pushToTalk,
-        transcriptionLanguage: "de",
+        transcriptionLanguage: "auto",
         insertTextAutomatically: true,
         insertDelayMs: 120,
         restoreClipboardAfterInsert: true,
@@ -188,7 +228,7 @@ struct ModelStatusDTO: Codable {
     var progressBasisPoints: UInt16?
 
     static let empty = ModelStatusDTO(
-        presetLabel: "Mittel",
+        presetLabel: "Whisper Small (mittel)",
         backendModelName: "small",
         path: "",
         summary: "Noch kein Modellstatus geladen.",

@@ -7,6 +7,7 @@ struct HotkeyRecorderField: View {
     let isCapturing: Bool
     let preview: String
     let errorText: String?
+    let warningText: String?
     let onStartCapture: () -> Void
     let onCommit: (String) -> Void
     let onCancel: () -> Void
@@ -65,8 +66,12 @@ struct HotkeyRecorderField: View {
                 Text(errorText)
                     .font(.caption)
                     .foregroundStyle(.red)
+            } else if let warningText, !warningText.isEmpty {
+                Text(warningText)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             } else {
-                Text(isCapturing ? "Mindestens eine Zusatztaste plus Taste druecken. Escape bricht ab." : "Der neue Hotkey wird erst nach dem Speichern aktiv.")
+                Text(isCapturing ? "Einzelne Tasten oder Kombinationen sind moeglich. Escape bricht ab." : "Der neue Hotkey wird erst nach dem Speichern aktiv.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -157,11 +162,6 @@ private final class HotkeyCaptureView: NSView {
         }
 
         let modifierTokens = hotkeyModifierTokens(from: modifiers)
-        guard !modifierTokens.isEmpty else {
-            onInvalid?("Hotkey braucht mindestens eine Zusatztaste wie Cmd, Ctrl, Shift oder Option.")
-            return
-        }
-
         guard let keyToken = hotkeyKeyToken(for: event) else {
             onInvalid?("Diese Taste kann gerade nicht als Hotkey verwendet werden.")
             return

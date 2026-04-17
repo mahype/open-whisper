@@ -12,7 +12,7 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 18) {
                 DetailHeader(
                     title: "Open Whisper einrichten",
-                    subtitle: "Tray-first, lokal und fuer den Alltag vorbereitet. Standard bleibt lokales Whisper mit Klein, Mittel und Gross."
+                    subtitle: "Tray-first, lokal und fuer den Alltag vorbereitet. Standard bleibt lokales Whisper mit Whisper Base, Whisper Small und Whisper Medium."
                 )
 
                 ScrollView {
@@ -38,14 +38,14 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 18) {
                 AppCard(title: "Willkommen", subtitle: "Wie Open Whisper im Alltag arbeitet") {
                     Text("Open Whisper lebt in der Menueleiste, reagiert auf einen globalen Hotkey und fuegt den diktierten Text direkt in die aktive App ein.")
-                    Text("Ollama und LM Studio bleiben optional. Das Standard-Diktat nutzt immer lokales Whisper mit den Modellstufen Klein, Mittel und Gross.")
+                    Text("Ollama und LM Studio bleiben optional. Das Standard-Diktat nutzt immer lokales Whisper mit Whisper Base, Whisper Small und Whisper Medium.")
                         .foregroundStyle(.secondary)
                 }
 
                 AppCard(title: "Was du gleich festlegst", subtitle: "Die produktiven Basis-Einstellungen fuer den ersten Start") {
                     MetricRow(label: "Mikrofon", value: model.settings.inputDeviceName)
                     MetricRow(label: "Hotkey", value: hotkeyDisplayString(model.settings.hotkey))
-                    MetricRow(label: "Modell", value: model.settings.localModel.label)
+                    MetricRow(label: "Modell", value: model.selectedModelDisplayName)
                     MetricRow(label: "Systemstart", value: model.settings.startupBehavior.label)
                 }
             }
@@ -65,8 +65,11 @@ struct OnboardingView: View {
                     }
                     .pickerStyle(.segmented)
 
-                    TextField("Sprache", text: model.binding(for: \.transcriptionLanguage))
-                        .textFieldStyle(.roundedBorder)
+                    Picker("Sprache", selection: model.languageBinding()) {
+                        ForEach(model.availableLanguageOptions) { option in
+                            Text(option.label).tag(option.code)
+                        }
+                    }
 
                     HStack {
                         Button("Mikrofone neu laden") {
@@ -83,6 +86,7 @@ struct OnboardingView: View {
                         isCapturing: model.isCapturingHotkey,
                         preview: model.hotkeyCapturePreview,
                         errorText: model.hotkeyCaptureError,
+                        warningText: model.hotkeyRiskHint,
                         onStartCapture: { model.startHotkeyCapture() },
                         onCommit: { model.commitCapturedHotkey($0) },
                         onCancel: { model.cancelHotkeyCapture() },
@@ -94,22 +98,19 @@ struct OnboardingView: View {
             }
         case 2:
             VStack(alignment: .leading, spacing: 18) {
-                AppCard(title: "Lokales Standardmodell", subtitle: "Die drei festen Whisper-Stufen fuer produktives Diktat") {
-                    Picker("Standardmodell", selection: Binding(
-                        get: { model.settings.localModel },
-                        set: { model.choosePreset($0) }
-                    )) {
+                AppCard(title: "Lokales Standardmodell", subtitle: "Die drei festen Whisper-Modelle fuer produktives Diktat") {
+                    VStack(alignment: .leading, spacing: 12) {
                         ForEach(ModelPreset.allCases) { preset in
-                            Text(preset.label).tag(preset)
+                            ModelPresetTile(preset: preset, isSelected: model.settings.localModel == preset) {
+                                model.choosePreset(preset)
+                            }
                         }
                     }
-                    .pickerStyle(.segmented)
+                }
 
-                    Text(model.settings.localModel.description)
-                        .foregroundStyle(.secondary)
-
-                    MetricRow(label: "Status", value: model.modelStatus.summary)
-
+                AppCard(title: "Downloadstatus", subtitle: "Nur Status und Aktionen, keine Dateipfade") {
+                    MetricRow(label: "Auswahl", value: model.selectedModelDisplayName)
+                    MetricRow(label: "Status", value: model.selectedModelStatusText)
                     if let progress = model.modelDownloadProgress {
                         ProgressView(value: progress) {
                             Text("Download")
