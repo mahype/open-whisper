@@ -403,6 +403,11 @@ struct ModelPresetRequest {
     preset: Option<ModelPreset>,
 }
 
+#[derive(Deserialize)]
+struct HotkeyValidationRequest {
+    hotkey: String,
+}
+
 fn with_runtime<T>(f: impl FnOnce(&mut BridgeRuntime) -> Result<T, String>) -> Result<T, String> {
     RUNTIME.with(|runtime| {
         let mut runtime = runtime.borrow_mut();
@@ -464,6 +469,23 @@ fn parse_optional_preset(raw: *const c_char) -> Result<Option<ModelPreset>, Stri
 
     let request: ModelPresetRequest = parse_json_arg(raw, "ModelPresetRequest")?;
     Ok(request.preset)
+}
+
+fn validate_hotkey_text(raw_hotkey: &str) -> Result<String, String> {
+    let hotkey = raw_hotkey.trim();
+    if hotkey.is_empty() {
+        return Err("Hotkey darf nicht leer sein.".to_owned());
+    }
+
+    let parsed: HotKey = hotkey
+        .parse()
+        .map_err(|err| format!("Hotkey '{hotkey}' ist ungueltig: {err}"))?;
+
+    if parsed.mods.is_empty() {
+        return Err("Hotkey braucht mindestens eine Zusatztaste wie Cmd, Ctrl, Shift oder Option.".to_owned());
+    }
+
+    Ok(hotkey.to_owned())
 }
 
 #[unsafe(no_mangle)]
@@ -532,6 +554,16 @@ pub extern "C" fn ow_get_runtime_status() -> *mut c_char {
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn ow_validate_hotkey(request_json: *const c_char) -> *mut c_char {
+    let request = match parse_json_arg::<HotkeyValidationRequest>(request_json, "HotkeyValidationRequest") {
+        Ok(request) => request,
+        Err(err) => return response_from_result::<String>(Err(err)),
+    };
+
+    response_from_result(validate_hotkey_text(&request.hotkey))
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ow_string_free(raw: *mut c_char) {
     if raw.is_null() {
         return;
@@ -567,5 +599,17 @@ mod tests {
     #[test]
     fn diagnostics_status_is_stable_for_swift() {
         assert_eq!(DiagnosticStatus::Warning.label(), "Warnung");
+    }
+
+    #[test]
+    fn validate_hotkey_rejects_missing_modifiers() {
+        let error = validate_hotkey_text("Space").unwrap_err();
+        assert!(error.contains("mindestens eine Zusatztaste"));
+    }
+
+    #[test]
+    fn validate_hotkey_accepts_trimmed_combo() {
+        let validated = validate_hotkey_text("  Cmd+Shift+Space  ").unwrap();
+        assert_eq!(validated, "Cmd+Shift+Space");
     }
 }

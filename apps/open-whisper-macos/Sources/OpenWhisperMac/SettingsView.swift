@@ -2,100 +2,202 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    @State private var selectedSection: SettingsSection? = .recording
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Section("Status") {
-                    LabeledContent("Hotkey") {
-                        Text(model.runtime.hotkeyText)
+        NavigationSplitView {
+            List(SettingsSection.allCases, selection: $selectedSection) { section in
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(section.title)
+                        Text(section.subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    LabeledContent("Runtime") {
-                        Text(runtimeLabel)
-                    }
-                    LabeledContent("Provider") {
-                        Text(model.runtime.providerSummary)
-                    }
-                    if !model.runtime.lastTranscript.isEmpty {
-                        Text(model.runtime.lastTranscript)
-                            .font(.body)
-                            .textSelection(.enabled)
-                            .padding(.vertical, 4)
-                    }
+                } icon: {
+                    Image(systemName: section.symbolName)
                 }
-
-                Section("Aufnahme") {
-                    Picker("Mikrofon", selection: $model.settings.inputDeviceName) {
-                        ForEach(deviceNames, id: \.self) { device in
-                            Text(device).tag(device)
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    HStack {
-                        Button("Geraete aktualisieren") {
-                            model.refreshDevices()
-                        }
-                        Spacer()
-                    }
-
-                    TextField("Globaler Hotkey", text: $model.settings.hotkey)
-                    Picker("Modus", selection: $model.settings.triggerMode) {
-                        ForEach(TriggerMode.allCases) { mode in
-                            Text(mode.label).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    TextField("Sprache", text: $model.settings.transcriptionLanguage)
-                    Toggle("Text automatisch in aktive App einfuegen", isOn: $model.settings.insertTextAutomatically)
-                    Toggle("Clipboard nach Einfuegen wiederherstellen", isOn: $model.settings.restoreClipboardAfterInsert)
+                .tag(section)
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 260)
+        } detail: {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    DetailHeader(title: detailSection.title, subtitle: detailSection.subtitle)
+                    statusOverview
+                    detailContent(for: detailSection)
                 }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .background(Color(nsColor: .windowBackgroundColor))
+        }
+        .navigationSplitViewStyle(.balanced)
+        .safeAreaInset(edge: .bottom) {
+            bottomBar
+        }
+        .frame(minWidth: 920, minHeight: 660)
+    }
 
-                Section("Sprachmodell") {
-                    Picker("Standardmodell", selection: Binding(
-                        get: { model.settings.localModel },
-                        set: { model.choosePreset($0) }
-                    )) {
-                        ForEach(ModelPreset.allCases) { preset in
-                            Text(preset.label).tag(preset)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+    private var detailSection: SettingsSection {
+        selectedSection ?? .recording
+    }
 
-                    Text(model.settings.localModel.description)
-                        .font(.caption)
+    private var statusOverview: some View {
+        AppCard(title: "Statusuebersicht", subtitle: "Aktiver Stand aus Tray, Runtime und Bridge") {
+            HStack(spacing: 12) {
+                StatusBadge(title: "Hotkey", value: hotkeySummary, accent: .blue)
+                StatusBadge(title: "Runtime", value: runtimeLabel, accent: runtimeAccent)
+                StatusBadge(title: "Provider", value: model.runtime.providerSummary, accent: .green)
+            }
+
+            if !model.runtime.lastTranscript.isEmpty {
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Letztes Transkript")
+                        .font(.subheadline.weight(.medium))
+                    Text(model.runtime.lastTranscript)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .lineLimit(4)
+                }
+            }
+        }
+    }
 
-                    TextField("Modellpfad", text: $model.settings.localModelPath)
-                    Text(model.modelStatus.summary)
-                        .foregroundStyle(.secondary)
+    @ViewBuilder
+    private func detailContent(for section: SettingsSection) -> some View {
+        switch section {
+        case .recording:
+            recordingContent
+        case .model:
+            modelContent
+        case .startup:
+            startupContent
+        case .providers:
+            providersContent
+        case .diagnostics:
+            diagnosticsContent
+        }
+    }
 
-                    if let progress = model.modelDownloadProgress {
-                        ProgressView(value: progress)
-                    }
-
-                    HStack {
-                        Button(model.modelStatus.isDownloading ? "Download laeuft..." : "Modell herunterladen") {
-                            model.startModelDownload()
-                        }
-                        .disabled(model.modelStatus.isDownloading)
-
-                        Button("Lokales Modell loeschen") {
-                            model.deleteModel()
-                        }
-                        .disabled(model.modelStatus.isDownloading)
+    private var recordingContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AppCard(title: "Audioquelle", subtitle: "Mikrofon und Aufnahmemodus") {
+                Picker("Mikrofon", selection: model.binding(for: \.inputDeviceName)) {
+                    ForEach(deviceNames, id: \.self) { device in
+                        Text(device).tag(device)
                     }
                 }
 
-                Section("Start & Verhalten") {
-                    Picker("Startverhalten", selection: $model.settings.startupBehavior) {
-                        ForEach(StartupBehavior.allCases) { behavior in
-                            Text(behavior.label).tag(behavior)
-                        }
+                Picker("Modus", selection: model.binding(for: \.triggerMode)) {
+                    ForEach(TriggerMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
                     }
+                }
+                .pickerStyle(.segmented)
 
-                    Toggle("Voice Activity Detection aktivieren", isOn: $model.settings.vadEnabled)
+                TextField("Sprache", text: model.binding(for: \.transcriptionLanguage))
+                    .textFieldStyle(.roundedBorder)
+
+                HStack {
+                    Button("Geraete aktualisieren") {
+                        model.refreshDevices()
+                    }
+                    Spacer()
+                }
+            }
+
+            AppCard(title: "Globaler Hotkey", subtitle: "Wird erst nach dem Speichern neu registriert") {
+                HotkeyRecorderField(
+                    title: model.hotkeyFieldTitle,
+                    currentHotkey: model.settings.hotkey,
+                    isCapturing: model.isCapturingHotkey,
+                    preview: model.hotkeyCapturePreview,
+                    errorText: model.hotkeyCaptureError,
+                    onStartCapture: { model.startHotkeyCapture() },
+                    onCommit: { model.commitCapturedHotkey($0) },
+                    onCancel: { model.cancelHotkeyCapture() },
+                    onClear: { model.clearHotkeyCapture() },
+                    onPreview: { model.updateHotkeyCapturePreview($0) },
+                    onInvalid: { model.failHotkeyCapture($0) }
+                )
+            }
+
+            AppCard(title: "Textausgabe", subtitle: "Wie das Transkript in die aktive App gelangt") {
+                Toggle("Text automatisch in aktive App einfuegen", isOn: model.binding(for: \.insertTextAutomatically))
+                Toggle("Clipboard nach Einfuegen wiederherstellen", isOn: model.binding(for: \.restoreClipboardAfterInsert))
+            }
+        }
+    }
+
+    private var modelContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AppCard(title: "Standardmodell", subtitle: "Lokales Whisper mit drei festen Stufen") {
+                Picker("Modell", selection: Binding(
+                    get: { model.settings.localModel },
+                    set: { model.choosePreset($0) }
+                )) {
+                    ForEach(ModelPreset.allCases) { preset in
+                        Text(preset.label).tag(preset)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(model.settings.localModel.description)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                MetricRow(label: "Backend", value: model.modelStatus.backendModelName)
+                MetricRow(label: "Status", value: model.modelStatus.summary)
+            }
+
+            AppCard(title: "Modelldatei", subtitle: "Pfad und Download fuer das aktuell gewaehle Modell") {
+                TextField("Modellpfad", text: model.binding(for: \.localModelPath))
+                    .textFieldStyle(.roundedBorder)
+
+                Text(model.modelStatus.path)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+
+                if let progress = model.modelDownloadProgress {
+                    ProgressView(value: progress) {
+                        Text("Download")
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    Button(model.modelStatus.isDownloading ? "Download laeuft..." : "Modell herunterladen") {
+                        model.startModelDownload()
+                    }
+                    .disabled(model.modelStatus.isDownloading)
+
+                    Button("Lokales Modell loeschen") {
+                        model.deleteModel()
+                    }
+                    .disabled(model.modelStatus.isDownloading)
+                }
+            }
+        }
+    }
+
+    private var startupContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AppCard(title: "Systemstart", subtitle: "Wie Open Whisper beim Login startet") {
+                Picker("Startverhalten", selection: model.binding(for: \.startupBehavior)) {
+                    ForEach(StartupBehavior.allCases) { behavior in
+                        Text(behavior.label).tag(behavior)
+                    }
+                }
+            }
+
+            AppCard(title: "Diktatverhalten", subtitle: "Stopp bei Stille und Recorder-Verhalten") {
+                Toggle("Voice Activity Detection aktivieren", isOn: model.binding(for: \.vadEnabled))
+
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Silence-Stop")
                         Spacer()
@@ -105,79 +207,111 @@ struct SettingsView: View {
                     Slider(
                         value: Binding(
                             get: { Double(model.settings.vadSilenceMs) },
-                            set: { model.settings.vadSilenceMs = UInt32($0.rounded()) }
+                            set: {
+                                model.settings.vadSilenceMs = UInt32($0.rounded())
+                                model.isDirty = true
+                            }
                         ),
                         in: 300...2_500,
                         step: 50
                     )
                 }
-
-                Section("Optionale Provider") {
-                    Picker("Aktiver Provider", selection: $model.settings.activeProvider) {
-                        ForEach(ProviderKind.allCases) { provider in
-                            Text(provider.label).tag(provider)
-                        }
-                    }
-                    Text("Ollama und LM Studio bleiben optional. Das produktive Standard-Diktat laeuft lokal ueber Whisper mit Klein, Mittel und Gross.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    TextField("Ollama Endpoint", text: $model.settings.ollama.endpoint)
-                    TextField("Ollama Modell", text: $model.settings.ollama.modelName)
-                    TextField("LM Studio Endpoint", text: $model.settings.lmStudio.endpoint)
-                    TextField("LM Studio Modell", text: $model.settings.lmStudio.modelName)
-                }
-
-                Section("Diagnose") {
-                    Text(model.diagnostics.summary)
-                        .foregroundStyle(.secondary)
-                    ForEach(model.diagnostics.items) { item in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(item.title)
-                                    .font(.headline)
-                                Spacer()
-                                Text(item.status.label)
-                                    .font(.caption)
-                                    .foregroundStyle(color(for: item.status))
-                            }
-                            Text(item.problem)
-                            Text(item.recommendation)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 4)
-                    }
-
-                    HStack {
-                        Button("Diagnose aktualisieren") {
-                            model.refreshDiagnostics()
-                        }
-                        Button("System Settings oeffnen") {
-                            model.openSystemSettings()
-                        }
-                    }
-                }
             }
 
-            Divider()
-
-            HStack(spacing: 12) {
-                Text(model.bridgeError ?? model.runtime.lastStatus)
-                    .font(.callout)
-                    .foregroundColor(model.bridgeError == nil ? .secondary : .red)
-                    .lineLimit(2)
-                Spacer()
-                Button(model.runtime.isRecording ? "Diktat stoppen" : "Diktat starten") {
-                    model.toggleDictation()
-                }
-                Button("Speichern") {
-                    model.saveSettings()
-                }
-                .keyboardShortcut("s", modifiers: [.command])
+            AppCard(title: "Aktive Registrierung", subtitle: "Was im laufenden Prozess aktuell gilt") {
+                MetricRow(label: "Systemstart", value: model.runtime.startupSummary)
+                MetricRow(label: "Registrierter Hotkey", value: model.runtime.hotkeyText)
+                MetricRow(label: "Ausloesungen", value: "\(model.runtime.dictationTriggerCount)")
             }
-            .padding(16)
         }
-        .padding(.top, 12)
-        .frame(minWidth: 760, minHeight: 780)
+    }
+
+    private var providersContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AppCard(title: "Provider-Auswahl", subtitle: "Optional fuer spaetere Erweiterungen") {
+                Picker("Aktiver Provider", selection: model.binding(for: \.activeProvider)) {
+                    ForEach(ProviderKind.allCases) { provider in
+                        Text(provider.label).tag(provider)
+                    }
+                }
+
+                Text("Das produktive Standard-Diktat bleibt lokal auf Whisper mit Klein, Mittel und Gross. Ollama und LM Studio bleiben optional.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            AppCard(title: "Ollama", subtitle: "Optionaler lokaler Zusatzprovider") {
+                TextField("Endpoint", text: model.binding(for: \.ollama.endpoint))
+                    .textFieldStyle(.roundedBorder)
+                TextField("Modellname", text: model.binding(for: \.ollama.modelName))
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            AppCard(title: "LM Studio", subtitle: "Optionaler lokaler Zusatzprovider") {
+                TextField("Endpoint", text: model.binding(for: \.lmStudio.endpoint))
+                    .textFieldStyle(.roundedBorder)
+                TextField("Modellname", text: model.binding(for: \.lmStudio.modelName))
+                    .textFieldStyle(.roundedBorder)
+            }
+        }
+    }
+
+    private var diagnosticsContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AppCard(title: "Diagnose", subtitle: "Kompakte Uebersicht ueber Rechte, Tray und Systemstatus") {
+                Text(model.diagnostics.summary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 12) {
+                    Button("Diagnose aktualisieren") {
+                        model.refreshDiagnostics()
+                    }
+                    Button("System Settings oeffnen") {
+                        model.openSystemSettings()
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(model.diagnostics.items) { item in
+                    DiagnosticDisclosureCard(item: item)
+                }
+            }
+        }
+    }
+
+    private var bottomBar: some View {
+        HStack(spacing: 14) {
+            Text(model.bridgeError ?? model.runtime.lastStatus)
+                .font(.callout)
+                .foregroundStyle(model.bridgeError == nil ? Color.secondary : Color.red)
+                .lineLimit(2)
+
+            Spacer()
+
+            if model.isDirty {
+                Text("Ungespeicherte Aenderungen")
+                    .font(.caption.weight(.semibold))
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .background(Color.orange.opacity(0.14), in: Capsule())
+                    .foregroundStyle(.orange)
+            }
+
+            Button(model.runtime.isRecording ? "Diktat stoppen" : "Diktat starten") {
+                model.toggleDictation()
+            }
+
+            Button("Speichern") {
+                model.saveSettings()
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut("s", modifiers: [.command])
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 14)
+        .background(.regularMaterial)
     }
 
     private var deviceNames: [String] {
@@ -198,16 +332,17 @@ struct SettingsView: View {
         return "Bereit"
     }
 
-    private func color(for status: DiagnosticStatus) -> Color {
-        switch status {
-        case .ok:
-            return .green
-        case .info:
-            return .secondary
-        case .warning:
-            return .orange
-        case .error:
+    private var hotkeySummary: String {
+        hotkeyDisplayString(model.hotkeyDisplayText)
+    }
+
+    private var runtimeAccent: Color {
+        if model.runtime.isRecording {
             return .red
         }
+        if model.runtime.isTranscribing {
+            return .orange
+        }
+        return .green
     }
 }

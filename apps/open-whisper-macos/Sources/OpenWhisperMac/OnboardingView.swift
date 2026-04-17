@@ -5,148 +5,192 @@ struct OnboardingView: View {
     let onFinish: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Open Whisper einrichten")
-                    .font(.largeTitle)
-                Text("Tray-first, lokal, nativer macOS-Workflow. Das produktive Standard-Diktat bleibt auf den integrierten Whisper-Presets Klein, Mittel und Gross.")
-                    .foregroundStyle(.secondary)
-            }
+        HStack(spacing: 20) {
+            StepRail(currentStep: model.onboardingStep)
+                .frame(width: 220)
 
-            Text("Schritt \(model.onboardingStep + 1) von 4")
-                .font(.headline)
+            VStack(alignment: .leading, spacing: 18) {
+                DetailHeader(
+                    title: "Open Whisper einrichten",
+                    subtitle: "Tray-first, lokal und fuer den Alltag vorbereitet. Standard bleibt lokales Whisper mit Klein, Mittel und Gross."
+                )
 
-            GroupBox {
-                currentStep
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            HStack {
-                Button("Zurueck") {
-                    model.onboardingStep = max(0, model.onboardingStep - 1)
-                }
-                .disabled(model.onboardingStep == 0)
-
-                Spacer()
-
-                if model.onboardingStep == 3 {
-                    Button("Setup abschliessen") {
-                        model.completeOnboarding()
-                        onFinish()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        currentStep
                     }
-                    .keyboardShortcut(.defaultAction)
-                } else {
-                    Button("Weiter") {
-                        model.onboardingStep = min(3, model.onboardingStep + 1)
-                    }
-                    .keyboardShortcut(.defaultAction)
+                    .padding(.trailing, 4)
                 }
+
+                footer
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .padding(24)
-        .frame(minWidth: 680, minHeight: 560)
+        .frame(minWidth: 840, minHeight: 560)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     @ViewBuilder
     private var currentStep: some View {
         switch model.onboardingStep {
         case 0:
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Willkommen")
-                    .font(.title2)
-                Text("Open Whisper lebt in der Menueleiste, reagiert auf einen globalen Hotkey und fuegt den diktierten Text direkt in die aktive App ein.")
-                Text("Ollama und LM Studio bleiben optional. Standard ist lokales Whisper mit drei eingebauten Modellstufen.")
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 18) {
+                AppCard(title: "Willkommen", subtitle: "Wie Open Whisper im Alltag arbeitet") {
+                    Text("Open Whisper lebt in der Menueleiste, reagiert auf einen globalen Hotkey und fuegt den diktierten Text direkt in die aktive App ein.")
+                    Text("Ollama und LM Studio bleiben optional. Das Standard-Diktat nutzt immer lokales Whisper mit den Modellstufen Klein, Mittel und Gross.")
+                        .foregroundStyle(.secondary)
+                }
+
+                AppCard(title: "Was du gleich festlegst", subtitle: "Die produktiven Basis-Einstellungen fuer den ersten Start") {
+                    MetricRow(label: "Mikrofon", value: model.settings.inputDeviceName)
+                    MetricRow(label: "Hotkey", value: hotkeyDisplayString(model.settings.hotkey))
+                    MetricRow(label: "Modell", value: model.settings.localModel.label)
+                    MetricRow(label: "Systemstart", value: model.settings.startupBehavior.label)
+                }
             }
         case 1:
-            Form {
-                Picker("Mikrofon", selection: $model.settings.inputDeviceName) {
-                    ForEach(deviceNames, id: \.self) { device in
-                        Text(device).tag(device)
-                    }
-                }
-                TextField("Globaler Hotkey", text: $model.settings.hotkey)
-                Picker("Aufnahmemodus", selection: $model.settings.triggerMode) {
-                    ForEach(TriggerMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                TextField("Sprache", text: $model.settings.transcriptionLanguage)
-                HStack {
-                    Button("Mikrofone neu laden") {
-                        model.refreshDevices()
-                    }
-                    Spacer()
-                }
-            }
-            .formStyle(.grouped)
-        case 2:
-            Form {
-                Picker("Standardmodell", selection: Binding(
-                    get: { model.settings.localModel },
-                    set: { model.choosePreset($0) }
-                )) {
-                    ForEach(ModelPreset.allCases) { preset in
-                        Text(preset.label).tag(preset)
-                    }
-                }
-                .pickerStyle(.segmented)
-                Text(model.settings.localModel.description)
-                    .foregroundStyle(.secondary)
-                Text(model.modelStatus.summary)
-                    .foregroundStyle(.secondary)
-                if let progress = model.modelDownloadProgress {
-                    ProgressView(value: progress)
-                }
-                HStack {
-                    Button(model.modelStatus.isDownloading ? "Download laeuft..." : "Modell herunterladen") {
-                        model.startModelDownload()
-                    }
-                    .disabled(model.modelStatus.isDownloading)
-                    Button("Lokales Modell loeschen") {
-                        model.deleteModel()
-                    }
-                    .disabled(model.modelStatus.isDownloading)
-                }
-                Picker("Systemstart", selection: $model.settings.startupBehavior) {
-                    ForEach(StartupBehavior.allCases) { behavior in
-                        Text(behavior.label).tag(behavior)
-                    }
-                }
-            }
-            .formStyle(.grouped)
-        default:
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Diagnose und Rechte")
-                    .font(.title2)
-                Text(model.diagnostics.summary)
-                    .foregroundStyle(.secondary)
-                ForEach(model.diagnostics.items) { item in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(item.title)
-                                .font(.headline)
-                            Spacer()
-                            Text(item.status.label)
-                                .foregroundStyle(color(for: item.status))
+            VStack(alignment: .leading, spacing: 18) {
+                AppCard(title: "Audioquelle", subtitle: "Mikrofon, Sprache und Aufnahmemodus") {
+                    Picker("Mikrofon", selection: model.binding(for: \.inputDeviceName)) {
+                        ForEach(deviceNames, id: \.self) { device in
+                            Text(device).tag(device)
                         }
-                        Text(item.problem)
-                        Text(item.recommendation)
-                            .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, 4)
+
+                    Picker("Aufnahmemodus", selection: model.binding(for: \.triggerMode)) {
+                        ForEach(TriggerMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    TextField("Sprache", text: model.binding(for: \.transcriptionLanguage))
+                        .textFieldStyle(.roundedBorder)
+
+                    HStack {
+                        Button("Mikrofone neu laden") {
+                            model.refreshDevices()
+                        }
+                        Spacer()
+                    }
                 }
-                HStack {
-                    Button("Diagnose aktualisieren") {
-                        model.refreshDiagnostics()
+
+                AppCard(title: "Globaler Hotkey", subtitle: "Wird nach dem Setup in den Settings gespeichert und registriert") {
+                    HotkeyRecorderField(
+                        title: model.hotkeyFieldTitle,
+                        currentHotkey: model.settings.hotkey,
+                        isCapturing: model.isCapturingHotkey,
+                        preview: model.hotkeyCapturePreview,
+                        errorText: model.hotkeyCaptureError,
+                        onStartCapture: { model.startHotkeyCapture() },
+                        onCommit: { model.commitCapturedHotkey($0) },
+                        onCancel: { model.cancelHotkeyCapture() },
+                        onClear: { model.clearHotkeyCapture() },
+                        onPreview: { model.updateHotkeyCapturePreview($0) },
+                        onInvalid: { model.failHotkeyCapture($0) }
+                    )
+                }
+            }
+        case 2:
+            VStack(alignment: .leading, spacing: 18) {
+                AppCard(title: "Lokales Standardmodell", subtitle: "Die drei festen Whisper-Stufen fuer produktives Diktat") {
+                    Picker("Standardmodell", selection: Binding(
+                        get: { model.settings.localModel },
+                        set: { model.choosePreset($0) }
+                    )) {
+                        ForEach(ModelPreset.allCases) { preset in
+                            Text(preset.label).tag(preset)
+                        }
                     }
-                    Button("System Settings oeffnen") {
-                        model.openSystemSettings()
+                    .pickerStyle(.segmented)
+
+                    Text(model.settings.localModel.description)
+                        .foregroundStyle(.secondary)
+
+                    MetricRow(label: "Status", value: model.modelStatus.summary)
+
+                    if let progress = model.modelDownloadProgress {
+                        ProgressView(value: progress) {
+                            Text("Download")
+                        }
+                    }
+
+                    HStack(spacing: 12) {
+                        Button(model.modelStatus.isDownloading ? "Download laeuft..." : "Modell herunterladen") {
+                            model.startModelDownload()
+                        }
+                        .disabled(model.modelStatus.isDownloading)
+
+                        Button("Lokales Modell loeschen") {
+                            model.deleteModel()
+                        }
+                        .disabled(model.modelStatus.isDownloading)
+                    }
+                }
+
+                AppCard(title: "Startverhalten", subtitle: "Wie sich die App nach dem Login verhalten soll") {
+                    Picker("Systemstart", selection: model.binding(for: \.startupBehavior)) {
+                        ForEach(StartupBehavior.allCases) { behavior in
+                            Text(behavior.label).tag(behavior)
+                        }
+                    }
+
+                    Toggle("Text automatisch in aktive App einfuegen", isOn: model.binding(for: \.insertTextAutomatically))
+                    Toggle("Clipboard nach Einfuegen wiederherstellen", isOn: model.binding(for: \.restoreClipboardAfterInsert))
+                }
+            }
+        default:
+            VStack(alignment: .leading, spacing: 18) {
+                AppCard(title: "Diagnose und Rechte", subtitle: "Kompakte Hinweise fuer Mikrofon, Hotkey und Systemintegration") {
+                    Text(model.diagnostics.summary)
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 12) {
+                        Button("Diagnose aktualisieren") {
+                            model.refreshDiagnostics()
+                        }
+                        Button("System Settings oeffnen") {
+                            model.openSystemSettings()
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(model.diagnostics.items) { item in
+                        DiagnosticDisclosureCard(item: item)
                     }
                 }
             }
         }
+    }
+
+    private var footer: some View {
+        HStack {
+            Button("Zurueck") {
+                model.onboardingStep = max(0, model.onboardingStep - 1)
+            }
+            .disabled(model.onboardingStep == 0)
+
+            Spacer()
+
+            if model.onboardingStep == 3 {
+                Button("Setup abschliessen") {
+                    if model.completeOnboarding() {
+                        onFinish()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Weiter") {
+                    model.onboardingStep = min(3, model.onboardingStep + 1)
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(.top, 8)
     }
 
     private var deviceNames: [String] {
@@ -155,18 +199,5 @@ struct OnboardingView: View {
             return [model.settings.inputDeviceName]
         }
         return names
-    }
-
-    private func color(for status: DiagnosticStatus) -> Color {
-        switch status {
-        case .ok:
-            return .green
-        case .info:
-            return .secondary
-        case .warning:
-            return .orange
-        case .error:
-            return .red
-        }
     }
 }
