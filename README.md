@@ -15,6 +15,7 @@ Cross-platform voice-to-text desktop app in Rust.
 - Autostart handling with hidden background launch on supported desktop systems.
 - First-run onboarding with audio setup, model choice and startup selection.
 - Runtime permission diagnostics for microphone, tray, global hotkey and platform-specific hints.
+- Modernized desktop UI with a cleaner onboarding flow, dashboard cards and a custom light theme.
 
 ## Planned next steps
 
