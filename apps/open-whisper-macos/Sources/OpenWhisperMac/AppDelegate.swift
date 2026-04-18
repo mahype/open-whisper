@@ -150,24 +150,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
 
         let style = model.settings.waveformStyle
-        let window = recordingIndicatorWindow ?? makeRecordingIndicatorWindow(phase: phase, style: style)
+        let modeName = model.activeModeName
+        let window = recordingIndicatorWindow ?? makeRecordingIndicatorWindow(phase: phase, style: style, modeName: modeName)
         recordingIndicatorWindow = window
-        updateIndicatorPhase(window: window, phase: phase, style: style)
+        updateIndicatorPhase(window: window, phase: phase, style: style, modeName: modeName)
         positionRecordingIndicatorWindow(window)
         window.orderFrontRegardless()
     }
 
-    private func updateIndicatorPhase(window: NSWindow, phase: IndicatorPhase, style: WaveformStyle) {
+    private func updateIndicatorPhase(window: NSWindow, phase: IndicatorPhase, style: WaveformStyle, modeName: String) {
         guard let hosting = window.contentViewController as? NSHostingController<RecordingIndicatorView> else {
             return
         }
-        if hosting.rootView.phase != phase || hosting.rootView.style != style {
-            hosting.rootView = RecordingIndicatorView(phase: phase, style: style)
+        if hosting.rootView.phase != phase
+            || hosting.rootView.style != style
+            || hosting.rootView.modeName != modeName {
+            hosting.rootView = RecordingIndicatorView(phase: phase, style: style, modeName: modeName)
         }
     }
 
-    private func makeRecordingIndicatorWindow(phase: IndicatorPhase, style: WaveformStyle) -> NSWindow {
-        let size = NSSize(width: 240, height: 64)
+    private func makeRecordingIndicatorWindow(phase: IndicatorPhase, style: WaveformStyle, modeName: String) -> NSWindow {
+        let size = NSSize(width: 240, height: 78)
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -185,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
 
-        let hosting = NSHostingController(rootView: RecordingIndicatorView(phase: phase, style: style))
+        let hosting = NSHostingController(rootView: RecordingIndicatorView(phase: phase, style: style, modeName: modeName))
         hosting.view.frame = NSRect(origin: .zero, size: size)
         panel.contentViewController = hosting
         return panel
@@ -224,25 +227,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func makeWindow<Content: View>(title: String, size: NSSize, rootView: Content) -> NSWindow {
-        let window = NSWindow(
+        let window = OpaqueTitleWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = title
+        window.titlebarSeparatorStyle = .automatic
         window.center()
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: rootView)
-
-        window.styleMask.remove(.fullSizeContentView)
-        window.titlebarAppearsTransparent = false
-        window.titlebarSeparatorStyle = .automatic
-        DispatchQueue.main.async {
-            window.styleMask.remove(.fullSizeContentView)
-            window.titlebarAppearsTransparent = false
-            window.titlebarSeparatorStyle = .automatic
-        }
         return window
     }
 
@@ -251,5 +246,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Open Whisper")
         image?.isTemplate = true
         return image
+    }
+}
+
+final class OpaqueTitleWindow: NSWindow {
+    override var styleMask: NSWindow.StyleMask {
+        get { super.styleMask }
+        set {
+            var mask = newValue
+            mask.remove(.fullSizeContentView)
+            super.styleMask = mask
+        }
+    }
+
+    override var titlebarAppearsTransparent: Bool {
+        get { super.titlebarAppearsTransparent }
+        set { super.titlebarAppearsTransparent = false }
     }
 }
