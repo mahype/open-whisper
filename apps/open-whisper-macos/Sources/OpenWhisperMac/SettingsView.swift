@@ -6,27 +6,29 @@ struct SettingsView: View {
     @State private var isEditingMode: Bool = false
 
     var body: some View {
-        NavigationSplitView {
-            List(SettingsSection.allCases, selection: $selectedSection) { section in
-                Label(section.title, systemImage: section.symbolName)
-                    .tag(section)
-            }
-            .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 220)
-        } detail: {
-            Form {
-                detailContent(for: detailSection)
-            }
-            .formStyle(.grouped)
-            .navigationTitle(detailSection.title)
-            .sheet(isPresented: $isEditingMode) {
-                ModeEditorSheet(model: model) {
-                    isEditingMode = false
+        VStack(spacing: 0) {
+            NavigationSplitView {
+                List(SettingsSection.allCases, selection: $selectedSection) { section in
+                    Label(section.title, systemImage: section.symbolName)
+                        .tag(section)
+                }
+                .listStyle(.sidebar)
+                .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 220)
+            } detail: {
+                Form {
+                    detailContent(for: detailSection)
+                }
+                .formStyle(.grouped)
+                .navigationTitle(detailSection.title)
+                .sheet(isPresented: $isEditingMode) {
+                    ModeEditorSheet(model: model) {
+                        isEditingMode = false
+                    }
                 }
             }
-        }
-        .navigationSplitViewStyle(.balanced)
-        .safeAreaInset(edge: .bottom) {
+            .navigationSplitViewStyle(.balanced)
+
+            Divider()
             bottomBar
         }
         .frame(minWidth: 760, idealWidth: 860, minHeight: 560, idealHeight: 640)
