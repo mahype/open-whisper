@@ -113,7 +113,7 @@ impl LocalLlmRuntime {
         let prompt = build_gemma_chat_prompt(system_prompt, user_text);
         let tokens = loaded
             .model
-            .str_to_token(&prompt, AddBos::Never)
+            .str_to_token(&prompt, AddBos::Always)
             .map_err(|err| format!("LLM-Tokenisierung fehlgeschlagen: {err}"))?;
 
         if tokens.is_empty() {
@@ -247,16 +247,21 @@ pub fn maybe_unload_shared_runtime(auto_unload_secs: u32) {
     }
 }
 
-fn build_gemma_chat_prompt(system_prompt: &str, user_text: &str) -> String {
-    let system = system_prompt.trim();
-    let user = user_text.trim();
-    if system.is_empty() {
-        format!("<start_of_turn>user\n{user}<end_of_turn>\n<start_of_turn>model\n")
+fn build_gemma_chat_prompt(mode_instruction: &str, transcript: &str) -> String {
+    let instruction = mode_instruction.trim();
+    let text = transcript.trim();
+
+    let body = if instruction.is_empty() {
+        format!(
+            "Du bereinigst einen diktierten Text. Korrigiere Satzzeichen, Grossschreibung und offensichtliche Erkennungsfehler, ohne den Inhalt zu veraendern.\n\nText zum Bereinigen:\n{text}\n\nGib ausschliesslich den bereinigten Text zurueck, ohne Erklaerungen, Kommentare oder Anfuehrungszeichen."
+        )
     } else {
         format!(
-            "<start_of_turn>user\n{system}\n\n{user}<end_of_turn>\n<start_of_turn>model\n"
+            "Du ueberarbeitest einen diktierten Text nach folgender Anweisung. Wende die Anweisung auf den Text an, ohne die Anweisung selbst zurueckzugeben.\n\nAnweisung:\n{instruction}\n\nText zum Ueberarbeiten:\n{text}\n\nGib ausschliesslich den ueberarbeiteten Text zurueck, ohne Erklaerungen, Kommentare oder Anfuehrungszeichen."
         )
-    }
+    };
+
+    format!("<start_of_turn>user\n{body}<end_of_turn>\n<start_of_turn>model\n")
 }
 
 #[cfg(test)]
@@ -264,17 +269,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn gemma_prompt_wraps_system_and_user() {
-        let prompt = build_gemma_chat_prompt("Du bist hilfreich.", "Hallo Welt");
+    fn gemma_prompt_labels_instruction_and_text() {
+        let prompt = build_gemma_chat_prompt("Schreibe foermlicher.", "hallo welt");
         assert!(prompt.starts_with("<start_of_turn>user\n"));
-        assert!(prompt.contains("Du bist hilfreich.\n\nHallo Welt<end_of_turn>"));
+        assert!(prompt.contains("Anweisung:\nSchreibe foermlicher."));
+        assert!(prompt.contains("Text zum Ueberarbeiten:\nhallo welt"));
+        assert!(prompt.contains("ohne Erklaerungen"));
         assert!(prompt.ends_with("<start_of_turn>model\n"));
     }
 
     #[test]
-    fn gemma_prompt_omits_system_when_empty() {
-        let prompt = build_gemma_chat_prompt("   ", "Hallo");
-        assert!(prompt.starts_with("<start_of_turn>user\nHallo<end_of_turn>"));
+    fn gemma_prompt_falls_back_to_cleanup_when_instruction_empty() {
+        let prompt = build_gemma_chat_prompt("   ", "hallo welt");
+        assert!(prompt.contains("bereinigst"));
+        assert!(prompt.contains("Text zum Bereinigen:\nhallo welt"));
     }
 
     #[test]

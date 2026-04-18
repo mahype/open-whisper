@@ -17,17 +17,16 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
         return Ok(raw_transcript.to_owned());
     }
 
-    let system_prompt = build_system_prompt(&mode.prompt);
-
     let text = match provider {
         PostProcessingProvider::Disabled => raw_transcript.to_owned(),
         PostProcessingProvider::LocalLlm => local_llm::generate_with_shared_runtime(
             mode.local_llm,
-            &system_prompt,
+            &mode.prompt,
             raw_transcript,
         )?,
         PostProcessingProvider::Ollama => {
             let client = build_http_client()?;
+            let system_prompt = build_system_prompt(&mode.prompt);
             request_ollama(
                 &client,
                 &settings.ollama.endpoint,
@@ -38,6 +37,7 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
         }
         PostProcessingProvider::LmStudio => {
             let client = build_http_client()?;
+            let system_prompt = build_system_prompt(&mode.prompt);
             request_lm_studio(
                 &client,
                 &settings.lm_studio.endpoint,
