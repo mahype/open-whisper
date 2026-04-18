@@ -122,11 +122,120 @@ impl ModelPreset {
             }
         }
     }
+
+    pub fn download_size_bytes(self) -> u64 {
+        match self {
+            Self::Light => 147_951_465,
+            Self::Standard => 487_601_967,
+            Self::Quality => 1_533_763_059,
+        }
+    }
 }
 
 impl Default for ModelPreset {
     fn default() -> Self {
         Self::Standard
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LlmPreset {
+    Small,
+    Medium,
+    Large,
+}
+
+impl LlmPreset {
+    pub const ALL: [Self; 3] = [Self::Small, Self::Medium, Self::Large];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Small => "Klein",
+            Self::Medium => "Mittel",
+            Self::Large => "Gross",
+        }
+    }
+
+    pub fn display_label(self) -> &'static str {
+        match self {
+            Self::Small => "Qwen 2.5 1.5B (klein)",
+            Self::Medium => "Qwen 2.5 3B (mittel)",
+            Self::Large => "Qwen 2.5 7B (gross)",
+        }
+    }
+
+    pub fn default_filename(self) -> &'static str {
+        match self {
+            Self::Small => "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+            Self::Medium => "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+            Self::Large => "Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+        }
+    }
+
+    pub fn description(self) -> &'static str {
+        match self {
+            Self::Small => {
+                "Kleines Sprachmodell fuer 8 GB RAM. Schnell, aber einfachere Nachverarbeitung."
+            }
+            Self::Medium => {
+                "Mittleres Sprachmodell als guter Standard fuer 16 GB RAM und mehr."
+            }
+            Self::Large => {
+                "Grosses Sprachmodell mit bester Qualitaet, braucht 24 GB RAM oder mehr."
+            }
+        }
+    }
+
+    pub fn approx_size_label(self) -> &'static str {
+        match self {
+            Self::Small => "ca. 1.0 GB",
+            Self::Medium => "ca. 1.9 GB",
+            Self::Large => "ca. 4.7 GB",
+        }
+    }
+
+    pub fn approx_ram_mb(self) -> u64 {
+        match self {
+            Self::Small => 2_048,
+            Self::Medium => 4_096,
+            Self::Large => 8_192,
+        }
+    }
+
+    pub fn context_size(self) -> u32 {
+        match self {
+            Self::Small | Self::Medium => 2_048,
+            Self::Large => 4_096,
+        }
+    }
+
+    pub fn download_url(self) -> &'static str {
+        match self {
+            Self::Small => {
+                "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
+            }
+            Self::Medium => {
+                "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+            }
+            Self::Large => {
+                "https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/main/Qwen2.5-7B-Instruct-Q4_K_M.gguf"
+            }
+        }
+    }
+
+    pub fn download_size_bytes(self) -> u64 {
+        match self {
+            Self::Small => 986_047_616,
+            Self::Medium => 1_929_902_592,
+            Self::Large => 4_683_073_472,
+        }
+    }
+}
+
+impl Default for LlmPreset {
+    fn default() -> Self {
+        Self::Medium
     }
 }
 
@@ -158,16 +267,23 @@ impl Default for ProviderKind {
 #[serde(rename_all = "snake_case")]
 pub enum PostProcessingProvider {
     Disabled,
+    LocalLlm,
     Ollama,
     LmStudio,
 }
 
 impl PostProcessingProvider {
-    pub const ALL: [Self; 3] = [Self::Disabled, Self::Ollama, Self::LmStudio];
+    pub const ALL: [Self; 4] = [
+        Self::LocalLlm,
+        Self::Disabled,
+        Self::Ollama,
+        Self::LmStudio,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
             Self::Disabled => "Aus",
+            Self::LocalLlm => "Lokales Modell",
             Self::Ollama => "Ollama",
             Self::LmStudio => "LM Studio",
         }
@@ -221,9 +337,19 @@ impl ProcessingMode {
         }
     }
 
+    pub fn cleanup() -> Self {
+        Self {
+            id: "cleanup".to_owned(),
+            name: "Aufraeumen".to_owned(),
+            post_processing_provider: PostProcessingProvider::LocalLlm,
+            prompt: "Korrigiere Satzzeichen, Grossschreibung und offensichtliche Erkennungsfehler im diktierten Text, ohne den Inhalt zu veraendern. Gib nur den bereinigten Text zurueck.".to_owned(),
+        }
+    }
+
     pub fn post_processing_summary(&self) -> &'static str {
         match self.post_processing_provider {
             PostProcessingProvider::Disabled => "Direktes Diktat ohne Nachverarbeitung",
+            PostProcessingProvider::LocalLlm => "Nachverarbeitung ueber lokales Sprachmodell",
             PostProcessingProvider::Ollama => "Nachverarbeitung ueber Ollama",
             PostProcessingProvider::LmStudio => "Nachverarbeitung ueber LM Studio",
         }
@@ -254,6 +380,9 @@ pub struct AppSettings {
     pub show_recording_indicator: bool,
     pub local_model: ModelPreset,
     pub local_model_path: String,
+    pub local_llm: LlmPreset,
+    pub local_llm_path: String,
+    pub local_llm_auto_unload_secs: u32,
     pub active_provider: ProviderKind,
     pub ollama: ExternalProviderSettings,
     pub lm_studio: ExternalProviderSettings,
@@ -265,6 +394,7 @@ impl AppSettings {
     pub fn normalize(&mut self) {
         if self.modes.is_empty() {
             self.modes.push(ProcessingMode::standard());
+            self.modes.push(ProcessingMode::cleanup());
         }
 
         if !self.modes.iter().any(|mode| mode.id == "standard") {
@@ -311,6 +441,11 @@ impl AppSettings {
                 "Lokales Whisper mit {}",
                 self.local_model.display_label()
             ),
+            PostProcessingProvider::LocalLlm => format!(
+                "Lokales Whisper + {} im Modus '{}'",
+                self.local_llm.display_label(),
+                mode.name
+            ),
             PostProcessingProvider::Ollama => format!(
                 "Lokales Whisper + Ollama im Modus '{}'",
                 mode.name
@@ -341,10 +476,13 @@ impl Default for AppSettings {
             show_recording_indicator: false,
             local_model: ModelPreset::default(),
             local_model_path: String::new(),
+            local_llm: LlmPreset::default(),
+            local_llm_path: String::new(),
+            local_llm_auto_unload_secs: 180,
             active_provider: ProviderKind::default(),
             ollama: ExternalProviderSettings::ollama_defaults(),
             lm_studio: ExternalProviderSettings::lm_studio_defaults(),
-            modes: vec![ProcessingMode::standard()],
+            modes: vec![ProcessingMode::standard(), ProcessingMode::cleanup()],
             active_mode_id: "standard".to_owned(),
         }
     }
@@ -365,6 +503,20 @@ pub struct ModelStatusDto {
     pub is_downloaded: bool,
     pub is_downloading: bool,
     pub progress_basis_points: Option<u16>,
+    pub expected_size_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LlmModelStatusDto {
+    pub preset_label: String,
+    pub display_label: String,
+    pub path: String,
+    pub summary: String,
+    pub is_downloaded: bool,
+    pub is_downloading: bool,
+    pub is_loaded: bool,
+    pub progress_basis_points: Option<u16>,
+    pub expected_size_bytes: u64,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -500,7 +652,46 @@ mod tests {
 
         settings.normalize();
 
-        assert_eq!(settings.modes.len(), 1);
+        assert_eq!(settings.modes.len(), 2);
+        assert_eq!(settings.modes[0].id, "standard");
+        assert_eq!(settings.modes[1].id, "cleanup");
         assert_eq!(settings.active_mode_id, "standard");
+    }
+
+    #[test]
+    fn cleanup_mode_uses_local_llm_provider() {
+        let cleanup = ProcessingMode::cleanup();
+        assert_eq!(cleanup.id, "cleanup");
+        assert_eq!(
+            cleanup.post_processing_provider,
+            PostProcessingProvider::LocalLlm
+        );
+        assert!(!cleanup.prompt.is_empty());
+    }
+
+    #[test]
+    fn llm_preset_medium_is_default() {
+        assert_eq!(LlmPreset::default(), LlmPreset::Medium);
+    }
+
+    #[test]
+    fn llm_preset_small_download_url_contains_1_5b() {
+        assert!(LlmPreset::Small.download_url().contains("1.5B"));
+    }
+
+    #[test]
+    fn local_llm_provider_summary_mentions_mode() {
+        let mut settings = AppSettings::default();
+        settings.modes.push(ProcessingMode {
+            id: "email".to_owned(),
+            name: "Email".to_owned(),
+            post_processing_provider: PostProcessingProvider::LocalLlm,
+            prompt: "Formatiere als Email.".to_owned(),
+        });
+        settings.active_mode_id = "email".to_owned();
+
+        let summary = settings.active_provider_summary();
+        assert!(summary.contains("Email"));
+        assert!(summary.contains("Qwen"));
     }
 }

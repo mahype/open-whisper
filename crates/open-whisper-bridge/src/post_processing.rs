@@ -24,6 +24,11 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
 
     let text = match provider {
         PostProcessingProvider::Disabled => raw_transcript.to_owned(),
+        PostProcessingProvider::LocalLlm => {
+            return Err(
+                "Lokales Sprachmodell ist noch nicht verdrahtet (siehe process_text_with_runtime).".to_owned(),
+            );
+        }
         PostProcessingProvider::Ollama => request_ollama(
             &client,
             &settings.ollama.endpoint,
