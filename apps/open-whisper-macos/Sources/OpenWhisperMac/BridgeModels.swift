@@ -35,6 +35,38 @@ enum TriggerMode: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum WaveformStyle: String, CaseIterable, Identifiable {
+    case centeredBars = "centered_bars"
+    case line
+    case envelope
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .centeredBars:
+            return "Zentrierte Balken"
+        case .line:
+            return "Linie"
+        case .envelope:
+            return "Welle"
+        }
+    }
+}
+
+extension WaveformStyle: Codable {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        self = WaveformStyle(rawValue: raw) ?? .centeredBars
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
 enum ModelPreset: String, Codable, CaseIterable, Identifiable {
     case light
     case standard
@@ -249,6 +281,7 @@ struct AppSettings: Codable, Equatable {
     var vadThreshold: Float
     var vadSilenceMs: UInt32
     var showRecordingIndicator: Bool
+    var waveformStyle: WaveformStyle
     var localModel: ModelPreset
     var localModelPath: String
     var activeProvider: ProviderKind
@@ -271,6 +304,7 @@ struct AppSettings: Codable, Equatable {
         vadThreshold: 0.014,
         vadSilenceMs: 900,
         showRecordingIndicator: true,
+        waveformStyle: .centeredBars,
         localModel: .standard,
         localModelPath: "",
         activeProvider: .localWhisper,

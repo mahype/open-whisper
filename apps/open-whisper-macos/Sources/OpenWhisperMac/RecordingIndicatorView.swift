@@ -10,7 +10,8 @@ enum IndicatorPhase: Equatable {
 final class RecordingLevelFeed: ObservableObject {
     static let barCount = 28
     static let pollingInterval: TimeInterval = 1.0 / 30.0
-    static let levelGain: Float = 8.0
+    static let levelGain: Float = 2.8
+    static let noiseFloor: Float = 0.002
 
     @Published private(set) var bars: [Float] = Array(repeating: 0, count: RecordingLevelFeed.barCount)
 
@@ -19,11 +20,13 @@ final class RecordingLevelFeed: ObservableObject {
 
     func start() {
         stop()
-        timer = Timer.scheduledTimer(withTimeInterval: Self.pollingInterval, repeats: true) { [weak self] _ in
+        let newTimer = Timer(timeInterval: Self.pollingInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.tick()
             }
         }
+        RunLoop.main.add(newTimer, forMode: .common)
+        timer = newTimer
     }
 
     func stop() {
@@ -50,6 +53,8 @@ final class RecordingLevelFeed: ObservableObject {
 
 struct RecordingIndicatorView: View {
     let phase: IndicatorPhase
+    var style: WaveformStyle = .centeredBars
+    var modeName: String = ""
     @StateObject private var feed = RecordingLevelFeed()
 
     var body: some View {
@@ -59,8 +64,8 @@ struct RecordingIndicatorView: View {
             content
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(width: 240, height: 64)
+        .padding(.vertical, 10)
+        .frame(width: 240, height: 78)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -82,7 +87,12 @@ struct RecordingIndicatorView: View {
     private var content: some View {
         switch phase {
         case .recording:
-            waveform
+            VStack(spacing: 4) {
+                waveform
+                    .frame(maxHeight: .infinity)
+                modeLabel
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .transcribing:
             processingRow(text: "Transkribiere...")
         case .postProcessing:
@@ -90,7 +100,31 @@ struct RecordingIndicatorView: View {
         }
     }
 
+    @ViewBuilder
+    private var modeLabel: some View {
+        if !modeName.isEmpty {
+            Text(modeName)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    @ViewBuilder
     private var waveform: some View {
+        switch style {
+        case .centeredBars:
+            centeredBars
+        case .line:
+            lineWave
+        case .envelope:
+            envelopeWave
+        }
+    }
+
+    private var centeredBars: some View {
         HStack(spacing: 3) {
             ForEach(Array(feed.bars.enumerated()), id: \.offset) { _, level in
                 Capsule()
@@ -100,6 +134,83 @@ struct RecordingIndicatorView: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var lineWave: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .center) {
+                Rectangle()
+                    .fill(Color.accentColor.opacity(0.18))
+                    .frame(height: 1)
+
+                envelopePath(in: geo.size, direction: .up)
+                    .stroke(Color.accentColor,
+                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                envelopePath(in: geo.size, direction: .down)
+                    .stroke(Color.accentColor.opacity(0.85),
+                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .animation(.linear(duration: RecordingLevelFeed.pollingInterval), value: feed.bars)
+            .drawingGroup()
+        }
+    }
+
+    private var envelopeWave: some View {
+        GeometryReader { geo in
+            filledEnvelopePath(in: geo.size)
+                .fill(Color.accentColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(.linear(duration: RecordingLevelFeed.pollingInterval), value: feed.bars)
+                .drawingGroup()
+        }
+    }
+
+    private enum EnvelopeDirection { case up, down }
+
+    private func envelopePath(in size: CGSize, direction: EnvelopeDirection) -> Path {
+        let width = size.width
+        let height = size.height
+        let mid = height / 2
+        let bars = feed.bars
+        let count = bars.count
+        guard count > 0 else { return Path() }
+        let step = count > 1 ? width / CGFloat(count - 1) : 0
+
+        return Path { path in
+            path.move(to: CGPoint(x: 0, y: mid))
+            for (i, level) in bars.enumerated() {
+                let amp = normalizedLevel(level) * mid
+                let x = CGFloat(i) * step
+                let y: CGFloat = direction == .up ? (mid - amp) : (mid + amp)
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+            path.addLine(to: CGPoint(x: width, y: mid))
+        }
+    }
+
+    private func filledEnvelopePath(in size: CGSize) -> Path {
+        let width = size.width
+        let height = size.height
+        let mid = height / 2
+        let bars = feed.bars
+        let count = bars.count
+        guard count > 0 else { return Path() }
+        let step = count > 1 ? width / CGFloat(count - 1) : 0
+
+        return Path { path in
+            path.move(to: CGPoint(x: 0, y: mid))
+            for (i, level) in bars.enumerated() {
+                let amp = normalizedLevel(level) * mid
+                path.addLine(to: CGPoint(x: CGFloat(i) * step, y: mid - amp))
+            }
+            path.addLine(to: CGPoint(x: width, y: mid))
+            for (i, level) in bars.enumerated().reversed() {
+                let amp = normalizedLevel(level) * mid
+                path.addLine(to: CGPoint(x: CGFloat(i) * step, y: mid + amp))
+            }
+            path.closeSubpath()
+        }
     }
 
     private func processingRow(text: String) -> some View {
@@ -123,7 +234,13 @@ struct RecordingIndicatorView: View {
     }
 
     private func barHeight(for level: Float) -> CGFloat {
-        let normalized = min(1.0, max(0.0, CGFloat(level * RecordingLevelFeed.levelGain)))
-        return max(3.0, normalized * 32.0)
+        return max(2.0, normalizedLevel(level) * 36.0)
+    }
+
+    private func normalizedLevel(_ level: Float) -> CGFloat {
+        guard level.isFinite else { return 0 }
+        let cleaned = max(0.0, level - RecordingLevelFeed.noiseFloor)
+        let curved = sqrt(cleaned) * RecordingLevelFeed.levelGain
+        return min(1.0, max(0.0, CGFloat(curved)))
     }
 }

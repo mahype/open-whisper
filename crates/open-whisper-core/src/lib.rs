@@ -46,6 +46,42 @@ impl TriggerMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum WaveformStyle {
+    #[default]
+    CenteredBars,
+    Line,
+    Envelope,
+}
+
+impl WaveformStyle {
+    pub const ALL: [Self; 3] = [Self::CenteredBars, Self::Line, Self::Envelope];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::CenteredBars => "Zentrierte Balken",
+            Self::Line => "Linie",
+            Self::Envelope => "Welle",
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for WaveformStyle {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        Ok(match raw.as_str() {
+            "centered_bars" => Self::CenteredBars,
+            "line" => Self::Line,
+            "envelope" => Self::Envelope,
+            _ => Self::default(),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
@@ -347,6 +383,7 @@ pub struct AppSettings {
     pub vad_threshold: f32,
     pub vad_silence_ms: u32,
     pub show_recording_indicator: bool,
+    pub waveform_style: WaveformStyle,
     pub local_model: ModelPreset,
     pub local_model_path: String,
     pub local_llm: LlmPreset,
@@ -440,6 +477,7 @@ impl Default for AppSettings {
             vad_threshold: 0.014,
             vad_silence_ms: 900,
             show_recording_indicator: true,
+            waveform_style: WaveformStyle::default(),
             local_model: ModelPreset::default(),
             local_model_path: String::new(),
             local_llm: LlmPreset::default(),
