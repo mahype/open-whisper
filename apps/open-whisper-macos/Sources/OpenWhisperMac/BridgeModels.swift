@@ -270,7 +270,7 @@ struct AppSettings: Codable, Equatable {
         vadEnabled: false,
         vadThreshold: 0.014,
         vadSilenceMs: 900,
-        showRecordingIndicator: false,
+        showRecordingIndicator: true,
         localModel: .standard,
         localModelPath: "",
         activeProvider: .localWhisper,

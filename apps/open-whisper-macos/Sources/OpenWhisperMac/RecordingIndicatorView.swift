@@ -1,5 +1,11 @@
 import SwiftUI
 
+enum IndicatorPhase: Equatable {
+    case recording
+    case transcribing
+    case postProcessing
+}
+
 @MainActor
 final class RecordingLevelFeed: ObservableObject {
     static let barCount = 28
@@ -43,35 +49,77 @@ final class RecordingLevelFeed: ObservableObject {
 }
 
 struct RecordingIndicatorView: View {
+    let phase: IndicatorPhase
     @StateObject private var feed = RecordingLevelFeed()
 
     var body: some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(Color.red)
-                .frame(width: 8, height: 8)
-                .shadow(color: Color.red.opacity(0.6), radius: 3)
+            statusDot
 
-            HStack(spacing: 3) {
-                ForEach(Array(feed.bars.enumerated()), id: \.offset) { _, level in
-                    Capsule()
-                        .fill(Color.accentColor)
-                        .frame(width: 3, height: barHeight(for: level))
-                        .animation(.linear(duration: RecordingLevelFeed.pollingInterval), value: level)
-                }
-            }
-            .frame(maxWidth: .infinity)
+            content
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .frame(width: 220, height: 64)
+        .frame(width: 240, height: 64)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
         )
-        .onAppear { feed.start() }
+        .onAppear { syncFeed() }
+        .onChange(of: phase) { _ in syncFeed() }
         .onDisappear { feed.stop() }
+    }
+
+    private var statusDot: some View {
+        Circle()
+            .fill(phase == .recording ? Color.red : Color.secondary)
+            .frame(width: 8, height: 8)
+            .shadow(color: phase == .recording ? Color.red.opacity(0.6) : .clear, radius: 3)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch phase {
+        case .recording:
+            waveform
+        case .transcribing:
+            processingRow(text: "Transkribiere...")
+        case .postProcessing:
+            processingRow(text: "Verarbeite...")
+        }
+    }
+
+    private var waveform: some View {
+        HStack(spacing: 3) {
+            ForEach(Array(feed.bars.enumerated()), id: \.offset) { _, level in
+                Capsule()
+                    .fill(Color.accentColor)
+                    .frame(width: 3, height: barHeight(for: level))
+                    .animation(.linear(duration: RecordingLevelFeed.pollingInterval), value: level)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func processingRow(text: String) -> some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.small)
+            Text(text)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func syncFeed() {
+        if phase == .recording {
+            feed.start()
+        } else {
+            feed.stop()
+        }
     }
 
     private func barHeight(for level: Float) -> CGFloat {

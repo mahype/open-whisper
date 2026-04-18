@@ -439,7 +439,7 @@ impl Default for AppSettings {
             vad_enabled: false,
             vad_threshold: 0.014,
             vad_silence_ms: 900,
-            show_recording_indicator: false,
+            show_recording_indicator: true,
             local_model: ModelPreset::default(),
             local_model_path: String::new(),
             local_llm: LlmPreset::default(),

@@ -29,7 +29,7 @@ struct SettingsView: View {
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .frame(width: 820, height: 560)
+        .frame(minWidth: 760, idealWidth: 860, minHeight: 560, idealHeight: 640)
     }
 
     private var detailSection: SettingsSection {

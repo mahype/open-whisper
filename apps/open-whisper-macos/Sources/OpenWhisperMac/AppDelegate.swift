@@ -136,19 +136,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func updateRecordingIndicatorVisibility() {
-        let shouldShow = model.settings.showRecordingIndicator && model.runtime.isRecording
-        if shouldShow {
-            let window = recordingIndicatorWindow ?? makeRecordingIndicatorWindow()
-            recordingIndicatorWindow = window
-            positionRecordingIndicatorWindow(window)
-            window.orderFrontRegardless()
-        } else {
+        let runtime = model.runtime
+        let phase: IndicatorPhase? = {
+            if runtime.isRecording { return .recording }
+            if runtime.isTranscribing { return .transcribing }
+            if runtime.isPostProcessing { return .postProcessing }
+            return nil
+        }()
+
+        guard model.settings.showRecordingIndicator, let phase else {
             recordingIndicatorWindow?.orderOut(nil)
+            return
+        }
+
+        let window = recordingIndicatorWindow ?? makeRecordingIndicatorWindow(phase: phase)
+        recordingIndicatorWindow = window
+        updateIndicatorPhase(window: window, phase: phase)
+        positionRecordingIndicatorWindow(window)
+        window.orderFrontRegardless()
+    }
+
+    private func updateIndicatorPhase(window: NSWindow, phase: IndicatorPhase) {
+        guard let hosting = window.contentViewController as? NSHostingController<RecordingIndicatorView> else {
+            return
+        }
+        if hosting.rootView.phase != phase {
+            hosting.rootView = RecordingIndicatorView(phase: phase)
         }
     }
 
-    private func makeRecordingIndicatorWindow() -> NSWindow {
-        let size = NSSize(width: 220, height: 64)
+    private func makeRecordingIndicatorWindow(phase: IndicatorPhase) -> NSWindow {
+        let size = NSSize(width: 240, height: 64)
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -166,7 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
 
-        let hosting = NSHostingController(rootView: RecordingIndicatorView())
+        let hosting = NSHostingController(rootView: RecordingIndicatorView(phase: phase))
         hosting.view.frame = NSRect(origin: .zero, size: size)
         panel.contentViewController = hosting
         return panel
@@ -177,7 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let margin: CGFloat = 16
         let size = window.frame.size
         let origin = NSPoint(
-            x: screenFrame.maxX - size.width - margin,
+            x: screenFrame.midX - size.width / 2,
             y: screenFrame.maxY - size.height - margin
         )
         window.setFrameOrigin(origin)
@@ -207,7 +225,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private func makeWindow<Content: View>(title: String, size: NSSize, rootView: Content) -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.titled, .closable, .miniaturizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
