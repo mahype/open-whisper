@@ -40,7 +40,7 @@ if [[ -z "${SIGN_UPDATE:-}" ]]; then
         -type f -name sign_update 2>/dev/null | head -1)"
 fi
 if [[ ! -x "${SIGN_UPDATE:-}" ]]; then
-    echo "error: sign_update binary not found (tried $SIGN_UPDATE). Run 'swift build --package-path apps/open-whisper-macos' first." >&2
+    echo "error: sign_update binary not found under $repo_root/apps/open-whisper-macos/.build. Run 'swift build --package-path apps/open-whisper-macos' first to materialise the Sparkle artifacts." >&2
     exit 1
 fi
 
@@ -63,6 +63,7 @@ dmg_filename="$(basename "$DMG_PATH")"
 dmg_url="https://github.com/mahype/open-whisper/releases/download/v${VERSION}/${dmg_filename}"
 pub_date="$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')"
 
+set +e
 APPCAST_PATH="$APPCAST_PATH" \
 VERSION="$VERSION" \
 RELEASE_NOTES_URL="$RELEASE_NOTES_URL" \
@@ -72,5 +73,11 @@ DMG_ED_SIGNATURE="$ed_sig" \
 MIN_SYSTEM_VERSION="$MIN_SYSTEM_VERSION" \
 PUB_DATE="$pub_date" \
 python3 "$repo_root/scripts/_appcast_insert.py"
+py_rc=$?
+set -e
 
-echo "appcast updated: added version $VERSION"
+case "$py_rc" in
+    0) echo "appcast updated: added version $VERSION" ;;
+    2) echo "appcast unchanged: version $VERSION already present" ;;
+    *) exit "$py_rc" ;;
+esac

@@ -42,7 +42,7 @@ def main():
         for elem in channel.findall("item")
     ):
         print(f"appcast already contains version {version}; skipping", file=sys.stderr)
-        return
+        sys.exit(2)
 
     item = ET.Element("item")
     ET.SubElement(item, "title").text = f"Version {version}"
