@@ -92,6 +92,47 @@ jobs:
       - name: Build DMG
         run: ./scripts/build-dmg.sh
 
+      - name: Build Sparkle tools
+        run: |
+          # Ensure sign_update and friends are built so update-appcast.sh can find them.
+          swift build --package-path apps/open-whisper-macos --product Sparkle >/dev/null 2>&1 || true
+          find apps/open-whisper-macos/.build -type f -name sign_update | head -1
+
+      - name: Checkout gh-pages for appcast
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Update appcast.xml
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          ./scripts/update-appcast.sh \
+            "dist/OpenWhisper-${version}.dmg" \
+            "$version" \
+            "https://github.com/mahype/open-whisper/releases/tag/${TAG}" \
+            "gh-pages/appcast.xml"
+
+      - name: Publish appcast
+        working-directory: gh-pages
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+          if git diff --cached --quiet; then
+            echo "appcast unchanged — nothing to publish"
+            exit 0
+          fi
+          git commit -m "appcast: publish ${TAG}"
+          git push origin gh-pages
+
       - name: Create draft GitHub Release
         uses: softprops/action-gh-release@v2
         with:
