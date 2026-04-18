@@ -149,23 +149,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             return
         }
 
-        let window = recordingIndicatorWindow ?? makeRecordingIndicatorWindow(phase: phase)
+        let style = model.settings.waveformStyle
+        let window = recordingIndicatorWindow ?? makeRecordingIndicatorWindow(phase: phase, style: style)
         recordingIndicatorWindow = window
-        updateIndicatorPhase(window: window, phase: phase)
+        updateIndicatorPhase(window: window, phase: phase, style: style)
         positionRecordingIndicatorWindow(window)
         window.orderFrontRegardless()
     }
 
-    private func updateIndicatorPhase(window: NSWindow, phase: IndicatorPhase) {
+    private func updateIndicatorPhase(window: NSWindow, phase: IndicatorPhase, style: WaveformStyle) {
         guard let hosting = window.contentViewController as? NSHostingController<RecordingIndicatorView> else {
             return
         }
-        if hosting.rootView.phase != phase {
-            hosting.rootView = RecordingIndicatorView(phase: phase)
+        if hosting.rootView.phase != phase || hosting.rootView.style != style {
+            hosting.rootView = RecordingIndicatorView(phase: phase, style: style)
         }
     }
 
-    private func makeRecordingIndicatorWindow(phase: IndicatorPhase) -> NSWindow {
+    private func makeRecordingIndicatorWindow(phase: IndicatorPhase, style: WaveformStyle) -> NSWindow {
         let size = NSSize(width: 240, height: 64)
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
@@ -184,7 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
 
-        let hosting = NSHostingController(rootView: RecordingIndicatorView(phase: phase))
+        let hosting = NSHostingController(rootView: RecordingIndicatorView(phase: phase, style: style))
         hosting.view.frame = NSRect(origin: .zero, size: size)
         panel.contentViewController = hosting
         return panel
@@ -230,11 +231,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             defer: false
         )
         window.title = title
-        window.titlebarAppearsTransparent = false
-        window.titlebarSeparatorStyle = .automatic
         window.center()
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: rootView)
+
+        window.styleMask.remove(.fullSizeContentView)
+        window.titlebarAppearsTransparent = false
+        window.titlebarSeparatorStyle = .automatic
+        DispatchQueue.main.async {
+            window.styleMask.remove(.fullSizeContentView)
+            window.titlebarAppearsTransparent = false
+            window.titlebarSeparatorStyle = .automatic
+        }
         return window
     }
 
