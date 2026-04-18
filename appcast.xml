@@ -1,0 +1,9 @@
+<?xml version="1.0" standalone="yes"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Open Whisper</title>
+    <link>https://mahype.github.io/open-whisper/appcast.xml</link>
+    <description>Official update feed for Open Whisper.</description>
+    <language>en</language>
+  </channel>
+</rss>
