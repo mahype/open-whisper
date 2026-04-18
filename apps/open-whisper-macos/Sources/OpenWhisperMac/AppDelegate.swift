@@ -91,7 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let window = settingsWindow ?? makeWindow(
             title: "Open Whisper Einstellungen",
             size: NSSize(width: 820, height: 560),
-            rootView: SettingsView(model: model)
+            rootView: SettingsView(model: model, updaterController: updaterController)
         )
         if settingsWindow == nil {
             window.delegate = self

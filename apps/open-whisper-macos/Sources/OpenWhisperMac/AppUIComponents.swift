@@ -6,6 +6,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case model
     case startup
     case providers
+    case updates
     case diagnostics
 
     var id: String { rawValue }
@@ -22,6 +23,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "Start & Verhalten"
         case .providers:
             return "Optionale Provider"
+        case .updates:
+            return "Updates"
         case .diagnostics:
             return "Diagnose"
         }
@@ -39,6 +42,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "power.circle.fill"
         case .providers:
             return "server.rack"
+        case .updates:
+            return "arrow.triangle.2.circlepath"
         case .diagnostics:
             return "checklist"
         }

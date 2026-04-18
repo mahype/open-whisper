@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    let updaterController: UpdaterController
     @State private var selectedSection: SettingsSection? = .recording
     @State private var isEditingMode: Bool = false
 
@@ -50,6 +51,8 @@ struct SettingsView: View {
             startupContent
         case .providers:
             providersContent
+        case .updates:
+            UpdatesSettingsView(updaterController: updaterController)
         case .diagnostics:
             diagnosticsContent
         }
