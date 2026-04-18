@@ -1,60 +1,75 @@
 # Open Whisper
 
-Tray-first voice-to-text for your desktop. Speak a shortcut, get your words inserted into any app. Runs locally with [whisper.cpp](https://github.com/ggerganov/whisper.cpp) — nothing leaves your machine unless you explicitly configure a remote provider.
+**Dictate anywhere on your Mac — 100% local.**
 
-> Status: **macOS** is the first supported platform. Windows and Linux UI shells are planned — the Rust core and bridge are already cross-platform.
+Press a hotkey, speak, and your words land in whatever app has focus: mail, chat, your editor, the browser. Transcription runs on your machine with [whisper.cpp](https://github.com/ggerganov/whisper.cpp). Nothing leaves your Mac unless you deliberately configure a remote provider.
+
+> **Status:** macOS 14+ is stable. Windows and Linux UI shells are on the roadmap — the Rust core and bridge already compile cross-platform.
 
 ---
 
-## Install (end users)
+## How it works
 
-| Platform | Status | Download |
-| --- | --- | --- |
-| macOS 14+ (Apple Silicon & Intel) | Stable | [Latest release](https://github.com/mahype/open-whisper/releases/latest) |
-| Windows | Planned | — |
-| Linux | Planned | — |
+1. **Press** your global hotkey (push-to-talk or toggle).
+2. **Speak** — Open Whisper records from your chosen mic.
+3. **Done** — the transcription is pasted into the focused app.
 
-**Quick start (macOS):** Download the `.dmg`, drag `Open Whisper.app` to `/Applications`, launch it, grant microphone + accessibility permissions, and pick your hotkey. See [docs/INSTALL.md](docs/INSTALL.md) for the full walk-through including autostart, permission troubleshooting, and uninstall.
+Open Whisper lives in your menu bar. No Dock icon, no window clutter.
+
+---
+
+## Install (Users)
+
+**Requires macOS 14+ on Apple Silicon or Intel.**
+
+1. Download the [latest DMG](https://github.com/mahype/open-whisper/releases/latest).
+2. Drag **Open Whisper.app** into **Applications** and launch it.
+3. Follow the onboarding — mic, model download, hotkey, autostart.
+
+Need permissions help, autostart setup, or uninstall steps? → [docs/INSTALL.md](docs/INSTALL.md)
+
+| Platform | Status |
+| --- | --- |
+| macOS 14+ (Apple Silicon & Intel) | Stable — [download](https://github.com/mahype/open-whisper/releases/latest) |
+| Windows | Planned |
+| Linux | Planned |
 
 ---
 
 ## Features
 
-- **Local transcription** via whisper.cpp — models run on your CPU/GPU, no network required.
-- **Global hotkey** with push-to-talk or toggle modes.
-- **Menu bar only** — no Dock icon, stays out of the way.
-- **Automatic text insertion** into the focused app via simulated paste.
-- **Onboarding** that guides you through mic setup, model download, and startup preference.
-- **Optional remote providers** (Ollama, LM Studio) for post-processing or remote transcription, configured in Settings.
-- **Autostart at login** with hidden launch, managed through macOS Login Items.
+- **Fully local transcription** — your voice never leaves the machine.
+- **Global hotkey** with push-to-talk or toggle mode.
+- **Menu-bar-only** UI — stays out of the way.
+- **Automatic paste** into the focused app via simulated keystroke.
+- **Guided onboarding** for mic, model, and startup preferences.
+- **Autostart at login** via native macOS Login Items.
+- **Optional remote providers** (Ollama, LM Studio) for post-processing or remote transcription — off by default.
 
 ---
 
-## Documentation
+## Run it locally (Developers)
 
-- [docs/INSTALL.md](docs/INSTALL.md) — End-user installation, permissions, autostart, uninstall
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — Dev setup, build the `.app` bundle locally, debugging
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — How the Rust core, FFI bridge, and Swift UI fit together
-- [docs/RELEASING.md](docs/RELEASING.md) — Tagging, signing, notarization, publishing a release
-
----
-
-## Quick start for developers
+Prereqs: **Rust 1.85+**, **Swift 6 / Xcode 16+**, **Xcode Command Line Tools**.
 
 ```bash
 git clone git@github.com:mahype/open-whisper.git
 cd open-whisper
-./scripts/dev.sh       # builds the Rust bridge, runs the Swift app via SPM
+./scripts/dev.sh
 ```
 
-To build a proper `.app` bundle locally:
+`dev.sh` is the fast inner loop: it builds the Rust bridge (`cargo build -p open-whisper-bridge`) and launches the Swift app via SwiftPM. No bundle, no signing — ideal for iterating.
+
+### Build a real `.app` bundle
 
 ```bash
 ./scripts/build-macos-app.sh
-open dist/Open\ Whisper.app
+open "dist/Open Whisper.app"
 ```
 
-Full toolchain and troubleshooting in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Universal (Apple Silicon + Intel), release build, ad-hoc signed — good for running on your own Mac. For signed + notarized releases, see [docs/RELEASING.md](docs/RELEASING.md).
+
+Full toolchain, debugging tips, and project walk-through: → [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 
 ---
 
@@ -62,14 +77,26 @@ Full toolchain and troubleshooting in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 
 ```
 open-whisper/
-├── apps/
-│   └── open-whisper-macos/        # SwiftUI/AppKit menu bar app
+├── apps/open-whisper-macos/       # SwiftUI + AppKit menu bar app
 ├── crates/
 │   ├── open-whisper-bridge/       # JSON-over-FFI static library (staticlib + rlib)
 │   └── open-whisper-core/         # Shared Rust domain types (settings, presets, DTOs)
-├── scripts/                       # Dev and build scripts
+├── scripts/                       # Dev, build, sign, DMG packaging
 └── docs/                          # Long-form documentation
 ```
+
+How the Rust core, FFI bridge, and Swift UI fit together: → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+---
+
+## Documentation
+
+| Doc | What's inside |
+| --- | --- |
+| [INSTALL.md](docs/INSTALL.md) | Install, permissions, autostart, uninstall |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Dev setup, build scripts, debugging |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Rust core ↔ FFI bridge ↔ Swift UI |
+| [RELEASING.md](docs/RELEASING.md) | Tagging, signing, notarization, publishing |
 
 ---
 
