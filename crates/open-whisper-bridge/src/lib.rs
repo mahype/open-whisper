@@ -3,6 +3,10 @@ mod autostart;
 #[allow(dead_code)]
 mod dictation;
 #[allow(dead_code)]
+mod llm_model_manager;
+#[allow(dead_code)]
+mod local_llm;
+#[allow(dead_code)]
 mod model_manager;
 mod permission_diagnostics;
 mod post_processing;
@@ -310,6 +314,7 @@ impl BridgeRuntime {
             is_downloaded,
             is_downloading: self.model_downloads.is_downloading(),
             progress_basis_points,
+            expected_size_bytes: self.settings.local_model.download_size_bytes(),
         }
     }
 
