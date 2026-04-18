@@ -45,6 +45,8 @@ struct SettingsView: View {
             modesContent
         case .model:
             modelContent
+        case .llm:
+            llmContent
         case .startup:
             startupContent
         case .providers:
@@ -194,6 +196,92 @@ struct SettingsView: View {
                 .disabled(model.modelStatus.isDownloading)
             }
         }
+    }
+
+    @ViewBuilder
+    private var llmContent: some View {
+        Section("Sprachmodelle fuer Nachbearbeitung") {
+            Text("Diese Modelle werden lokal ausgefuehrt und koennen pro Modus ausgewaehlt werden. Du kannst Groessen kombinieren: kleines Modell fuer schnelle Modi, grosses fuer anspruchsvolle Stile.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if model.llmStatusList.isEmpty {
+                ForEach(LlmPreset.allCases) { preset in
+                    llmTile(preset: preset, status: nil)
+                }
+            } else {
+                ForEach(model.llmStatusList) { status in
+                    let preset = LlmPreset(rawValue: status.presetLabel.lowercased())
+                        ?? presetFromDisplayLabel(status.displayLabel)
+                    llmTile(preset: preset, status: status)
+                }
+            }
+        }
+    }
+
+    private func presetFromDisplayLabel(_ label: String) -> LlmPreset {
+        if label.contains("1B") { return .small }
+        if label.contains("12B") { return .large }
+        return .medium
+    }
+
+    @ViewBuilder
+    private func llmTile(preset: LlmPreset, status: LlmModelStatusDTO?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(preset.displayName)
+                            .font(.body.weight(.medium))
+                        if status?.isLoaded == true {
+                            Text("Geladen")
+                                .font(.caption2.weight(.semibold))
+                                .padding(.vertical, 2)
+                                .padding(.horizontal, 6)
+                                .background(Color.accentColor.opacity(0.14), in: Capsule())
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    Text(preset.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 8)
+
+                Text(preset.approxSizeLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            if let status, status.isDownloading, let basisPoints = status.progressBasisPoints {
+                ProgressView(value: Double(basisPoints) / 10_000.0)
+            }
+
+            HStack(spacing: 10) {
+                Text(status?.summary ?? "Status unbekannt.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                if status?.isDownloaded == true {
+                    Button("Loeschen") {
+                        model.deleteLlmModel(preset: preset)
+                    }
+                    .disabled(status?.isDownloading == true)
+                } else {
+                    Button(status?.isDownloading == true ? "Lade..." : "Herunterladen") {
+                        model.startLlmDownload(preset: preset)
+                    }
+                    .disabled(status?.isDownloading == true)
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder

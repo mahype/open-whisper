@@ -29,22 +29,22 @@ impl LlmModelDownloadManager {
     }
 
     pub fn start_download(&mut self, settings: &AppSettings) -> Result<String, String> {
+        self.start_download_for(settings.local_llm)
+    }
+
+    pub fn start_download_for(&mut self, preset: LlmPreset) -> Result<String, String> {
         if self.is_downloading() {
             return Err("Ein Sprachmodell-Download laeuft bereits.".to_owned());
         }
 
-        let target_path = resolve_llm_model_path(settings)?;
+        let target_path = default_llm_model_path(preset)?;
         if target_path.exists() {
             self.state = LlmDownloadState::Ready {
                 path: target_path.clone(),
             };
-            return Ok(format!(
-                "{} ist bereits vorhanden.",
-                settings.local_llm.display_label()
-            ));
+            return Ok(format!("{} ist bereits vorhanden.", preset.display_label()));
         }
 
-        let preset = settings.local_llm;
         let download_url = preset.download_url().to_owned();
         let download_path = target_path.clone();
         let temp_path = temporary_download_path(&target_path);
@@ -73,29 +73,47 @@ impl LlmModelDownloadManager {
     }
 
     pub fn delete_downloaded_model(&mut self, settings: &AppSettings) -> Result<String, String> {
-        if self.is_downloading() {
+        self.delete_preset(settings.local_llm)
+    }
+
+    pub fn delete_preset(&mut self, preset: LlmPreset) -> Result<String, String> {
+        if self.is_downloading_preset(preset) {
             return Err(
                 "Ein laufender Download kann nicht gleichzeitig geloescht werden.".to_owned(),
             );
         }
 
-        let path = resolve_llm_model_path(settings)?;
+        let path = default_llm_model_path(preset)?;
         if !path.exists() {
-            self.state = LlmDownloadState::Missing;
             return Ok(format!(
                 "{} war lokal bereits nicht vorhanden.",
-                settings.local_llm.display_label()
+                preset.display_label()
             ));
         }
 
         fs::remove_file(&path)
             .map_err(|err| format!("Sprachmodell konnte nicht geloescht werden: {err}"))?;
-        self.state = LlmDownloadState::Missing;
+
+        if !self.is_downloading() {
+            self.state = LlmDownloadState::Missing;
+        }
 
         Ok(format!(
             "{} wurde lokal geloescht.",
-            settings.local_llm.display_label()
+            preset.display_label()
         ))
+    }
+
+    pub fn is_downloading_preset(&self, preset: LlmPreset) -> bool {
+        matches!(self.state, LlmDownloadState::Downloading { preset: active, .. } if active == preset)
+    }
+
+    pub fn active_download_preset(&self) -> Option<LlmPreset> {
+        if let LlmDownloadState::Downloading { preset, .. } = &self.state {
+            Some(*preset)
+        } else {
+            None
+        }
     }
 
     pub fn poll(&mut self) -> Vec<String> {
@@ -393,11 +411,40 @@ fn summary_for_existing_path(path: &Path) -> String {
 
 fn llm_label_for_path(path: &Path) -> &'static str {
     match path.file_name().and_then(|value| value.to_str()) {
-        Some("Qwen2.5-1.5B-Instruct-Q4_K_M.gguf") => "Qwen 2.5 1.5B (klein)",
-        Some("Qwen2.5-3B-Instruct-Q4_K_M.gguf") => "Qwen 2.5 3B (mittel)",
-        Some("Qwen2.5-7B-Instruct-Q4_K_M.gguf") => "Qwen 2.5 7B (gross)",
+        Some("google_gemma-3-1b-it-Q4_K_M.gguf") => "Gemma 3 1B (klein)",
+        Some("google_gemma-3-4b-it-Q4_K_M.gguf") => "Gemma 3 4B (mittel)",
+        Some("google_gemma-3-12b-it-Q4_K_M.gguf") => "Gemma 3 12B (gross)",
         _ => "lokales Sprachmodell",
     }
+}
+
+pub fn purge_legacy_qwen_files() -> Result<Vec<String>, String> {
+    use open_whisper_core::LEGACY_QWEN_LLM_FILENAMES;
+
+    let Some(project_dirs) = ProjectDirs::from("dev", "awesome", "open-whisper") else {
+        return Ok(Vec::new());
+    };
+
+    let dir = project_dirs.config_dir().join("llm-models");
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut removed = Vec::new();
+    for filename in LEGACY_QWEN_LLM_FILENAMES {
+        let candidate = dir.join(filename);
+        if candidate.exists() {
+            fs::remove_file(&candidate).map_err(|err| {
+                format!(
+                    "Alte Qwen-Modelldatei {} konnte nicht entfernt werden: {err}",
+                    candidate.display()
+                )
+            })?;
+            removed.push((*filename).to_owned());
+        }
+    }
+
+    Ok(removed)
 }
 
 fn human_readable_size(bytes: u64) -> String {
@@ -440,7 +487,7 @@ mod tests {
         let path = default_llm_model_path(LlmPreset::Medium).unwrap();
         let as_str = path.to_string_lossy();
         assert!(as_str.contains("llm-models"));
-        assert!(as_str.ends_with("Qwen2.5-3B-Instruct-Q4_K_M.gguf"));
+        assert!(as_str.ends_with("google_gemma-3-4b-it-Q4_K_M.gguf"));
     }
 
     #[test]

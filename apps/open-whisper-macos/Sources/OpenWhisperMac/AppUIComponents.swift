@@ -4,6 +4,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case recording
     case modes
     case model
+    case llm
     case startup
     case providers
     case diagnostics
@@ -17,7 +18,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .modes:
             return "Modi"
         case .model:
-            return "Sprachmodell"
+            return "Transkription"
+        case .llm:
+            return "Nachbearbeitung"
         case .startup:
             return "Start & Verhalten"
         case .providers:
@@ -34,7 +37,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .modes:
             return "square.text.square"
         case .model:
-            return "square.stack.3d.up.fill"
+            return "waveform"
+        case .llm:
+            return "text.bubble"
         case .startup:
             return "power.circle.fill"
         case .providers:
@@ -148,6 +153,18 @@ struct ModeEditorSheet: View {
                         }
                     }
 
+                    if model.selectedMode.postProcessingProvider == .localLlm {
+                        Picker("Sprachmodell", selection: model.modeBinding(for: \.localLlm)) {
+                            ForEach(LlmPreset.allCases) { preset in
+                                Text(preset.displayName).tag(preset)
+                            }
+                        }
+
+                        Text("Groesse: \(model.selectedMode.localLlm.approxSizeLabel)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     Text(model.selectedMode.postProcessingSummary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -241,6 +258,7 @@ struct StepRail: View {
         "Willkommen",
         "Audio & Hotkey",
         "Modell & Start",
+        "Nachbearbeitung",
         "Diagnose",
     ]
 

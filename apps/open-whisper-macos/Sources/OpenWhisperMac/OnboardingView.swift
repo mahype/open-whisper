@@ -30,6 +30,7 @@ struct OnboardingView: View {
         case 0: return "Willkommen"
         case 1: return "Audio & Hotkey"
         case 2: return "Modell & Start"
+        case 3: return "Nachbearbeitung"
         default: return "Diagnose"
         }
     }
@@ -136,6 +137,55 @@ struct OnboardingView: View {
                 Toggle("Clipboard wiederherstellen", isOn: model.binding(for: \.restoreClipboardAfterInsert))
                 Toggle("Silence-Stop aktivieren", isOn: model.binding(for: \.vadEnabled))
             }
+        case 3:
+            Section("Sprachmodell fuer Nachbearbeitung") {
+                Text("Waehle ein Gemma-3-Modell, das deine Diktate automatisch aufraeumen oder in einem bestimmten Stil umschreiben kann. Der Download laeuft im Hintergrund. Du kannst das Modell pro Modus aendern oder den Schritt ueberspringen.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Modellgroesse") {
+                Picker("Default", selection: model.binding(for: \.localLlm)) {
+                    ForEach(LlmPreset.allCases) { preset in
+                        Text(preset.displayName).tag(preset)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+
+                Text(model.settings.localLlm.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Download-Groesse: \(model.settings.localLlm.approxSizeLabel)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Download") {
+                let defaultStatus = model.llmStatusList.first { status in
+                    status.displayLabel == model.settings.localLlm.displayName
+                }
+
+                LabeledContent("Status", value: defaultStatus?.summary ?? "Noch nicht geprueft.")
+
+                if let status = defaultStatus,
+                   status.isDownloading,
+                   let basisPoints = status.progressBasisPoints {
+                    ProgressView(value: Double(basisPoints) / 10_000.0)
+                }
+
+                HStack(spacing: 10) {
+                    Button(defaultStatus?.isDownloading == true ? "Lade..." : "Herunterladen") {
+                        model.startLlmDownload(preset: model.settings.localLlm)
+                    }
+                    .disabled(defaultStatus?.isDownloading == true || defaultStatus?.isDownloaded == true)
+
+                    if defaultStatus?.isDownloaded == true {
+                        Text("Bereit.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         default:
             Section("Uebersicht") {
                 Text(model.diagnostics.summary)
@@ -166,7 +216,7 @@ struct OnboardingView: View {
 
             Spacer()
 
-            if model.onboardingStep == 3 {
+            if model.onboardingStep == 4 {
                 Button("Abschliessen") {
                     if model.completeOnboarding() {
                         onFinish()
@@ -176,7 +226,7 @@ struct OnboardingView: View {
                 .keyboardShortcut(.defaultAction)
             } else {
                 Button("Weiter") {
-                    model.onboardingStep = min(3, model.onboardingStep + 1)
+                    model.onboardingStep = min(4, model.onboardingStep + 1)
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

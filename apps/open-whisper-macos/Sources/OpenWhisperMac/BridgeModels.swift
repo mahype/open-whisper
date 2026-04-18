@@ -189,6 +189,57 @@ enum ModelPreset: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum LlmPreset: String, Codable, CaseIterable, Identifiable {
+    case small
+    case medium
+    case large
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .small: return "Klein"
+        case .medium: return "Mittel"
+        case .large: return "Gross"
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .small: return "Gemma 3 1B (klein)"
+        case .medium: return "Gemma 3 4B (mittel)"
+        case .large: return "Gemma 3 12B (gross)"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .small:
+            return "Kleines Sprachmodell (Gemma 3 1B). Schnell und sparsam, laeuft auch auf 8 GB RAM."
+        case .medium:
+            return "Mittleres Sprachmodell (Gemma 3 4B) als guter Standard fuer 16 GB RAM und mehr."
+        case .large:
+            return "Grosses Sprachmodell (Gemma 3 12B) mit bester Qualitaet, braucht 24 GB RAM oder mehr."
+        }
+    }
+
+    var approxSizeLabel: String {
+        switch self {
+        case .small: return "ca. 0.8 GB"
+        case .medium: return "ca. 2.5 GB"
+        case .large: return "ca. 7.3 GB"
+        }
+    }
+
+    var downloadSizeBytes: UInt64 {
+        switch self {
+        case .small: return 806_058_496
+        case .medium: return 2_489_758_112
+        case .large: return 7_300_575_264
+        }
+    }
+}
+
 enum ProviderKind: String, Codable, CaseIterable, Identifiable {
     case localWhisper = "local_whisper"
     case ollama
@@ -210,6 +261,7 @@ enum ProviderKind: String, Codable, CaseIterable, Identifiable {
 
 enum PostProcessingProvider: String, Codable, CaseIterable, Identifiable {
     case disabled
+    case localLlm = "local_llm"
     case ollama
     case lmStudio = "lm_studio"
 
@@ -219,6 +271,8 @@ enum PostProcessingProvider: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .disabled:
             return "Aus"
+        case .localLlm:
+            return "Lokales Modell"
         case .ollama:
             return "Ollama"
         case .lmStudio:
@@ -257,18 +311,22 @@ struct ProcessingMode: Codable, Identifiable, Hashable {
     var name: String
     var postProcessingProvider: PostProcessingProvider
     var prompt: String
+    var localLlm: LlmPreset
 
     static let standard = ProcessingMode(
         id: "standard",
         name: "Standard",
         postProcessingProvider: .disabled,
-        prompt: ""
+        prompt: "",
+        localLlm: .medium
     )
 
     var postProcessingSummary: String {
         switch postProcessingProvider {
         case .disabled:
             return "Direktes Diktat ohne Nachverarbeitung"
+        case .localLlm:
+            return "Nachverarbeitung ueber \(localLlm.displayName)"
         case .ollama:
             return "Nachverarbeitung ueber Ollama"
         case .lmStudio:
@@ -324,6 +382,9 @@ struct AppSettings: Codable, Equatable {
     var waveformColor: WaveformColor
     var localModel: ModelPreset
     var localModelPath: String
+    var localLlm: LlmPreset
+    var localLlmPath: String
+    var localLlmAutoUnloadSecs: UInt32
     var activeProvider: ProviderKind
     var ollama: ExternalProviderSettings
     var lmStudio: ExternalProviderSettings
@@ -348,6 +409,9 @@ struct AppSettings: Codable, Equatable {
         waveformColor: .accent,
         localModel: .standard,
         localModelPath: "",
+        localLlm: .medium,
+        localLlmPath: "",
+        localLlmAutoUnloadSecs: 180,
         activeProvider: .localWhisper,
         ollama: ExternalProviderSettings(endpoint: "http://127.0.0.1:11434", modelName: "whisper"),
         lmStudio: ExternalProviderSettings(endpoint: "http://127.0.0.1:1234", modelName: "openai/whisper-small"),
@@ -383,6 +447,20 @@ struct ModelStatusDTO: Codable {
         progressBasisPoints: nil,
         expectedSizeBytes: ModelPreset.standard.downloadSizeBytes
     )
+}
+
+struct LlmModelStatusDTO: Codable, Identifiable {
+    var presetLabel: String
+    var displayLabel: String
+    var path: String
+    var summary: String
+    var isDownloaded: Bool
+    var isDownloading: Bool
+    var isLoaded: Bool
+    var progressBasisPoints: UInt16?
+    var expectedSizeBytes: UInt64
+
+    var id: String { presetLabel }
 }
 
 struct DiagnosticItemDTO: Codable, Identifiable {

@@ -23,10 +23,11 @@ use std::{
 use autostart::AutostartManager;
 use dictation::{DictationController, DictationOutcome};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey::HotKey};
+use llm_model_manager::LlmModelDownloadManager;
 use model_manager::ModelDownloadManager;
 use open_whisper_core::{
-    AppSettings, DeviceDto, DiagnosticsDto, ModelPreset, ModelStatusDto, RecordingLevelsDto,
-    RuntimeStatusDto,
+    AppSettings, DeviceDto, DiagnosticsDto, LlmModelStatusDto, LlmPreset, ModelPreset,
+    ModelStatusDto, RecordingLevelsDto, RuntimeStatusDto,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -39,6 +40,7 @@ struct BridgeRuntime {
     settings: AppSettings,
     dictation: DictationController,
     model_downloads: ModelDownloadManager,
+    llm_downloads: LlmModelDownloadManager,
     hotkey: Option<HotKeyController>,
     post_processing_rx: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
     pending_post_processing: Option<PendingPostProcessing>,
@@ -65,6 +67,7 @@ impl BridgeRuntime {
         let mut autostart = AutostartManager::new();
         let mut dictation = DictationController::new();
         let mut model_downloads = ModelDownloadManager::new();
+        let mut llm_downloads = LlmModelDownloadManager::new();
 
         for message in dictation.refresh_input_devices(&mut settings) {
             last_status = message;
@@ -77,6 +80,28 @@ impl BridgeRuntime {
         }
 
         model_downloads.refresh_local_state(&settings);
+
+        match llm_model_manager::purge_legacy_qwen_files() {
+            Ok(removed) if !removed.is_empty() => {
+                last_status = format!(
+                    "Alte Qwen-Sprachmodelle entfernt ({} Datei(en)). Gemma 3 wird verwendet.",
+                    removed.len()
+                );
+            }
+            Ok(_) => {}
+            Err(err) => {
+                last_status = err;
+            }
+        }
+
+        llm_downloads.refresh_local_state(&settings);
+
+        if !llm_downloads.is_downloaded(&settings) {
+            match llm_downloads.start_download(&settings) {
+                Ok(message) => last_status = message,
+                Err(err) => last_status = err,
+            }
+        }
 
         if let Ok(Some(message)) = autostart.sync_saved_settings(&settings) {
             last_status = message;
@@ -94,6 +119,7 @@ impl BridgeRuntime {
             settings,
             dictation,
             model_downloads,
+            llm_downloads,
             hotkey,
             post_processing_rx: None,
             pending_post_processing: None,
@@ -107,6 +133,12 @@ impl BridgeRuntime {
         for message in self.model_downloads.poll() {
             self.last_status = message;
         }
+
+        for message in self.llm_downloads.poll() {
+            self.last_status = message;
+        }
+
+        local_llm::maybe_unload_shared_runtime(self.settings.local_llm_auto_unload_secs);
 
         if let Some(rx) = &self.post_processing_rx {
             match rx.try_recv() {
@@ -351,6 +383,66 @@ impl BridgeRuntime {
         Ok(message)
     }
 
+    fn llm_status_list(&mut self) -> Vec<LlmModelStatusDto> {
+        self.poll();
+        self.llm_downloads.refresh_local_state(&self.settings);
+
+        let loaded_preset = local_llm::shared_runtime()
+            .try_lock()
+            .ok()
+            .and_then(|runtime| runtime.loaded_preset());
+        let active_download = self.llm_downloads.active_download_preset();
+        let active_progress = self.llm_downloads.progress_basis_points();
+
+        LlmPreset::ALL
+            .iter()
+            .copied()
+            .map(|preset| {
+                let path = llm_model_manager::default_llm_model_path(preset)
+                    .map(|value| value.display().to_string())
+                    .unwrap_or_default();
+                let is_downloaded = llm_model_manager::default_llm_model_path(preset)
+                    .map(|value| value.exists())
+                    .unwrap_or(false);
+                let is_downloading = active_download == Some(preset);
+                let progress_basis_points = if is_downloading { active_progress } else { None };
+                let summary = if is_downloading {
+                    format!("Download fuer {} laeuft.", preset.display_label())
+                } else if is_downloaded {
+                    format!("{} bereit.", preset.display_label())
+                } else {
+                    format!("{} ({}) noch nicht geladen.", preset.display_label(), preset.approx_size_label())
+                };
+
+                LlmModelStatusDto {
+                    preset_label: preset.label().to_owned(),
+                    display_label: preset.display_label().to_owned(),
+                    path,
+                    summary,
+                    is_downloaded,
+                    is_downloading,
+                    is_loaded: loaded_preset == Some(preset),
+                    progress_basis_points,
+                    expected_size_bytes: preset.download_size_bytes(),
+                }
+            })
+            .collect()
+    }
+
+    fn start_llm_download(&mut self, preset: LlmPreset) -> Result<String, String> {
+        self.poll();
+        let message = self.llm_downloads.start_download_for(preset)?;
+        self.last_status = message.clone();
+        Ok(message)
+    }
+
+    fn delete_llm_model(&mut self, preset: LlmPreset) -> Result<String, String> {
+        self.poll();
+        let message = self.llm_downloads.delete_preset(preset)?;
+        self.last_status = message.clone();
+        Ok(message)
+    }
+
     fn run_permission_diagnostics(&mut self) -> DiagnosticsDto {
         self.poll();
         permission_diagnostics::collect(
@@ -507,6 +599,11 @@ struct ModelPresetRequest {
 }
 
 #[derive(Deserialize)]
+struct LlmPresetRequest {
+    preset: LlmPreset,
+}
+
+#[derive(Deserialize)]
 struct HotkeyValidationRequest {
     hotkey: String,
 }
@@ -656,6 +753,31 @@ pub extern "C" fn ow_delete_model(request_json: *const c_char) -> *mut c_char {
     };
 
     response_from_result(with_runtime(|runtime| runtime.delete_model(preset)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_get_llm_status_list() -> *mut c_char {
+    response_ok(with_runtime_value(BridgeRuntime::llm_status_list))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_start_llm_download(request_json: *const c_char) -> *mut c_char {
+    let preset = match parse_json_arg::<LlmPresetRequest>(request_json, "LlmPresetRequest") {
+        Ok(request) => request.preset,
+        Err(err) => return response_from_result::<String>(Err(err)),
+    };
+
+    response_from_result(with_runtime(|runtime| runtime.start_llm_download(preset)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_delete_llm_model(request_json: *const c_char) -> *mut c_char {
+    let preset = match parse_json_arg::<LlmPresetRequest>(request_json, "LlmPresetRequest") {
+        Ok(request) => request.preset,
+        Err(err) => return response_from_result::<String>(Err(err)),
+    };
+
+    response_from_result(with_runtime(|runtime| runtime.delete_llm_model(preset)))
 }
 
 #[unsafe(no_mangle)]

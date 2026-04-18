@@ -245,37 +245,39 @@ impl LlmPreset {
 
     pub fn display_label(self) -> &'static str {
         match self {
-            Self::Small => "Qwen 2.5 1.5B (klein)",
-            Self::Medium => "Qwen 2.5 3B (mittel)",
-            Self::Large => "Qwen 2.5 7B (gross)",
+            Self::Small => "Gemma 3 1B (klein)",
+            Self::Medium => "Gemma 3 4B (mittel)",
+            Self::Large => "Gemma 3 12B (gross)",
         }
     }
 
     pub fn default_filename(self) -> &'static str {
         match self {
-            Self::Small => "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
-            Self::Medium => "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
-            Self::Large => "Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+            Self::Small => "google_gemma-3-1b-it-Q4_K_M.gguf",
+            Self::Medium => "google_gemma-3-4b-it-Q4_K_M.gguf",
+            Self::Large => "google_gemma-3-12b-it-Q4_K_M.gguf",
         }
     }
 
     pub fn description(self) -> &'static str {
         match self {
             Self::Small => {
-                "Kleines Sprachmodell fuer 8 GB RAM. Schnell, aber einfachere Nachverarbeitung."
+                "Kleines Sprachmodell (Gemma 3 1B). Schnell und sparsam, laeuft auch auf 8 GB RAM."
             }
-            Self::Medium => "Mittleres Sprachmodell als guter Standard fuer 16 GB RAM und mehr.",
+            Self::Medium => {
+                "Mittleres Sprachmodell (Gemma 3 4B) als guter Standard fuer 16 GB RAM und mehr."
+            }
             Self::Large => {
-                "Grosses Sprachmodell mit bester Qualitaet, braucht 24 GB RAM oder mehr."
+                "Grosses Sprachmodell (Gemma 3 12B) mit bester Qualitaet, braucht 24 GB RAM oder mehr."
             }
         }
     }
 
     pub fn approx_size_label(self) -> &'static str {
         match self {
-            Self::Small => "ca. 1.0 GB",
-            Self::Medium => "ca. 1.9 GB",
-            Self::Large => "ca. 4.7 GB",
+            Self::Small => "ca. 0.8 GB",
+            Self::Medium => "ca. 2.5 GB",
+            Self::Large => "ca. 7.3 GB",
         }
     }
 
@@ -283,7 +285,7 @@ impl LlmPreset {
         match self {
             Self::Small => 2_048,
             Self::Medium => 4_096,
-            Self::Large => 8_192,
+            Self::Large => 12_288,
         }
     }
 
@@ -297,25 +299,31 @@ impl LlmPreset {
     pub fn download_url(self) -> &'static str {
         match self {
             Self::Small => {
-                "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
+                "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf"
             }
             Self::Medium => {
-                "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+                "https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/google_gemma-3-4b-it-Q4_K_M.gguf"
             }
             Self::Large => {
-                "https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/main/Qwen2.5-7B-Instruct-Q4_K_M.gguf"
+                "https://huggingface.co/bartowski/google_gemma-3-12b-it-GGUF/resolve/main/google_gemma-3-12b-it-Q4_K_M.gguf"
             }
         }
     }
 
     pub fn download_size_bytes(self) -> u64 {
         match self {
-            Self::Small => 986_047_616,
-            Self::Medium => 1_929_902_592,
-            Self::Large => 4_683_073_472,
+            Self::Small => 806_058_496,
+            Self::Medium => 2_489_758_112,
+            Self::Large => 7_300_575_264,
         }
     }
 }
+
+pub const LEGACY_QWEN_LLM_FILENAMES: &[&str] = &[
+    "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+    "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+    "Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+];
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -390,6 +398,7 @@ pub struct ProcessingMode {
     pub name: String,
     pub post_processing_provider: PostProcessingProvider,
     pub prompt: String,
+    pub local_llm: LlmPreset,
 }
 
 impl ProcessingMode {
@@ -399,6 +408,7 @@ impl ProcessingMode {
             name: "Standard".to_owned(),
             post_processing_provider: PostProcessingProvider::Disabled,
             prompt: String::new(),
+            local_llm: LlmPreset::default(),
         }
     }
 
@@ -408,6 +418,7 @@ impl ProcessingMode {
             name: "Aufraeumen".to_owned(),
             post_processing_provider: PostProcessingProvider::LocalLlm,
             prompt: "Korrigiere Satzzeichen, Grossschreibung und offensichtliche Erkennungsfehler im diktierten Text, ohne den Inhalt zu veraendern. Gib nur den bereinigten Text zurueck.".to_owned(),
+            local_llm: LlmPreset::default(),
         }
     }
 
@@ -509,7 +520,7 @@ impl AppSettings {
             }
             PostProcessingProvider::LocalLlm => format!(
                 "Lokales Whisper + {} im Modus '{}'",
-                self.local_llm.display_label(),
+                mode.local_llm.display_label(),
                 mode.name
             ),
             PostProcessingProvider::Ollama => {
@@ -686,6 +697,7 @@ mod tests {
             name: "Entwickler".to_owned(),
             post_processing_provider: PostProcessingProvider::Ollama,
             prompt: "Arbeite wie ein Entwickler.".to_owned(),
+            local_llm: LlmPreset::default(),
         });
         settings.active_mode_id = "dev".to_owned();
 
@@ -741,23 +753,48 @@ mod tests {
     }
 
     #[test]
-    fn llm_preset_small_download_url_contains_1_5b() {
-        assert!(LlmPreset::Small.download_url().contains("1.5B"));
+    fn llm_preset_small_download_url_contains_gemma_1b() {
+        assert!(LlmPreset::Small.download_url().contains("gemma-3-1b"));
     }
 
     #[test]
-    fn local_llm_provider_summary_mentions_mode() {
+    fn llm_preset_default_filename_is_gemma() {
+        assert_eq!(
+            LlmPreset::Medium.default_filename(),
+            "google_gemma-3-4b-it-Q4_K_M.gguf"
+        );
+    }
+
+    #[test]
+    fn legacy_qwen_filenames_are_listed() {
+        assert_eq!(LEGACY_QWEN_LLM_FILENAMES.len(), 3);
+        assert!(
+            LEGACY_QWEN_LLM_FILENAMES
+                .iter()
+                .any(|f| f.contains("Qwen2.5-3B"))
+        );
+    }
+
+    #[test]
+    fn local_llm_provider_summary_uses_mode_preset() {
         let mut settings = AppSettings::default();
         settings.modes.push(ProcessingMode {
             id: "email".to_owned(),
             name: "Email".to_owned(),
             post_processing_provider: PostProcessingProvider::LocalLlm,
             prompt: "Formatiere als Email.".to_owned(),
+            local_llm: LlmPreset::Large,
         });
         settings.active_mode_id = "email".to_owned();
 
         let summary = settings.active_provider_summary();
         assert!(summary.contains("Email"));
-        assert!(summary.contains("Qwen"));
+        assert!(summary.contains("Gemma 3 12B"));
+    }
+
+    #[test]
+    fn processing_mode_defaults_local_llm_to_medium() {
+        let mode = ProcessingMode::cleanup();
+        assert_eq!(mode.local_llm, LlmPreset::Medium);
     }
 }

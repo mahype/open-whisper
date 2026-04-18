@@ -4,6 +4,8 @@ use open_whisper_core::{AppSettings, PostProcessingProvider};
 use reqwest::blocking::Client;
 use serde_json::{Value, json};
 
+use crate::local_llm;
+
 const USER_AGENT: &str = "open-whisper-bridge/0.1";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
 
@@ -15,37 +17,35 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
         return Ok(raw_transcript.to_owned());
     }
 
-    let client = Client::builder()
-        .timeout(REQUEST_TIMEOUT)
-        .build()
-        .map_err(|err| {
-            format!("HTTP-Client fuer Nachverarbeitung konnte nicht erstellt werden: {err}")
-        })?;
-
     let system_prompt = build_system_prompt(&mode.prompt);
 
     let text = match provider {
         PostProcessingProvider::Disabled => raw_transcript.to_owned(),
-        PostProcessingProvider::LocalLlm => {
-            return Err(
-                "Lokales Sprachmodell ist noch nicht verdrahtet (siehe process_text_with_runtime)."
-                    .to_owned(),
-            );
+        PostProcessingProvider::LocalLlm => local_llm::generate_with_shared_runtime(
+            mode.local_llm,
+            &system_prompt,
+            raw_transcript,
+        )?,
+        PostProcessingProvider::Ollama => {
+            let client = build_http_client()?;
+            request_ollama(
+                &client,
+                &settings.ollama.endpoint,
+                &settings.ollama.model_name,
+                &system_prompt,
+                raw_transcript,
+            )?
         }
-        PostProcessingProvider::Ollama => request_ollama(
-            &client,
-            &settings.ollama.endpoint,
-            &settings.ollama.model_name,
-            &system_prompt,
-            raw_transcript,
-        )?,
-        PostProcessingProvider::LmStudio => request_lm_studio(
-            &client,
-            &settings.lm_studio.endpoint,
-            &settings.lm_studio.model_name,
-            &system_prompt,
-            raw_transcript,
-        )?,
+        PostProcessingProvider::LmStudio => {
+            let client = build_http_client()?;
+            request_lm_studio(
+                &client,
+                &settings.lm_studio.endpoint,
+                &settings.lm_studio.model_name,
+                &system_prompt,
+                raw_transcript,
+            )?
+        }
     };
 
     let trimmed = text.trim();
@@ -54,6 +54,12 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
     }
 
     Ok(trimmed.to_owned())
+}
+
+fn build_http_client() -> Result<Client, String> {
+    Client::builder().timeout(REQUEST_TIMEOUT).build().map_err(|err| {
+        format!("HTTP-Client fuer Nachverarbeitung konnte nicht erstellt werden: {err}")
+    })
 }
 
 fn build_system_prompt(mode_prompt: &str) -> String {
@@ -224,6 +230,7 @@ mod tests {
             name: "Entwickler".to_owned(),
             post_processing_provider: PostProcessingProvider::Ollama,
             prompt: "Nutze Entwickler-Sprache.".to_owned(),
+            local_llm: open_whisper_core::LlmPreset::default(),
         });
         settings.active_mode_id = "dev".to_owned();
 

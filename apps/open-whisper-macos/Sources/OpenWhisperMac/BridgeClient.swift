@@ -45,6 +45,18 @@ final class BridgeClient {
         try encodeAndCall(["preset": preset?.rawValue], function: ow_delete_model)
     }
 
+    func getLlmStatusList() throws -> [LlmModelStatusDTO] {
+        try decodeResponse(from: ow_get_llm_status_list())
+    }
+
+    func startLlmDownload(preset: LlmPreset) throws -> String {
+        try encodeAndCall(["preset": preset.rawValue], function: ow_start_llm_download)
+    }
+
+    func deleteLlmModel(preset: LlmPreset) throws -> String {
+        try encodeAndCall(["preset": preset.rawValue], function: ow_delete_llm_model)
+    }
+
     func runPermissionDiagnostics() throws -> DiagnosticsDTO {
         try decodeResponse(from: ow_run_permission_diagnostics())
     }

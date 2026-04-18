@@ -7,6 +7,7 @@ final class AppModel: ObservableObject {
     @Published var settings: AppSettings = .default
     @Published var devices: [DeviceDTO] = []
     @Published var modelStatus: ModelStatusDTO = .empty
+    @Published var llmStatusList: [LlmModelStatusDTO] = []
     @Published var diagnostics: DiagnosticsDTO = .empty
     @Published var runtime: RuntimeStatusDTO = .empty
     @Published var bridgeError: String?
@@ -192,6 +193,7 @@ final class AppModel: ObservableObject {
             persistedSettingsSnapshot = settings
             devices = try bridge.listInputDevices()
             modelStatus = try bridge.getModelStatus()
+            llmStatusList = (try? bridge.getLlmStatusList()) ?? []
             diagnostics = try bridge.runPermissionDiagnostics()
             runtime = try bridge.getRuntimeStatus()
             bridgeError = nil
@@ -210,6 +212,9 @@ final class AppModel: ObservableObject {
         do {
             runtime = try bridge.getRuntimeStatus()
             modelStatus = try bridge.getModelStatus()
+            if let list = try? bridge.getLlmStatusList() {
+                llmStatusList = list
+            }
             bridgeError = nil
             onStateChanged?()
         } catch {
@@ -359,7 +364,8 @@ final class AppModel: ObservableObject {
             id: UUID().uuidString.lowercased(),
             name: candidate,
             postProcessingProvider: .ollama,
-            prompt: ""
+            prompt: "",
+            localLlm: settings.localLlm
         )
         settings.modes.append(mode)
         selectedModeID = mode.id
@@ -442,6 +448,26 @@ final class AppModel: ObservableObject {
     func deleteModel() {
         do {
             _ = try bridge.deleteModel(preset: settings.localModel)
+            bridgeError = nil
+            poll()
+        } catch {
+            publish(error)
+        }
+    }
+
+    func startLlmDownload(preset: LlmPreset) {
+        do {
+            _ = try bridge.startLlmDownload(preset: preset)
+            bridgeError = nil
+            poll()
+        } catch {
+            publish(error)
+        }
+    }
+
+    func deleteLlmModel(preset: LlmPreset) {
+        do {
+            _ = try bridge.deleteLlmModel(preset: preset)
             bridgeError = nil
             poll()
         } catch {
