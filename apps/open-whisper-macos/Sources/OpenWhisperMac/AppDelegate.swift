@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     let model = AppModel()
+    let updaterController = UpdaterController()
 
     private var statusItem: NSStatusItem!
     private let statusMenu = NSMenu()
@@ -15,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var modelItem: NSMenuItem!
     private var statusItemLine: NSMenuItem!
     private var quitItem: NSMenuItem!
+    private var checkForUpdatesItem: NSMenuItem!
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
     private var recordingIndicatorWindow: NSWindow?
@@ -39,6 +41,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         statusItemLine = NSMenuItem(title: "Status wird geladen...", action: nil, keyEquivalent: "")
         statusItemLine.isEnabled = false
         quitItem = NSMenuItem(title: "Beenden", action: #selector(quitApp), keyEquivalent: "q")
+        checkForUpdatesItem = NSMenuItem(
+            title: "Nach Updates suchen...",
+            action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        )
 
         statusMenu.delegate = self
         statusMenu.items = [
@@ -53,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             modelItem,
             statusItemLine,
             .separator(),
+            checkForUpdatesItem,
             quitItem,
         ]
         statusItem.menu = statusMenu
@@ -114,6 +122,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     @objc private func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func checkForUpdates() {
+        updaterController.checkForUpdates()
     }
 
     @objc private func selectMode(_ sender: NSMenuItem) {
