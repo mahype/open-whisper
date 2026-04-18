@@ -50,38 +50,45 @@ struct ModeListTile: View {
     let isSelected: Bool
     let isActive: Bool
     let action: () -> Void
+    let onEdit: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
+        HStack(spacing: 10) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(mode.name)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                        if isActive {
-                            Text("Aktiv")
-                                .font(.caption2.weight(.semibold))
-                                .padding(.vertical, 2)
-                                .padding(.horizontal, 6)
-                                .background(Color.accentColor.opacity(0.14), in: Capsule())
-                                .foregroundStyle(Color.accentColor)
-                        }
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(mode.name)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                    if isActive {
+                        Text("Aktiv")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.vertical, 2)
+                            .padding(.horizontal, 6)
+                            .background(Color.accentColor.opacity(0.14), in: Capsule())
+                            .foregroundStyle(Color.accentColor)
                     }
-                    Text(mode.postProcessingSummary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
                 }
-
-                Spacer(minLength: 8)
+                Text(mode.postProcessingSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            .contentShape(Rectangle())
+
+            Spacer(minLength: 8)
+
+            Button(action: onEdit) {
+                Image(systemName: "pencil")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help("Modus bearbeiten")
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { onEdit() }
+        .onTapGesture { action() }
     }
 }
 
@@ -107,10 +114,73 @@ struct ModelPresetTile: View {
                 }
 
                 Spacer(minLength: 8)
+
+                Text("ca. \(preset.downloadSizeText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct ModeEditorSheet: View {
+    @ObservedObject var model: AppModel
+    let onDone: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Modus bearbeiten")
+                    .font(.title3.weight(.semibold))
+                Spacer()
+            }
+
+            Form {
+                Section {
+                    TextField("Name", text: model.modeBinding(for: \.name))
+
+                    Picker("Nachverarbeitung", selection: model.modeBinding(for: \.postProcessingProvider)) {
+                        ForEach(PostProcessingProvider.allCases) { provider in
+                            Text(provider.label).tag(provider)
+                        }
+                    }
+
+                    Text(model.selectedMode.postProcessingSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Prompt") {
+                    TextEditor(text: model.modeBinding(for: \.prompt))
+                        .font(.body)
+                        .frame(minHeight: 180)
+                        .scrollContentBackground(.hidden)
+                        .padding(6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color(nsColor: .textBackgroundColor))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        )
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                }
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+
+            HStack {
+                Spacer()
+                Button("Fertig", action: onDone)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 460, idealWidth: 520, minHeight: 380, idealHeight: 440)
     }
 }
 

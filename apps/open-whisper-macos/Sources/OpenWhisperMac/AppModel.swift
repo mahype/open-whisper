@@ -73,6 +73,36 @@ final class AppModel: ObservableObject {
         return modelStatus.isDownloaded ? "Bereit" : "Noch nicht geladen"
     }
 
+    var selectedModelSizeText: String {
+        if modelStatus.isDownloaded,
+           let actual = actualModelFileSize() {
+            return "\(Self.formatByteCount(actual)) (geladen)"
+        }
+        let expected = modelStatus.expectedSizeBytes == 0
+            ? settings.localModel.downloadSizeBytes
+            : modelStatus.expectedSizeBytes
+        return "ca. \(Self.formatByteCount(expected)) (Download)"
+    }
+
+    private func actualModelFileSize() -> UInt64? {
+        let path = modelStatus.path.isEmpty ? settings.localModelPath : modelStatus.path
+        guard !path.isEmpty,
+              let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+              let size = attrs[.size] as? UInt64 else {
+            return nil
+        }
+        return size
+    }
+
+    private static func formatByteCount(_ bytes: UInt64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        formatter.allowedUnits = [.useMB, .useGB]
+        formatter.includesUnit = true
+        formatter.isAdaptive = true
+        return formatter.string(fromByteCount: Int64(bytes))
+    }
+
     var trayModelLabel: String {
         let name = modelStatus.presetLabel.isEmpty ? selectedModelDisplayName : modelStatus.presetLabel
         if modelStatus.isDownloading {

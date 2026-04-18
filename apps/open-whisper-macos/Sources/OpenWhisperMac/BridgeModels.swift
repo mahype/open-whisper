@@ -96,6 +96,26 @@ enum ModelPreset: String, Codable, CaseIterable, Identifiable {
             return "Groesseres Modell mit hoeherer Genauigkeit und mehr CPU-/RAM-Bedarf."
         }
     }
+
+    var downloadSizeBytes: UInt64 {
+        switch self {
+        case .light:
+            return 147_951_465
+        case .standard:
+            return 487_601_967
+        case .quality:
+            return 1_533_763_059
+        }
+    }
+
+    var downloadSizeText: String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        formatter.allowedUnits = [.useMB, .useGB]
+        formatter.includesUnit = true
+        formatter.isAdaptive = true
+        return formatter.string(fromByteCount: Int64(downloadSizeBytes))
+    }
 }
 
 enum ProviderKind: String, Codable, CaseIterable, Identifiable {
@@ -276,6 +296,7 @@ struct ModelStatusDTO: Codable {
     var isDownloaded: Bool
     var isDownloading: Bool
     var progressBasisPoints: UInt16?
+    var expectedSizeBytes: UInt64
 
     static let empty = ModelStatusDTO(
         presetLabel: "Whisper Small (mittel)",
@@ -284,7 +305,8 @@ struct ModelStatusDTO: Codable {
         summary: "Noch kein Modellstatus geladen.",
         isDownloaded: false,
         isDownloading: false,
-        progressBasisPoints: nil
+        progressBasisPoints: nil,
+        expectedSizeBytes: ModelPreset.standard.downloadSizeBytes
     )
 }
 

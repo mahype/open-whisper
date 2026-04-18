@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var model: AppModel
     @State private var selectedSection: SettingsSection? = .recording
+    @State private var isEditingMode: Bool = false
 
     var body: some View {
         NavigationSplitView {
@@ -18,6 +19,11 @@ struct SettingsView: View {
             }
             .formStyle(.grouped)
             .navigationTitle(detailSection.title)
+            .sheet(isPresented: $isEditingMode) {
+                ModeEditorSheet(model: model) {
+                    isEditingMode = false
+                }
+            }
         }
         .navigationSplitViewStyle(.balanced)
         .safeAreaInset(edge: .bottom) {
@@ -110,25 +116,25 @@ struct SettingsView: View {
     @ViewBuilder
     private var modesContent: some View {
         Section("Modi") {
-            ScrollView {
-                VStack(spacing: 4) {
-                    ForEach(model.availableModes) { mode in
-                        ModeListTile(
-                            mode: mode,
-                            isSelected: model.selectedModeID == mode.id,
-                            isActive: model.settings.activeModeId == mode.id
-                        ) {
-                            model.setSelectedMode(mode.id)
-                        }
+            ForEach(model.availableModes) { mode in
+                ModeListTile(
+                    mode: mode,
+                    isSelected: model.selectedModeID == mode.id,
+                    isActive: model.settings.activeModeId == mode.id,
+                    action: { model.setSelectedMode(mode.id) },
+                    onEdit: {
+                        model.setSelectedMode(mode.id)
+                        isEditingMode = true
                     }
-                }
-                .padding(.vertical, 2)
+                )
+                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             }
-            .frame(maxHeight: 220)
-            .listRowInsets(EdgeInsets())
 
             HStack(spacing: 10) {
-                Button("Neuer Modus") { model.createMode() }
+                Button("Neuer Modus") {
+                    model.createMode()
+                    isEditingMode = true
+                }
                 Button("Loeschen") { model.deleteSelectedMode() }
                     .disabled(!model.canDeleteSelectedMode)
                 Spacer()
@@ -136,38 +142,6 @@ struct SettingsView: View {
                     model.setActiveMode(model.selectedMode.id)
                 }
                 .disabled(model.settings.activeModeId == model.selectedMode.id)
-            }
-        }
-
-        Section("Details") {
-            TextField("Name", text: model.modeBinding(for: \.name))
-
-            Picker("Nachverarbeitung", selection: model.modeBinding(for: \.postProcessingProvider)) {
-                ForEach(PostProcessingProvider.allCases) { provider in
-                    Text(provider.label).tag(provider)
-                }
-            }
-
-            Text(model.selectedMode.postProcessingSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Prompt")
-                    .font(.subheadline)
-                TextEditor(text: model.modeBinding(for: \.prompt))
-                    .font(.body)
-                    .frame(height: 90)
-                    .scrollContentBackground(.hidden)
-                    .padding(6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(nsColor: .textBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
             }
         }
     }
@@ -186,6 +160,7 @@ struct SettingsView: View {
         Section("Status") {
             LabeledContent("Auswahl", value: model.selectedModelDisplayName)
             LabeledContent("Status", value: model.selectedModelStatusText)
+            LabeledContent("Groesse", value: model.selectedModelSizeText)
 
             if let progress = model.modelDownloadProgress {
                 ProgressView(value: progress)
