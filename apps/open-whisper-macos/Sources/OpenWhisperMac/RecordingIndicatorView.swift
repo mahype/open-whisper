@@ -54,14 +54,21 @@ final class RecordingLevelFeed: ObservableObject {
 struct RecordingIndicatorView: View {
     let phase: IndicatorPhase
     var style: WaveformStyle = .centeredBars
+    var color: WaveformColor = .accent
     var modeName: String = ""
     @StateObject private var feed = RecordingLevelFeed()
 
     var body: some View {
-        HStack(spacing: 10) {
-            statusDot
+        VStack(spacing: 4) {
+            HStack(spacing: 10) {
+                statusDot
+                content
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            content
+            if phase == .recording && !modeName.isEmpty {
+                modeLabel
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -87,12 +94,8 @@ struct RecordingIndicatorView: View {
     private var content: some View {
         switch phase {
         case .recording:
-            VStack(spacing: 4) {
-                waveform
-                    .frame(maxHeight: .infinity)
-                modeLabel
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            waveform
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .transcribing:
             processingRow(text: "Transkribiere...")
         case .postProcessing:
@@ -100,16 +103,13 @@ struct RecordingIndicatorView: View {
         }
     }
 
-    @ViewBuilder
     private var modeLabel: some View {
-        if !modeName.isEmpty {
-            Text(modeName)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .center)
-        }
+        Text(modeName)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .center)
     }
 
     @ViewBuilder
@@ -124,11 +124,13 @@ struct RecordingIndicatorView: View {
         }
     }
 
+    private var tint: Color { color.swiftUIColor }
+
     private var centeredBars: some View {
         HStack(spacing: 3) {
             ForEach(Array(feed.bars.enumerated()), id: \.offset) { _, level in
                 Capsule()
-                    .fill(Color.accentColor)
+                    .fill(tint)
                     .frame(width: 3, height: barHeight(for: level))
                     .animation(.linear(duration: RecordingLevelFeed.pollingInterval), value: level)
             }
@@ -140,14 +142,14 @@ struct RecordingIndicatorView: View {
         GeometryReader { geo in
             ZStack(alignment: .center) {
                 Rectangle()
-                    .fill(Color.accentColor.opacity(0.18))
+                    .fill(tint.opacity(0.18))
                     .frame(height: 1)
 
                 envelopePath(in: geo.size, direction: .up)
-                    .stroke(Color.accentColor,
+                    .stroke(tint,
                             style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                 envelopePath(in: geo.size, direction: .down)
-                    .stroke(Color.accentColor.opacity(0.85),
+                    .stroke(tint.opacity(0.85),
                             style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -159,7 +161,7 @@ struct RecordingIndicatorView: View {
     private var envelopeWave: some View {
         GeometryReader { geo in
             filledEnvelopePath(in: geo.size)
-                .fill(Color.accentColor)
+                .fill(tint)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .animation(.linear(duration: RecordingLevelFeed.pollingInterval), value: feed.bars)
                 .drawingGroup()
@@ -242,5 +244,20 @@ struct RecordingIndicatorView: View {
         let cleaned = max(0.0, level - RecordingLevelFeed.noiseFloor)
         let curved = sqrt(cleaned) * RecordingLevelFeed.levelGain
         return min(1.0, max(0.0, CGFloat(curved)))
+    }
+}
+
+extension WaveformColor {
+    var swiftUIColor: Color {
+        switch self {
+        case .accent: return .accentColor
+        case .blue: return .blue
+        case .green: return .green
+        case .teal: return .teal
+        case .orange: return .orange
+        case .red: return .red
+        case .pink: return .pink
+        case .purple: return .purple
+        }
     }
 }

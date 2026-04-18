@@ -67,6 +67,45 @@ extension WaveformStyle: Codable {
     }
 }
 
+enum WaveformColor: String, CaseIterable, Identifiable {
+    case accent
+    case blue
+    case green
+    case teal
+    case orange
+    case red
+    case pink
+    case purple
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .accent: return "Systemfarbe"
+        case .blue: return "Blau"
+        case .green: return "Gruen"
+        case .teal: return "Tuerkis"
+        case .orange: return "Orange"
+        case .red: return "Rot"
+        case .pink: return "Pink"
+        case .purple: return "Violett"
+        }
+    }
+}
+
+extension WaveformColor: Codable {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        self = WaveformColor(rawValue: raw) ?? .accent
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
 enum ModelPreset: String, Codable, CaseIterable, Identifiable {
     case light
     case standard
@@ -282,6 +321,7 @@ struct AppSettings: Codable, Equatable {
     var vadSilenceMs: UInt32
     var showRecordingIndicator: Bool
     var waveformStyle: WaveformStyle
+    var waveformColor: WaveformColor
     var localModel: ModelPreset
     var localModelPath: String
     var activeProvider: ProviderKind
@@ -305,6 +345,7 @@ struct AppSettings: Codable, Equatable {
         vadSilenceMs: 900,
         showRecordingIndicator: true,
         waveformStyle: .centeredBars,
+        waveformColor: .accent,
         localModel: .standard,
         localModelPath: "",
         activeProvider: .localWhisper,

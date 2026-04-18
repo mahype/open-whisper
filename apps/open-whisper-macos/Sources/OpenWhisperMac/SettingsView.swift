@@ -117,6 +117,15 @@ struct SettingsView: View {
                 }
             }
             .disabled(!model.settings.showRecordingIndicator)
+
+            Picker("Farbe", selection: model.binding(for: \.waveformColor)) {
+                ForEach(WaveformColor.allCases) { color in
+                    Text(color.label)
+                        .foregroundStyle(color.swiftUIColor)
+                        .tag(color)
+                }
+            }
+            .disabled(!model.settings.showRecordingIndicator)
         }
     }
 

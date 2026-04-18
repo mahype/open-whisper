@@ -82,6 +82,66 @@ impl<'de> serde::Deserialize<'de> for WaveformStyle {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum WaveformColor {
+    #[default]
+    Accent,
+    Blue,
+    Green,
+    Teal,
+    Orange,
+    Red,
+    Pink,
+    Purple,
+}
+
+impl WaveformColor {
+    pub const ALL: [Self; 8] = [
+        Self::Accent,
+        Self::Blue,
+        Self::Green,
+        Self::Teal,
+        Self::Orange,
+        Self::Red,
+        Self::Pink,
+        Self::Purple,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Accent => "Systemfarbe",
+            Self::Blue => "Blau",
+            Self::Green => "Gruen",
+            Self::Teal => "Tuerkis",
+            Self::Orange => "Orange",
+            Self::Red => "Rot",
+            Self::Pink => "Pink",
+            Self::Purple => "Violett",
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for WaveformColor {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        Ok(match raw.as_str() {
+            "accent" => Self::Accent,
+            "blue" => Self::Blue,
+            "green" => Self::Green,
+            "teal" => Self::Teal,
+            "orange" => Self::Orange,
+            "red" => Self::Red,
+            "pink" => Self::Pink,
+            "purple" => Self::Purple,
+            _ => Self::default(),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
@@ -384,6 +444,7 @@ pub struct AppSettings {
     pub vad_silence_ms: u32,
     pub show_recording_indicator: bool,
     pub waveform_style: WaveformStyle,
+    pub waveform_color: WaveformColor,
     pub local_model: ModelPreset,
     pub local_model_path: String,
     pub local_llm: LlmPreset,
@@ -478,6 +539,7 @@ impl Default for AppSettings {
             vad_silence_ms: 900,
             show_recording_indicator: true,
             waveform_style: WaveformStyle::default(),
+            waveform_color: WaveformColor::default(),
             local_model: ModelPreset::default(),
             local_model_path: String::new(),
             local_llm: LlmPreset::default(),
