@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum StartupBehavior {
+    #[default]
     AskOnFirstLaunch,
     LaunchAtLogin,
     ManualLaunch,
@@ -24,16 +26,12 @@ impl StartupBehavior {
     }
 }
 
-impl Default for StartupBehavior {
-    fn default() -> Self {
-        Self::AskOnFirstLaunch
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum TriggerMode {
     PushToTalk,
+    #[default]
     Toggle,
 }
 
@@ -48,16 +46,12 @@ impl TriggerMode {
     }
 }
 
-impl Default for TriggerMode {
-    fn default() -> Self {
-        Self::Toggle
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ModelPreset {
     Light,
+    #[default]
     Standard,
     Quality,
 }
@@ -132,16 +126,12 @@ impl ModelPreset {
     }
 }
 
-impl Default for ModelPreset {
-    fn default() -> Self {
-        Self::Standard
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum LlmPreset {
     Small,
+    #[default]
     Medium,
     Large,
 }
@@ -178,9 +168,7 @@ impl LlmPreset {
             Self::Small => {
                 "Kleines Sprachmodell fuer 8 GB RAM. Schnell, aber einfachere Nachverarbeitung."
             }
-            Self::Medium => {
-                "Mittleres Sprachmodell als guter Standard fuer 16 GB RAM und mehr."
-            }
+            Self::Medium => "Mittleres Sprachmodell als guter Standard fuer 16 GB RAM und mehr.",
             Self::Large => {
                 "Grosses Sprachmodell mit bester Qualitaet, braucht 24 GB RAM oder mehr."
             }
@@ -233,15 +221,11 @@ impl LlmPreset {
     }
 }
 
-impl Default for LlmPreset {
-    fn default() -> Self {
-        Self::Medium
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ProviderKind {
+    #[default]
     LocalWhisper,
     Ollama,
     LmStudio,
@@ -257,15 +241,11 @@ impl ProviderKind {
     }
 }
 
-impl Default for ProviderKind {
-    fn default() -> Self {
-        Self::LocalWhisper
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum PostProcessingProvider {
+    #[default]
     Disabled,
     LocalLlm,
     Ollama,
@@ -273,12 +253,7 @@ pub enum PostProcessingProvider {
 }
 
 impl PostProcessingProvider {
-    pub const ALL: [Self; 4] = [
-        Self::LocalLlm,
-        Self::Disabled,
-        Self::Ollama,
-        Self::LmStudio,
-    ];
+    pub const ALL: [Self; 4] = [Self::LocalLlm, Self::Disabled, Self::Ollama, Self::LmStudio];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -287,12 +262,6 @@ impl PostProcessingProvider {
             Self::Ollama => "Ollama",
             Self::LmStudio => "LM Studio",
         }
-    }
-}
-
-impl Default for PostProcessingProvider {
-    fn default() -> Self {
-        Self::Disabled
     }
 }
 
@@ -437,23 +406,20 @@ impl AppSettings {
     pub fn active_provider_summary(&self) -> String {
         let mode = self.active_mode();
         match self.active_mode_provider() {
-            PostProcessingProvider::Disabled => format!(
-                "Lokales Whisper mit {}",
-                self.local_model.display_label()
-            ),
+            PostProcessingProvider::Disabled => {
+                format!("Lokales Whisper mit {}", self.local_model.display_label())
+            }
             PostProcessingProvider::LocalLlm => format!(
                 "Lokales Whisper + {} im Modus '{}'",
                 self.local_llm.display_label(),
                 mode.name
             ),
-            PostProcessingProvider::Ollama => format!(
-                "Lokales Whisper + Ollama im Modus '{}'",
-                mode.name
-            ),
-            PostProcessingProvider::LmStudio => format!(
-                "Lokales Whisper + LM Studio im Modus '{}'",
-                mode.name
-            ),
+            PostProcessingProvider::Ollama => {
+                format!("Lokales Whisper + Ollama im Modus '{}'", mode.name)
+            }
+            PostProcessingProvider::LmStudio => {
+                format!("Lokales Whisper + LM Studio im Modus '{}'", mode.name)
+            }
         }
     }
 }

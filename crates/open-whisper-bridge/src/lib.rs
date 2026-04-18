@@ -118,17 +118,17 @@ impl BridgeRuntime {
                         .map(|pending| pending.mode_name.clone())
                         .unwrap_or_else(|| self.settings.active_mode_name().to_owned());
                     self.pending_post_processing = None;
-                    self.finish_transcript(processed_text, &format!(
-                        "Nachverarbeitung im Modus '{mode_name}' abgeschlossen."
-                    ));
+                    self.finish_transcript(
+                        processed_text,
+                        &format!("Nachverarbeitung im Modus '{mode_name}' abgeschlossen."),
+                    );
                 }
                 Ok(Err(err)) => {
                     self.post_processing_rx = None;
                     if let Some(pending) = self.pending_post_processing.take() {
                         let fallback_status = format!(
                             "Nachverarbeitung im Modus '{}' ueber {} fehlgeschlagen. Rohtranskript wird verwendet. {err}",
-                            pending.mode_name,
-                            pending.provider_label
+                            pending.mode_name, pending.provider_label
                         );
                         self.finish_transcript(pending.raw_transcript, &fallback_status);
                     } else {
@@ -238,10 +238,10 @@ impl BridgeRuntime {
         let previous_model = self.settings.local_model;
         next_settings.normalize();
 
-        if next_settings.local_model_path.trim().is_empty() {
-            if let Ok(path) = self.dictation.suggested_model_path(&next_settings) {
-                next_settings.local_model_path = path.display().to_string();
-            }
+        if next_settings.local_model_path.trim().is_empty()
+            && let Ok(path) = self.dictation.suggested_model_path(&next_settings)
+        {
+            next_settings.local_model_path = path.display().to_string();
         }
 
         for message in self.dictation.refresh_input_devices(&mut next_settings) {
@@ -258,15 +258,17 @@ impl BridgeRuntime {
             Err(err) => self.last_status = err,
         }
 
-        if let Some(hotkey) = &mut self.hotkey {
-            if let Err(err) = hotkey.apply_settings(&self.settings) {
-                self.last_status = err;
-            }
+        if let Some(hotkey) = &mut self.hotkey
+            && let Err(err) = hotkey.apply_settings(&self.settings)
+        {
+            self.last_status = err;
         }
 
         self.model_downloads.refresh_local_state(&self.settings);
 
-        if previous_path != self.settings.local_model_path || previous_model != self.settings.local_model {
+        if previous_path != self.settings.local_model_path
+            || previous_model != self.settings.local_model
+        {
             self.dictation.invalidate_model_cache();
         }
 
@@ -341,7 +343,9 @@ impl BridgeRuntime {
             }
         }
 
-        let message = self.model_downloads.delete_downloaded_model(&self.settings)?;
+        let message = self
+            .model_downloads
+            .delete_downloaded_model(&self.settings)?;
         self.last_status = message.clone();
         self.dictation.invalidate_model_cache();
         Ok(message)
@@ -435,9 +439,9 @@ mod hotkey {
             }
 
             if let Some(old) = self.registered_hotkey.take() {
-                self.manager.unregister(old).map_err(|err| {
-                    format!("Vorherigen Hotkey konnte ich nicht abmelden: {err}")
-                })?;
+                self.manager
+                    .unregister(old)
+                    .map_err(|err| format!("Vorherigen Hotkey konnte ich nicht abmelden: {err}"))?;
             }
 
             let parsed: HotKey = settings
@@ -599,7 +603,8 @@ fn validate_hotkey_text(raw_hotkey: &str) -> Result<String, String> {
             });
 
         if modifier_only {
-            "Hotkey braucht neben Zusatztasten auch eine echte Taste wie Space, R oder F8.".to_owned()
+            "Hotkey braucht neben Zusatztasten auch eine echte Taste wie Space, R oder F8."
+                .to_owned()
         } else {
             format!("Hotkey '{hotkey}' ist ungueltig: {err}")
         }
@@ -655,7 +660,9 @@ pub extern "C" fn ow_delete_model(request_json: *const c_char) -> *mut c_char {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ow_run_permission_diagnostics() -> *mut c_char {
-    response_ok(with_runtime_value(BridgeRuntime::run_permission_diagnostics))
+    response_ok(with_runtime_value(
+        BridgeRuntime::run_permission_diagnostics,
+    ))
 }
 
 #[unsafe(no_mangle)]
@@ -680,14 +687,22 @@ pub extern "C" fn ow_get_recording_levels() -> *mut c_char {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ow_validate_hotkey(request_json: *const c_char) -> *mut c_char {
-    let request = match parse_json_arg::<HotkeyValidationRequest>(request_json, "HotkeyValidationRequest") {
-        Ok(request) => request,
-        Err(err) => return response_from_result::<String>(Err(err)),
-    };
+    let request =
+        match parse_json_arg::<HotkeyValidationRequest>(request_json, "HotkeyValidationRequest") {
+            Ok(request) => request,
+            Err(err) => return response_from_result::<String>(Err(err)),
+        };
 
     response_from_result(validate_hotkey_text(&request.hotkey))
 }
 
+/// Frees a C string returned by any `ow_*` function.
+///
+/// # Safety
+///
+/// `raw` must either be null or a pointer previously returned by an `ow_*`
+/// function in this crate (i.e. produced via `CString::into_raw`). The pointer
+/// must not have been freed before and must not be used after this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ow_string_free(raw: *mut c_char) {
     if raw.is_null() {

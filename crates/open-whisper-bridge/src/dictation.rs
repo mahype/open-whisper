@@ -937,7 +937,7 @@ fn render_recording_cue(cue: RecordingCue, sample_rate: u32) -> Vec<f32> {
     for (index, (frequency_hz, duration_ms)) in notes.iter().copied().enumerate() {
         append_cue_note(&mut rendered, sample_rate, frequency_hz, duration_ms);
         if index + 1 < notes.len() {
-            rendered.extend(std::iter::repeat(0.0).take(gap_samples));
+            rendered.extend(std::iter::repeat_n(0.0, gap_samples));
         }
     }
 

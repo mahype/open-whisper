@@ -175,7 +175,10 @@ fn item(
 }
 
 fn model_ready_message(settings: &AppSettings) -> String {
-    format!("{} ist lokal verfuegbar.", settings.local_model.display_label())
+    format!(
+        "{} ist lokal verfuegbar.",
+        settings.local_model.display_label()
+    )
 }
 
 #[cfg(test)]

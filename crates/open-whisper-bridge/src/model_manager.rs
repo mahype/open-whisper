@@ -35,7 +35,9 @@ impl ModelDownloadManager {
 
         let target_path = resolve_model_path(settings)?;
         if target_path.exists() {
-            self.state = ModelDownloadState::Ready { path: target_path.clone() };
+            self.state = ModelDownloadState::Ready {
+                path: target_path.clone(),
+            };
             return Ok(format!(
                 "{} ist bereits vorhanden.",
                 settings.local_model.display_label()
@@ -64,7 +66,10 @@ impl ModelDownloadManager {
             }
         });
 
-        Ok(format!("Download fuer {} gestartet.", preset.display_label()))
+        Ok(format!(
+            "Download fuer {} gestartet.",
+            preset.display_label()
+        ))
     }
 
     pub fn delete_downloaded_model(&mut self, settings: &AppSettings) -> Result<String, String> {
@@ -87,7 +92,10 @@ impl ModelDownloadManager {
             .map_err(|err| format!("Modell konnte nicht geloescht werden: {err}"))?;
         self.state = ModelDownloadState::Missing;
 
-        Ok(format!("{} wurde lokal geloescht.", settings.local_model.display_label()))
+        Ok(format!(
+            "{} wurde lokal geloescht.",
+            settings.local_model.display_label()
+        ))
     }
 
     pub fn poll(&mut self) -> Vec<String> {
@@ -181,7 +189,10 @@ impl ModelDownloadManager {
         match &self.state {
             ModelDownloadState::Idle => summary_for_path(resolve_model_path(settings).ok()),
             ModelDownloadState::Missing => {
-                format!("{} ist noch nicht heruntergeladen.", settings.local_model.display_label())
+                format!(
+                    "{} ist noch nicht heruntergeladen.",
+                    settings.local_model.display_label()
+                )
             }
             ModelDownloadState::Ready { path } => summary_for_existing_path(path),
             ModelDownloadState::Downloading {

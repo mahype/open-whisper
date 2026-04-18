@@ -35,7 +35,9 @@ impl LlmModelDownloadManager {
 
         let target_path = resolve_llm_model_path(settings)?;
         if target_path.exists() {
-            self.state = LlmDownloadState::Ready { path: target_path.clone() };
+            self.state = LlmDownloadState::Ready {
+                path: target_path.clone(),
+            };
             return Ok(format!(
                 "{} ist bereits vorhanden.",
                 settings.local_llm.display_label()
@@ -419,11 +421,7 @@ fn human_readable_duration(duration: Duration) -> String {
     if duration.as_secs() < 60 {
         format!("{}s", duration.as_secs())
     } else {
-        format!(
-            "{}m {}s",
-            duration.as_secs() / 60,
-            duration.as_secs() % 60
-        )
+        format!("{}m {}s", duration.as_secs() / 60, duration.as_secs() % 60)
     }
 }
 

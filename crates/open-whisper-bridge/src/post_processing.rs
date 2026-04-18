@@ -18,7 +18,9 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
     let client = Client::builder()
         .timeout(REQUEST_TIMEOUT)
         .build()
-        .map_err(|err| format!("HTTP-Client fuer Nachverarbeitung konnte nicht erstellt werden: {err}"))?;
+        .map_err(|err| {
+            format!("HTTP-Client fuer Nachverarbeitung konnte nicht erstellt werden: {err}")
+        })?;
 
     let system_prompt = build_system_prompt(&mode.prompt);
 
@@ -26,7 +28,8 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
         PostProcessingProvider::Disabled => raw_transcript.to_owned(),
         PostProcessingProvider::LocalLlm => {
             return Err(
-                "Lokales Sprachmodell ist noch nicht verdrahtet (siehe process_text_with_runtime).".to_owned(),
+                "Lokales Sprachmodell ist noch nicht verdrahtet (siehe process_text_with_runtime)."
+                    .to_owned(),
             );
         }
         PostProcessingProvider::Ollama => request_ollama(
@@ -142,7 +145,9 @@ fn request_lm_studio(
             ]
         }))
         .send()
-        .map_err(|err| format!("LM-Studio-Nachverarbeitung konnte nicht gestartet werden: {err}"))?;
+        .map_err(|err| {
+            format!("LM-Studio-Nachverarbeitung konnte nicht gestartet werden: {err}")
+        })?;
 
     let status = response.status();
     let value: Value = response
@@ -222,6 +227,9 @@ mod tests {
         });
         settings.active_mode_id = "dev".to_owned();
 
-        assert_eq!(settings.active_mode_provider(), PostProcessingProvider::Ollama);
+        assert_eq!(
+            settings.active_mode_provider(),
+            PostProcessingProvider::Ollama
+        );
     }
 }
