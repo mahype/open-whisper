@@ -1,4 +1,3 @@
-import Foundation
 import Sparkle
 
 /// Thin wrapper around Sparkle's standard updater controller.
