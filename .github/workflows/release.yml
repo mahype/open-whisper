@@ -19,6 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Select Xcode 16 (Swift 6)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16'
+
       - name: Verify tag matches Cargo.toml version
         run: |
           tag="${GITHUB_REF_NAME#v}"
