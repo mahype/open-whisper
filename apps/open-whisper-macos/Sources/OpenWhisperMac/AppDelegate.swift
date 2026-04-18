@@ -230,6 +230,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             defer: false
         )
         window.title = title
+        window.titlebarAppearsTransparent = false
+        window.titlebarSeparatorStyle = .automatic
         window.center()
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: rootView)
