@@ -92,11 +92,15 @@ jobs:
       - name: Build DMG
         run: ./scripts/build-dmg.sh
 
-      - name: Build Sparkle tools
+      - name: Verify Sparkle sign_update is available
         run: |
-          # Ensure sign_update and friends are built so update-appcast.sh can find them.
-          swift build --package-path apps/open-whisper-macos --product Sparkle >/dev/null 2>&1 || true
-          find apps/open-whisper-macos/.build -type f -name sign_update | head -1
+          set -euo pipefail
+          sign_update="$(find apps/open-whisper-macos/.build -type f -name sign_update 2>/dev/null | head -1 || true)"
+          if [[ ! -x "$sign_update" ]]; then
+            echo "error: sign_update not found under apps/open-whisper-macos/.build — the Sparkle SPM artifact was not materialised by the earlier build step." >&2
+            exit 1
+          fi
+          echo "sign_update: $sign_update"
 
       - name: Checkout gh-pages for appcast
         uses: actions/checkout@v4

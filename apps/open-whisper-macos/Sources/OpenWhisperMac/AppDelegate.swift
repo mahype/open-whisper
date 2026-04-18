@@ -61,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             statusItemLine,
             .separator(),
             checkForUpdatesItem,
+            .separator(),
             quitItem,
         ]
         statusItem.menu = statusMenu
