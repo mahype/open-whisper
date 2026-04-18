@@ -18,7 +18,6 @@ struct SettingsView: View {
                 detailContent(for: detailSection)
             }
             .formStyle(.grouped)
-            .contentMargins(.bottom, 24, for: .scrollContent)
             .navigationTitle(detailSection.title)
             .sheet(isPresented: $isEditingMode) {
                 ModeEditorSheet(model: model) {
@@ -27,10 +26,10 @@ struct SettingsView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .safeAreaInset(edge: .bottom) {
             bottomBar
         }
-        .frame(minWidth: 760, idealWidth: 860, minHeight: 560, idealHeight: 640)
+        .frame(width: 820, height: 720)
     }
 
     private var detailSection: SettingsSection {
@@ -111,6 +110,13 @@ struct SettingsView: View {
                 "Wellenform-Fenster waehrend Aufnahme anzeigen",
                 isOn: model.binding(for: \.showRecordingIndicator)
             )
+
+            Picker("Stil", selection: model.binding(for: \.waveformStyle)) {
+                ForEach(WaveformStyle.allCases) { style in
+                    Text(style.label).tag(style)
+                }
+            }
+            .disabled(!model.settings.showRecordingIndicator)
         }
     }
 

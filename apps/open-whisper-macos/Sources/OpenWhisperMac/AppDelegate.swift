@@ -82,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     @objc private func showSettings(_ sender: Any?) {
         let window = settingsWindow ?? makeWindow(
             title: "Open Whisper Einstellungen",
-            size: NSSize(width: 820, height: 560),
+            size: NSSize(width: 820, height: 720),
             rootView: SettingsView(model: model)
         )
         if settingsWindow == nil {
@@ -227,14 +227,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func makeWindow<Content: View>(title: String, size: NSSize, rootView: Content) -> NSWindow {
-        let window = OpaqueTitleWindow(
+        let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.title = title
-        window.titlebarSeparatorStyle = .automatic
         window.center()
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: rootView)
@@ -246,21 +245,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Open Whisper")
         image?.isTemplate = true
         return image
-    }
-}
-
-final class OpaqueTitleWindow: NSWindow {
-    override var styleMask: NSWindow.StyleMask {
-        get { super.styleMask }
-        set {
-            var mask = newValue
-            mask.remove(.fullSizeContentView)
-            super.styleMask = mask
-        }
-    }
-
-    override var titlebarAppearsTransparent: Bool {
-        get { super.titlebarAppearsTransparent }
-        set { super.titlebarAppearsTransparent = false }
     }
 }
