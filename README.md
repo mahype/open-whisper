@@ -50,7 +50,7 @@ Need permissions help, autostart setup, or uninstall steps? → [docs/INSTALL.md
 
 ## Run it locally (Developers)
 
-Prereqs: **Rust 1.85+**, **Swift 6 / Xcode 16+**, **Xcode Command Line Tools**.
+Prereqs: **Rust 1.88+**, **Swift 6 / Xcode 16+**, **Xcode Command Line Tools**, and **CMake** (`brew install cmake`).
 
 ```bash
 git clone git@github.com:mahype/open-whisper.git

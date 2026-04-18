@@ -6,8 +6,9 @@ You need a Mac running macOS 14+ with:
 
 - **Xcode Command Line Tools** — `xcode-select --install`
 - **Swift 6** — bundled with Xcode 16+. Verify with `swift --version`.
-- **Rust toolchain** — install via [rustup.rs](https://rustup.rs/). Edition 2024 is used, which requires a recent stable (1.85+).
-- For universal binaries (release builds): both Rust targets installed:
+- **Rust toolchain** — install via [rustup.rs](https://rustup.rs/). Edition 2024 plus transitive deps (`whisper-rs-sys`, `llama-cpp-sys-2`, `image`) require stable **1.88+**.
+- **CMake** — required to build the bundled `whisper.cpp` and `llama.cpp`: `brew install cmake`.
+- For universal binaries (release builds): full Xcode (not just Command Line Tools) and both Rust targets installed:
   ```bash
   rustup target add aarch64-apple-darwin x86_64-apple-darwin
   ```
