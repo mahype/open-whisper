@@ -85,4 +85,4 @@ open-whisper/
 
 ## License
 
-TBD — license file will be added before the first tagged release.
+MIT — see [LICENSE](LICENSE).
