@@ -6,6 +6,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case languageModels = "language_models"
     case startup
     case diagnostics
+    case help
 
     var id: String { rawValue }
 
@@ -21,6 +22,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "Start & Verhalten"
         case .diagnostics:
             return "Diagnose"
+        case .help:
+            return "Hilfe"
         }
     }
 
@@ -36,6 +39,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "power.circle.fill"
         case .diagnostics:
             return "checklist"
+        case .help:
+            return "questionmark.circle"
         }
     }
 }

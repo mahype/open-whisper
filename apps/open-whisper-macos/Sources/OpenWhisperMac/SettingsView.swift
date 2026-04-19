@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    let onReopenOnboarding: () -> Void
     @State private var selectedSection: SettingsSection? = .recording
     @State private var isEditingMode: Bool = false
     @State private var isManagingLanguageModels: Bool = false
@@ -59,6 +60,8 @@ struct SettingsView: View {
             startupContent
         case .diagnostics:
             diagnosticsContent
+        case .help:
+            helpContent
         }
     }
 
@@ -283,6 +286,19 @@ struct SettingsView: View {
             ForEach(model.diagnostics.items) { item in
                 DiagnosticDisclosureCard(item: item)
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var helpContent: some View {
+        Section("Setup") {
+            Text("Du kannst den Einrichtungs-Assistenten jederzeit erneut starten, um Mikrofon, Hotkey und Sprachmodelle neu zu konfigurieren.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Button("Onboarding erneut starten") {
+                onReopenOnboarding()
             }
         }
     }
