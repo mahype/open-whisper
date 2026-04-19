@@ -502,7 +502,7 @@ impl BridgeRuntime {
                 } else if is_downloaded {
                     format!("{} bereit.", preset.display_label())
                 } else {
-                    format!("{} ({}) noch nicht geladen.", preset.display_label(), preset.approx_size_label())
+                    format!("{} noch nicht geladen.", preset.display_label())
                 };
 
                 LlmModelStatusDto {

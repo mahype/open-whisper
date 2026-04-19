@@ -299,9 +299,9 @@ impl LlmPreset {
 
     pub fn display_label(self) -> &'static str {
         match self {
-            Self::Small => "Gemma 4 E2B (klein)",
-            Self::Medium => "Gemma 4 E4B (mittel)",
-            Self::Large => "Gemma 4 26B (gross)",
+            Self::Small => "Gemma 4 E2B (3,5 GB)",
+            Self::Medium => "Gemma 4 E4B (5,4 GB)",
+            Self::Large => "Gemma 4 26B (17 GB)",
         }
     }
 

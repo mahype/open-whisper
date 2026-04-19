@@ -258,9 +258,9 @@ enum LlmPreset: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .small: return "Gemma 4 E2B (klein)"
-        case .medium: return "Gemma 4 E4B (mittel)"
-        case .large: return "Gemma 4 26B (gross)"
+        case .small: return "Gemma 4 E2B (3,5 GB)"
+        case .medium: return "Gemma 4 E4B (5,4 GB)"
+        case .large: return "Gemma 4 26B (17 GB)"
         }
     }
 
