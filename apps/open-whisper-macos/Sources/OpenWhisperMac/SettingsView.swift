@@ -4,6 +4,8 @@ struct SettingsView: View {
     @ObservedObject var model: AppModel
     @State private var selectedSection: SettingsSection? = .recording
     @State private var isEditingMode: Bool = false
+    @State private var isManagingLanguageModels: Bool = false
+    @State private var managerTab: LanguageModelsManagerTab = .transcription
 
     var body: some View {
         NavigationSplitView {
@@ -22,6 +24,14 @@ struct SettingsView: View {
             .sheet(isPresented: $isEditingMode) {
                 ModeEditorSheet(model: model) {
                     isEditingMode = false
+                }
+            }
+            .sheet(isPresented: $isManagingLanguageModels) {
+                LanguageModelsManagerSheet(
+                    model: model,
+                    selectedTab: $managerTab
+                ) {
+                    isManagingLanguageModels = false
                 }
             }
         }
@@ -43,14 +53,10 @@ struct SettingsView: View {
             recordingContent
         case .modes:
             modesContent
-        case .model:
-            modelContent
-        case .llm:
-            llmContent
+        case .languageModels:
+            languageModelsContent
         case .startup:
             startupContent
-        case .providers:
-            providersContent
         case .diagnostics:
             diagnosticsContent
         }
@@ -165,123 +171,55 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private var modelContent: some View {
-        Section("Modell") {
-            ForEach(ModelPreset.allCases) { preset in
-                ModelPresetTile(preset: preset, isSelected: model.settings.localModel == preset) {
-                    model.choosePreset(preset)
+    private var languageModelsContent: some View {
+        Section("Transkription") {
+            Picker("Modell", selection: model.binding(for: \.localModel)) {
+                ForEach(ModelPreset.allCases) { preset in
+                    Text(preset.displayName).tag(preset)
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             }
-        }
 
-        Section("Status") {
-            LabeledContent("Auswahl", value: model.selectedModelDisplayName)
-            LabeledContent("Status", value: model.selectedModelStatusText)
-            LabeledContent("Groesse", value: model.selectedModelSizeText)
+            Text(model.selectedModelStatusText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             if let progress = model.modelDownloadProgress {
                 ProgressView(value: progress)
             }
 
-            HStack(spacing: 10) {
-                Button(model.modelStatus.isDownloading ? "Download laeuft..." : "Herunterladen") {
-                    model.startModelDownload()
-                }
-                .disabled(model.modelStatus.isDownloading)
-
-                Button("Loeschen") {
-                    model.deleteModel()
-                }
-                .disabled(model.modelStatus.isDownloading)
+            Button("Sprachmodelle verwalten...") {
+                managerTab = .transcription
+                isManagingLanguageModels = true
             }
         }
-    }
 
-    @ViewBuilder
-    private var llmContent: some View {
-        Section("Sprachmodelle fuer Nachbearbeitung") {
-            Text("Diese Modelle werden lokal ausgefuehrt und koennen pro Modus ausgewaehlt werden. Du kannst Groessen kombinieren: kleines Modell fuer schnelle Modi, grosses fuer anspruchsvolle Stile.")
+        Section("Nachbearbeitung") {
+            Picker("Modell", selection: model.postProcessingChoiceBinding) {
+                ForEach(PostProcessingChoice.allChoices) { choice in
+                    Text(choice.label).tag(choice)
+                }
+            }
+
+            Text(postProcessingSummaryText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            if model.llmStatusList.isEmpty {
-                ForEach(LlmPreset.allCases) { preset in
-                    llmTile(preset: preset, status: nil)
-                }
-            } else {
-                ForEach(model.llmStatusList) { status in
-                    let preset = LlmPreset(rawValue: status.presetLabel.lowercased())
-                        ?? presetFromDisplayLabel(status.displayLabel)
-                    llmTile(preset: preset, status: status)
-                }
+            Button("Sprachmodelle verwalten...") {
+                managerTab = .postProcessing
+                isManagingLanguageModels = true
             }
         }
     }
 
-    private func presetFromDisplayLabel(_ label: String) -> LlmPreset {
-        if label.contains("1B") { return .small }
-        if label.contains("12B") { return .large }
-        return .medium
-    }
-
-    @ViewBuilder
-    private func llmTile(preset: LlmPreset, status: LlmModelStatusDTO?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(preset.displayName)
-                            .font(.body.weight(.medium))
-                        if status?.isLoaded == true {
-                            Text("Geladen")
-                                .font(.caption2.weight(.semibold))
-                                .padding(.vertical, 2)
-                                .padding(.horizontal, 6)
-                                .background(Color.accentColor.opacity(0.14), in: Capsule())
-                                .foregroundStyle(Color.accentColor)
-                        }
-                    }
-                    Text(preset.description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 8)
-
-                Text(preset.approxSizeLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-
-            if let status, status.isDownloading, let basisPoints = status.progressBasisPoints {
-                ProgressView(value: Double(basisPoints) / 10_000.0)
-            }
-
-            HStack(spacing: 10) {
-                Text(status?.summary ?? "Status unbekannt.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Spacer()
-
-                if status?.isDownloaded == true {
-                    Button("Loeschen") {
-                        model.deleteLlmModel(preset: preset)
-                    }
-                    .disabled(status?.isDownloading == true)
-                } else {
-                    Button(status?.isDownloading == true ? "Lade..." : "Herunterladen") {
-                        model.startLlmDownload(preset: preset)
-                    }
-                    .disabled(status?.isDownloading == true)
-                }
-            }
+    private var postProcessingSummaryText: String {
+        switch model.settings.activePostProcessingBackend {
+        case .local:
+            return "Lokal \u{2013} \(model.settings.localLlm.approxSizeLabel)"
+        case .ollama:
+            return "Ollama \u{2013} \(model.settings.ollama.endpoint) / \(model.settings.ollama.modelName)"
+        case .lmStudio:
+            return "LM Studio \u{2013} \(model.settings.lmStudio.endpoint) / \(model.settings.lmStudio.modelName)"
         }
-        .padding(.vertical, 4)
     }
 
     @ViewBuilder
@@ -323,19 +261,6 @@ struct SettingsView: View {
             LabeledContent("Systemstart", value: model.runtime.startupSummary)
             LabeledContent("Hotkey", value: model.runtime.hotkeyText)
             LabeledContent("Modus", value: model.activeModeName)
-        }
-    }
-
-    @ViewBuilder
-    private var providersContent: some View {
-        Section("Ollama") {
-            TextField("Endpoint", text: model.binding(for: \.ollama.endpoint))
-            TextField("Modellname", text: model.binding(for: \.ollama.modelName))
-        }
-
-        Section("LM Studio") {
-            TextField("Endpoint", text: model.binding(for: \.lmStudio.endpoint))
-            TextField("Modellname", text: model.binding(for: \.lmStudio.modelName))
         }
     }
 

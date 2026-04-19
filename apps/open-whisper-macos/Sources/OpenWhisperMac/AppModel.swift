@@ -7,6 +7,7 @@ final class AppModel: ObservableObject {
     @Published var settings: AppSettings = .default
     @Published var devices: [DeviceDTO] = []
     @Published var modelStatus: ModelStatusDTO = .empty
+    @Published var modelStatusList: [ModelStatusDTO] = []
     @Published var llmStatusList: [LlmModelStatusDTO] = []
     @Published var diagnostics: DiagnosticsDTO = .empty
     @Published var runtime: RuntimeStatusDTO = .empty
@@ -187,12 +188,40 @@ final class AppModel: ObservableObject {
         )
     }
 
+    var postProcessingChoiceBinding: Binding<PostProcessingChoice> {
+        Binding(
+            get: {
+                switch self.settings.activePostProcessingBackend {
+                case .local:
+                    return .localPreset(self.settings.localLlm)
+                case .ollama:
+                    return .ollama
+                case .lmStudio:
+                    return .lmStudio
+                }
+            },
+            set: { newValue in
+                switch newValue {
+                case .localPreset(let preset):
+                    self.settings.activePostProcessingBackend = .local
+                    self.settings.localLlm = preset
+                case .ollama:
+                    self.settings.activePostProcessingBackend = .ollama
+                case .lmStudio:
+                    self.settings.activePostProcessingBackend = .lmStudio
+                }
+                self.requestAutoSave()
+            }
+        )
+    }
+
     func reloadAll() {
         do {
             settings = try bridge.loadSettings()
             persistedSettingsSnapshot = settings
             devices = try bridge.listInputDevices()
             modelStatus = try bridge.getModelStatus()
+            modelStatusList = (try? bridge.getModelStatusList()) ?? []
             llmStatusList = (try? bridge.getLlmStatusList()) ?? []
             diagnostics = try bridge.runPermissionDiagnostics()
             runtime = try bridge.getRuntimeStatus()
@@ -212,6 +241,9 @@ final class AppModel: ObservableObject {
         do {
             runtime = try bridge.getRuntimeStatus()
             modelStatus = try bridge.getModelStatus()
+            if let list = try? bridge.getModelStatusList() {
+                modelStatusList = list
+            }
             if let list = try? bridge.getLlmStatusList() {
                 llmStatusList = list
             }
@@ -435,8 +467,12 @@ final class AppModel: ObservableObject {
     }
 
     func startModelDownload() {
+        startModelDownload(preset: settings.localModel)
+    }
+
+    func startModelDownload(preset: ModelPreset) {
         do {
-            _ = try bridge.startModelDownload(preset: settings.localModel)
+            _ = try bridge.startModelDownload(preset: preset)
             bridgeError = nil
             poll()
         } catch {
@@ -445,8 +481,12 @@ final class AppModel: ObservableObject {
     }
 
     func deleteModel() {
+        deleteModel(preset: settings.localModel)
+    }
+
+    func deleteModel(preset: ModelPreset) {
         do {
-            _ = try bridge.deleteModel(preset: settings.localModel)
+            _ = try bridge.deleteModel(preset: preset)
             bridgeError = nil
             poll()
         } catch {

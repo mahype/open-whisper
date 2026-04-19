@@ -29,22 +29,25 @@ impl ModelDownloadManager {
     }
 
     pub fn start_download(&mut self, settings: &AppSettings) -> Result<String, String> {
+        self.start_download_for(settings.local_model)
+    }
+
+    pub fn start_download_for(&mut self, preset: ModelPreset) -> Result<String, String> {
         if self.is_downloading() {
             return Err("Ein Modelldownload laeuft bereits.".to_owned());
         }
 
-        let target_path = resolve_model_path(settings)?;
+        let target_path = default_model_path(preset)?;
         if target_path.exists() {
             self.state = ModelDownloadState::Ready {
                 path: target_path.clone(),
             };
             return Ok(format!(
                 "{} ist bereits vorhanden.",
-                settings.local_model.display_label()
+                preset.display_label()
             ));
         }
 
-        let preset = settings.local_model;
         let download_url = preset.download_url().to_owned();
         let download_path = target_path.clone();
         let temp_path = temporary_download_path(&target_path);
@@ -73,28 +76,34 @@ impl ModelDownloadManager {
     }
 
     pub fn delete_downloaded_model(&mut self, settings: &AppSettings) -> Result<String, String> {
-        if self.is_downloading() {
+        self.delete_preset(settings.local_model)
+    }
+
+    pub fn delete_preset(&mut self, preset: ModelPreset) -> Result<String, String> {
+        if self.is_downloading_preset(preset) {
             return Err(
                 "Ein laufender Download kann nicht gleichzeitig geloescht werden.".to_owned(),
             );
         }
 
-        let path = resolve_model_path(settings)?;
+        let path = default_model_path(preset)?;
         if !path.exists() {
-            self.state = ModelDownloadState::Missing;
             return Ok(format!(
                 "{} war lokal bereits nicht vorhanden.",
-                settings.local_model.display_label()
+                preset.display_label()
             ));
         }
 
         fs::remove_file(&path)
             .map_err(|err| format!("Modell konnte nicht geloescht werden: {err}"))?;
-        self.state = ModelDownloadState::Missing;
+
+        if !self.is_downloading() {
+            self.state = ModelDownloadState::Missing;
+        }
 
         Ok(format!(
             "{} wurde lokal geloescht.",
-            settings.local_model.display_label()
+            preset.display_label()
         ))
     }
 
@@ -174,6 +183,18 @@ impl ModelDownloadManager {
         matches!(self.state, ModelDownloadState::Downloading { .. })
     }
 
+    pub fn is_downloading_preset(&self, preset: ModelPreset) -> bool {
+        matches!(self.state, ModelDownloadState::Downloading { preset: active, .. } if active == preset)
+    }
+
+    pub fn active_download_preset(&self) -> Option<ModelPreset> {
+        if let ModelDownloadState::Downloading { preset, .. } = &self.state {
+            Some(*preset)
+        } else {
+            None
+        }
+    }
+
     pub fn progress_fraction(&self) -> Option<f32> {
         match &self.state {
             ModelDownloadState::Downloading {
@@ -183,6 +204,11 @@ impl ModelDownloadManager {
             } if *total_bytes > 0 => Some(*downloaded_bytes as f32 / *total_bytes as f32),
             _ => None,
         }
+    }
+
+    pub fn progress_basis_points(&self) -> Option<u16> {
+        self.progress_fraction()
+            .map(|fraction| (fraction.clamp(0.0, 1.0) * 10_000.0).round() as u16)
     }
 
     pub fn summary(&self, settings: &AppSettings) -> String {
@@ -377,7 +403,7 @@ fn model_label_for_path(path: &Path) -> &'static str {
     }
 }
 
-fn human_readable_size(bytes: u64) -> String {
+pub fn human_readable_size(bytes: u64) -> String {
     const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
 
     let mut value = bytes as f64;

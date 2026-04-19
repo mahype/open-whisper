@@ -3,10 +3,8 @@ import SwiftUI
 enum SettingsSection: String, CaseIterable, Identifiable {
     case recording
     case modes
-    case model
-    case llm
+    case languageModels = "language_models"
     case startup
-    case providers
     case diagnostics
 
     var id: String { rawValue }
@@ -17,14 +15,10 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "Aufnahme"
         case .modes:
             return "Modi"
-        case .model:
-            return "Transkription"
-        case .llm:
-            return "Nachbearbeitung"
+        case .languageModels:
+            return "Sprachmodelle"
         case .startup:
             return "Start & Verhalten"
-        case .providers:
-            return "Optionale Provider"
         case .diagnostics:
             return "Diagnose"
         }
@@ -36,14 +30,10 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "mic.fill"
         case .modes:
             return "square.text.square"
-        case .model:
-            return "waveform"
-        case .llm:
-            return "text.bubble"
+        case .languageModels:
+            return "brain.head.profile"
         case .startup:
             return "power.circle.fill"
-        case .providers:
-            return "server.rack"
         case .diagnostics:
             return "checklist"
         }

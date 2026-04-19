@@ -357,33 +357,64 @@ impl BridgeRuntime {
 
     fn start_model_download(&mut self, preset: Option<ModelPreset>) -> Result<String, String> {
         self.poll();
-        if let Some(preset) = preset {
-            self.settings.local_model = preset;
-            if let Ok(path) = self.dictation.suggested_model_path(&self.settings) {
-                self.settings.local_model_path = path.display().to_string();
-            }
-        }
-
-        let message = self.model_downloads.start_download(&self.settings)?;
+        let target = preset.unwrap_or(self.settings.local_model);
+        let message = self.model_downloads.start_download_for(target)?;
         self.last_status = message.clone();
         Ok(message)
     }
 
     fn delete_model(&mut self, preset: Option<ModelPreset>) -> Result<String, String> {
         self.poll();
-        if let Some(preset) = preset {
-            self.settings.local_model = preset;
-            if let Ok(path) = self.dictation.suggested_model_path(&self.settings) {
-                self.settings.local_model_path = path.display().to_string();
-            }
-        }
-
-        let message = self
-            .model_downloads
-            .delete_downloaded_model(&self.settings)?;
+        let target = preset.unwrap_or(self.settings.local_model);
+        let message = self.model_downloads.delete_preset(target)?;
         self.last_status = message.clone();
         self.dictation.invalidate_model_cache();
         Ok(message)
+    }
+
+    fn model_status_list(&mut self) -> Vec<ModelStatusDto> {
+        self.poll();
+        self.model_downloads.refresh_local_state(&self.settings);
+
+        let active_download = self.model_downloads.active_download_preset();
+        let active_progress = self.model_downloads.progress_basis_points();
+
+        ModelPreset::ALL
+            .iter()
+            .copied()
+            .map(|preset| {
+                let path = model_manager::default_model_path(preset)
+                    .map(|value| value.display().to_string())
+                    .unwrap_or_default();
+                let is_downloaded = model_manager::default_model_path(preset)
+                    .map(|value| value.exists())
+                    .unwrap_or(false);
+                let is_downloading = active_download == Some(preset);
+                let progress_basis_points = if is_downloading { active_progress } else { None };
+                let summary = if is_downloading {
+                    format!("Download fuer {} laeuft.", preset.display_label())
+                } else if is_downloaded {
+                    format!("{} bereit.", preset.display_label())
+                } else {
+                    format!(
+                        "{} ({}) noch nicht geladen.",
+                        preset.display_label(),
+                        model_manager::human_readable_size(preset.download_size_bytes()),
+                    )
+                };
+
+                ModelStatusDto {
+                    preset_label: preset.label().to_owned(),
+                    backend_model_name: preset.whisper_model().to_owned(),
+                    path,
+                    summary,
+                    is_downloaded,
+                    is_downloading,
+                    progress_basis_points,
+                    expected_size_bytes: preset.download_size_bytes(),
+                }
+            })
+            .collect()
     }
 
     fn llm_status_list(&mut self) -> Vec<LlmModelStatusDto> {
@@ -736,6 +767,11 @@ pub extern "C" fn ow_list_input_devices() -> *mut c_char {
 #[unsafe(no_mangle)]
 pub extern "C" fn ow_get_model_status() -> *mut c_char {
     response_ok(with_runtime_value(BridgeRuntime::model_status))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_get_model_status_list() -> *mut c_char {
+    response_ok(with_runtime_value(BridgeRuntime::model_status_list))
 }
 
 #[unsafe(no_mangle)]

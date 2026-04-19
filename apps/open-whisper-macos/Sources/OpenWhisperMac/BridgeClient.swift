@@ -37,6 +37,10 @@ final class BridgeClient {
         try decodeResponse(from: ow_get_model_status())
     }
 
+    func getModelStatusList() throws -> [ModelStatusDTO] {
+        try decodeResponse(from: ow_get_model_status_list())
+    }
+
     func startModelDownload(preset: ModelPreset?) throws -> String {
         try encodeAndCall(["preset": preset?.rawValue], function: ow_start_model_download)
     }

@@ -417,7 +417,7 @@ struct DeviceDTO: Codable, Identifiable {
     var id: String { name }
 }
 
-struct ModelStatusDTO: Codable {
+struct ModelStatusDTO: Codable, Identifiable {
     var presetLabel: String
     var backendModelName: String
     var path: String
@@ -426,6 +426,8 @@ struct ModelStatusDTO: Codable {
     var isDownloading: Bool
     var progressBasisPoints: UInt16?
     var expectedSizeBytes: UInt64
+
+    var id: String { backendModelName }
 
     static let empty = ModelStatusDTO(
         presetLabel: "Whisper Small (mittel)",
