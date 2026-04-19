@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
     private var recordingIndicatorWindow: NSWindow?
+    private let recordingLevelFeed = RecordingLevelFeed()
     private let modeMenu = NSMenu()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -157,13 +158,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }()
 
         guard model.settings.showRecordingIndicator, let phase else {
+            recordingLevelFeed.stop()
             recordingIndicatorWindow?.orderOut(nil)
             return
         }
 
+        if phase == .recording {
+            recordingLevelFeed.start()
+        } else {
+            recordingLevelFeed.stop()
+        }
+
         let style = model.settings.waveformStyle
         let color = model.settings.waveformColor
-        let modeName = model.activeModeName
+        let modelSuffix: String? = {
+            switch phase {
+            case .recording, .transcribing:
+                return model.selectedModelDisplayName
+            case .postProcessing:
+                return model.selectedPostProcessingDisplayName
+            case .modelNotReady:
+                return nil
+            }
+        }()
+        let modeName: String = {
+            let base = model.settings.postProcessingEnabled ? model.activeModeName : "Ohne Nachbearbeitung"
+            guard let suffix = modelSuffix, !suffix.isEmpty else { return base }
+            return "\(base) · \(suffix)"
+        }()
         let window = recordingIndicatorWindow ?? makeRecordingIndicatorWindow(phase: phase, style: style, color: color, modeName: modeName)
         recordingIndicatorWindow = window
         updateIndicatorPhase(window: window, phase: phase, style: style, color: color, modeName: modeName)
@@ -179,7 +201,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             || hosting.rootView.style != style
             || hosting.rootView.color != color
             || hosting.rootView.modeName != modeName {
-            hosting.rootView = RecordingIndicatorView(phase: phase, style: style, color: color, modeName: modeName)
+            hosting.rootView = RecordingIndicatorView(
+                phase: phase,
+                style: style,
+                color: color,
+                modeName: modeName,
+                feed: recordingLevelFeed
+            )
         }
     }
 
@@ -202,7 +230,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
 
-        let hosting = NSHostingController(rootView: RecordingIndicatorView(phase: phase, style: style, color: color, modeName: modeName))
+        let hosting = NSHostingController(rootView: RecordingIndicatorView(
+            phase: phase,
+            style: style,
+            color: color,
+            modeName: modeName,
+            feed: recordingLevelFeed
+        ))
         hosting.view.frame = NSRect(origin: .zero, size: size)
         panel.contentViewController = hosting
         return panel

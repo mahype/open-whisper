@@ -73,6 +73,10 @@ final class AppModel: ObservableObject {
         settings.localModel.displayName
     }
 
+    var selectedPostProcessingDisplayName: String {
+        postProcessingChoiceBinding.wrappedValue.label
+    }
+
     var selectedModelStatusText: String {
         if modelStatus.isDownloading {
             return "Download laeuft"

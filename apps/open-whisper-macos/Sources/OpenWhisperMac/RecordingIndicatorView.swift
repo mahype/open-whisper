@@ -57,21 +57,18 @@ struct RecordingIndicatorView: View {
     var style: WaveformStyle = .centeredBars
     var color: WaveformColor = .accent
     var modeName: String = ""
-    @StateObject private var feed = RecordingLevelFeed()
+    @ObservedObject var feed: RecordingLevelFeed
 
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 10) {
-                statusDot
-                content
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 6) {
+            topContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if shouldShowModeLabel {
-                modeLabel
+            if shouldShowStatusRow {
+                statusRow
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(width: 260, height: 86)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -79,45 +76,62 @@ struct RecordingIndicatorView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
         )
-        .onAppear { syncFeed() }
-        .onChange(of: phase) { _ in syncFeed() }
-        .onDisappear { feed.stop() }
     }
 
     private var statusDot: some View {
-        Circle()
-            .fill(statusDotColor)
-            .frame(width: 8, height: 8)
-            .shadow(color: phase == .recording ? Color.red.opacity(0.6) : .clear, radius: 3)
+        TimelineView(.animation(minimumInterval: 0.05, paused: !isBlinkPhase)) { context in
+            Circle()
+                .fill(statusDotColor)
+                .frame(width: 8, height: 8)
+                .opacity(dotOpacity(at: context.date))
+                .shadow(color: phase == .recording ? Color.red.opacity(0.6) : .clear, radius: 3)
+        }
+    }
+
+    private func dotOpacity(at date: Date) -> Double {
+        guard isBlinkPhase else { return 1.0 }
+        let slot = UInt64(date.timeIntervalSince1970 * 16.0)
+        var h = slot &* 0x9E3779B97F4A7C15
+        h ^= h >> 30
+        h &*= 0xBF58476D1CE4E5B9
+        h ^= h >> 27
+        return (h & 0b11) == 0 ? 0.0 : 1.0
     }
 
     private var statusDotColor: Color {
         switch phase {
         case .recording: return .red
-        case .transcribing: return .secondary
-        case .postProcessing: return .purple
+        case .transcribing: return .yellow
+        case .postProcessing: return .yellow
         case .modelNotReady: return .orange
         }
     }
 
-    private var shouldShowModeLabel: Bool {
+    private var isBlinkPhase: Bool {
+        switch phase {
+        case .transcribing, .postProcessing: return true
+        case .recording, .modelNotReady: return false
+        }
+    }
+
+    private var shouldShowStatusRow: Bool {
         guard !modeName.isEmpty else { return false }
         switch phase {
-        case .recording, .postProcessing: return true
-        case .transcribing, .modelNotReady: return false
+        case .recording, .transcribing, .postProcessing: return true
+        case .modelNotReady: return false
         }
     }
 
     @ViewBuilder
-    private var content: some View {
+    private var topContent: some View {
         switch phase {
         case .recording:
             waveform
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .transcribing:
-            processingRow(text: "Transkribiere...")
+            processingText("Transkribieren\u{2026}")
         case .postProcessing:
-            processingRow(text: "Nachbearbeitung...")
+            processingText("Nachbearbeitung\u{2026}")
         case let .modelNotReady(label, progress, isDownloading):
             modelNotReadyRow(label: label, progress: progress, isDownloading: isDownloading)
         }
@@ -125,43 +139,52 @@ struct RecordingIndicatorView: View {
 
     @ViewBuilder
     private func modelNotReadyRow(label: String, progress: Double?, isDownloading: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Aufnahme nicht m\u{F6}glich")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.primary)
-            if let progress, isDownloading {
-                let percent = Int((progress * 100.0).rounded())
-                Text("Modell l\u{E4}dt: \(label) (\(percent)%)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                ProgressView(value: progress)
-            } else if isDownloading {
-                Text("Modell l\u{E4}dt: \(label)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                ProgressView()
-                    .progressViewStyle(.linear)
-            } else {
-                Text("Modell \(label) fehlt. Bitte in den Einstellungen laden.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+        HStack(alignment: .top, spacing: 10) {
+            statusDot
+                .padding(.top, 4)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Aufnahme nicht m\u{F6}glich")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary)
+                if let progress, isDownloading {
+                    let percent = Int((progress * 100.0).rounded())
+                    Text("Modell l\u{E4}dt: \(label) (\(percent)%)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    ProgressView(value: progress)
+                } else if isDownloading {
+                    Text("Modell l\u{E4}dt: \(label)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                } else {
+                    Text("Modell \(label) fehlt. Bitte in den Einstellungen laden.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var modeLabel: some View {
-        Text(modeName)
-            .font(.system(size: 10, weight: .medium))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .frame(maxWidth: .infinity, alignment: .center)
+    private var statusRow: some View {
+        HStack(spacing: 8) {
+            statusDot
+            Text(modeName)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -267,24 +290,11 @@ struct RecordingIndicatorView: View {
         }
     }
 
-    private func processingRow(text: String) -> some View {
-        HStack(spacing: 10) {
-            ProgressView()
-                .controlSize(.small)
-            Text(text)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func syncFeed() {
-        if phase == .recording {
-            feed.start()
-        } else {
-            feed.stop()
-        }
+    private func processingText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private func barHeight(for level: Float) -> CGFloat {
