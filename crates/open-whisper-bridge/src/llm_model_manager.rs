@@ -622,7 +622,7 @@ mod tests {
     fn progress_basis_points_scales_to_ten_thousand() {
         let mut manager = LlmModelDownloadManager::new();
         manager.state = LlmDownloadState::Downloading {
-            preset: LlmPreset::Medium,
+            target: LlmDownloadTarget::Preset(LlmPreset::Medium),
             downloaded_bytes: 500,
             total_bytes: Some(1_000),
             started_at: Instant::now(),
