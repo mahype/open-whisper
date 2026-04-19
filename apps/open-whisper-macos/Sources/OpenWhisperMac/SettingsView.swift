@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    let updaterController: UpdaterController
     let onReopenOnboarding: () -> Void
     @State private var selectedSection: SettingsSection? = .recording
     @State private var isEditingMode: Bool = false
@@ -58,6 +59,8 @@ struct SettingsView: View {
             languageModelsContent
         case .startup:
             startupContent
+        case .updates:
+            UpdatesSettingsView(updaterController: updaterController)
         case .diagnostics:
             diagnosticsContent
         case .help:

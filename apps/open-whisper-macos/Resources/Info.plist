@@ -34,5 +34,15 @@
     <string>Open Whisper records your voice so it can be transcribed locally.</string>
     <key>NSAppleEventsUsageDescription</key>
     <string>Open Whisper uses Apple Events to paste transcribed text into the active application.</string>
+    <key>SUFeedURL</key>
+    <string>https://mahype.github.io/open-whisper/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>qdJZqanF4NxUoo/Np3A9h9Qqt374sWb2nzJ8Cjb0qIU=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUAutomaticallyUpdate</key>
+    <true/>
+    <key>SUScheduledCheckInterval</key>
+    <integer>86400</integer>
 </dict>
 </plist>

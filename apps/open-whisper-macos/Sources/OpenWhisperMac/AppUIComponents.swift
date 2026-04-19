@@ -5,6 +5,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case modes
     case languageModels = "language_models"
     case startup
+    case updates
     case diagnostics
     case help
 
@@ -20,6 +21,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "Sprachmodelle"
         case .startup:
             return "Start & Verhalten"
+        case .updates:
+            return "Updates"
         case .diagnostics:
             return "Diagnose"
         case .help:
@@ -37,6 +40,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "brain.head.profile"
         case .startup:
             return "power.circle.fill"
+        case .updates:
+            return "arrow.triangle.2.circlepath"
         case .diagnostics:
             return "checklist"
         case .help:

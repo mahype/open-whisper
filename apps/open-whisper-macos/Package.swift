@@ -9,6 +9,9 @@ let package = Package(
     products: [
         .executable(name: "OpenWhisperMac", targets: ["OpenWhisperMac"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
+    ],
     targets: [
         .systemLibrary(
             name: "OpenWhisperBridgeFFI",
@@ -16,7 +19,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "OpenWhisperMac",
-            dependencies: ["OpenWhisperBridgeFFI"],
+            dependencies: [
+                "OpenWhisperBridgeFFI",
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             path: "Sources/OpenWhisperMac",
             linkerSettings: [
                 .unsafeFlags(["-L", "../../target/debug", "-lopen_whisper_bridge"]),

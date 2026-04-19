@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     let model = AppModel()
+    let updaterController = UpdaterController()
 
     private var statusItem: NSStatusItem!
     private let statusMenu = NSMenu()
@@ -13,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var modelSwitchItem: NSMenuItem!
     private var statusItemLine: NSMenuItem!
     private var quitItem: NSMenuItem!
+    private var checkForUpdatesItem: NSMenuItem!
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
     private var recordingIndicatorWindow: NSWindow?
@@ -39,6 +41,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         statusItemLine = NSMenuItem(title: "Status wird geladen...", action: nil, keyEquivalent: "")
         statusItemLine.isEnabled = false
         quitItem = NSMenuItem(title: "Beenden", action: #selector(quitApp), keyEquivalent: "q")
+        checkForUpdatesItem = NSMenuItem(
+            title: "Nach Updates suchen...",
+            action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        )
 
         statusMenu.delegate = self
         statusMenu.items = [
@@ -49,6 +56,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             modeSwitchItem,
             modelSwitchItem,
             statusItemLine,
+            .separator(),
+            checkForUpdatesItem,
             .separator(),
             quitItem,
         ]
@@ -80,9 +89,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let window = settingsWindow ?? makeWindow(
             title: "Open Whisper Einstellungen",
             size: NSSize(width: 820, height: 720),
-            rootView: SettingsView(model: model) { [weak self] in
-                self?.showOnboarding(nil)
-            }
+            rootView: SettingsView(
+                model: model,
+                updaterController: updaterController,
+                onReopenOnboarding: { [weak self] in
+                    self?.showOnboarding(nil)
+                }
+            )
         )
         if settingsWindow == nil {
             window.delegate = self
@@ -113,6 +126,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     @objc private func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func checkForUpdates() {
+        updaterController.checkForUpdates()
     }
 
     @objc private func selectMode(_ sender: NSMenuItem) {
