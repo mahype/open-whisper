@@ -10,7 +10,7 @@ This document is for maintainers. It describes how Open Whisper is versioned, bu
 git tag v0.1.0
 git push origin v0.1.0
 # 3. Watch the release workflow on GitHub
-# 4. Review the draft release, write release notes, publish
+# 4. Review the auto-generated release notes on GitHub, edit if needed
 ```
 
 ## Versioning
@@ -40,9 +40,9 @@ On push of a `v*` tag, the GitHub Actions release workflow:
 5. Signs the bundle with the **Developer ID Application** certificate.
 6. Submits to Apple's notary service via `notarytool` and staples the ticket.
 7. Packages the result into `OpenWhisper-<version>.dmg`.
-8. Uploads the DMG and a `SHA256SUMS.txt` to a **draft** GitHub Release.
+8. Uploads the DMG and a `SHA256SUMS.txt` to a **published** GitHub Release with auto-generated release notes.
 
-You then review the draft, add release notes, and publish it.
+You can edit the auto-generated release notes afterwards on GitHub.
 
 ## Secrets required in the GitHub repository
 
