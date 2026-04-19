@@ -1,0 +1,79 @@
+# Changelog
+
+All notable changes to Open Whisper are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- **English and German UI** with automatic selection based on the macOS system language. Source language is English; a full German translation ships alongside. A new *UI language* picker lives in Settings → Start & behavior (System / English / Deutsch; requires app restart) ([`e2579a4`](https://github.com/mahype/open-whisper/commit/e2579a4)).
+
+### Changed
+- Post-processing is now switched on and off via an "Off" entry at the top of the Modes list instead of a separate toggle ([`b1a1f40`](https://github.com/mahype/open-whisper/commit/b1a1f40)).
+
+### CI
+- Release workflow publishes a GitHub Release directly instead of creating a draft ([`e1d5966`](https://github.com/mahype/open-whisper/commit/e1d5966)).
+
+## [0.2.1] — 2026-04-19
+
+### Changed
+- Mode editor refactored with post-processing summaries and a polished sidebar layout ([`2367c99`](https://github.com/mahype/open-whisper/commit/2367c99)).
+
+### Added
+- Help tab now shows the running app version and bundle identifier ([`ed5df92`](https://github.com/mahype/open-whisper/commit/ed5df92)).
+
+## [0.2.0] — 2026-04-19
+
+First public release. Everything below has landed since the project was initialised.
+
+### Added — Auto-updates (Sparkle)
+- Sparkle 2.x integrated via SwiftPM and embedded in the `.app` bundle ([`0508d38`](https://github.com/mahype/open-whisper/commit/0508d38), [`da23377`](https://github.com/mahype/open-whisper/commit/da23377)).
+- `UpdaterController` wrapping `SPUStandardUpdaterController` with safety checks for non-bundle dev runs ([`9267358`](https://github.com/mahype/open-whisper/commit/9267358)).
+- *Check for Updates…* menu-bar entry ([`17cf385`](https://github.com/mahype/open-whisper/commit/17cf385)) and a dedicated Updates tab in Settings ([`fd5f403`](https://github.com/mahype/open-whisper/commit/fd5f403)).
+- Sparkle feed URL and Ed25519 public key embedded in `Info.plist` ([`c94e6da`](https://github.com/mahype/open-whisper/commit/c94e6da)).
+- Release workflow appends a signed appcast entry to `gh-pages` on every tag ([`13fb407`](https://github.com/mahype/open-whisper/commit/13fb407), [`f0edc4d`](https://github.com/mahype/open-whisper/commit/f0edc4d)).
+
+### Added — Post-processing
+- Prompt-template Modes: create, rename, and delete post-processing Modes; a default *Cleanup* Mode ships out of the box ([`c0352bc`](https://github.com/mahype/open-whisper/commit/c0352bc)).
+- Local LLM post-processing via `llama-cpp-2` with Gemma 4 Small/Medium/Large presets ([`0a24b32`](https://github.com/mahype/open-whisper/commit/0a24b32), [`7aee99f`](https://github.com/mahype/open-whisper/commit/7aee99f)).
+- Custom GGUF models: import from a local file ([`4d7c4ad`](https://github.com/mahype/open-whisper/commit/4d7c4ad)) or a download URL ([`60e4a80`](https://github.com/mahype/open-whisper/commit/60e4a80)).
+- Ollama and LM Studio models surfaced in the post-processing backend picker ([`56374d2`](https://github.com/mahype/open-whisper/commit/56374d2)).
+- Global post-processing backend replaces the old per-Mode override as the default; Modes can still opt into a different backend individually ([`477da53`](https://github.com/mahype/open-whisper/commit/477da53), [`c7ca0b0`](https://github.com/mahype/open-whisper/commit/c7ca0b0)).
+- Unified Language Models manager sheet covering both Whisper and local LLM models ([`6fde65e`](https://github.com/mahype/open-whisper/commit/6fde65e)).
+- Gemma preset labels show their on-disk size ([`0d9b117`](https://github.com/mahype/open-whisper/commit/0d9b117)).
+
+### Added — Transcription
+- Whisper preset catalog expanded with **Tiny** and the **Large v3** family (Large v3, Large v3 Turbo, Large v3 Turbo Q5_0) ([`5915c55`](https://github.com/mahype/open-whisper/commit/5915c55)).
+- Onboarding merges model selection and download into a single step ([`26614d9`](https://github.com/mahype/open-whisper/commit/26614d9)).
+- Missing transcription model is surfaced directly on the recording indicator ([`9d5f081`](https://github.com/mahype/open-whisper/commit/9d5f081)).
+
+### Added — Recording UX
+- Recording indicator redesigned with a blinking dot and the active model / Mode labels ([`2467ba2`](https://github.com/mahype/open-whisper/commit/2467ba2), [`790133a`](https://github.com/mahype/open-whisper/commit/790133a)).
+- Waveform style options (centered bars, line, envelope) and a color picker ([`78806e4`](https://github.com/mahype/open-whisper/commit/78806e4), [`2590969`](https://github.com/mahype/open-whisper/commit/2590969)).
+- Top-center recording overlay with a distinct transcription phase ([`94f91bd`](https://github.com/mahype/open-whisper/commit/94f91bd)); post-processing phase made clearly visible ([`7bbb30a`](https://github.com/mahype/open-whisper/commit/7bbb30a)).
+- Dictation cancellation, downloaded-model picker, and tray model switcher ([`22ebdfd`](https://github.com/mahype/open-whisper/commit/22ebdfd)).
+
+### Added — Core functionality
+- Local audio capture and `whisper.cpp` transcription ([`62d5ab5`](https://github.com/mahype/open-whisper/commit/62d5ab5)).
+- Tray icon and global hotkey integration, including single-key hotkeys with a safety warning ([`21edc42`](https://github.com/mahype/open-whisper/commit/21edc42), [`2f1030c`](https://github.com/mahype/open-whisper/commit/2f1030c)).
+- Native macOS menu-bar app with System-Settings-style UI ([`f2f6c6f`](https://github.com/mahype/open-whisper/commit/f2f6c6f), [`205fed5`](https://github.com/mahype/open-whisper/commit/205fed5)).
+- Active-app text insertion via simulated paste ([`9db4ffc`](https://github.com/mahype/open-whisper/commit/9db4ffc)); clipboard fallback when paste is blocked ([`4b7d131`](https://github.com/mahype/open-whisper/commit/4b7d131)).
+- Onboarding flow and permission diagnostics ([`3710095`](https://github.com/mahype/open-whisper/commit/3710095)); Help section to relaunch onboarding ([`9c950f7`](https://github.com/mahype/open-whisper/commit/9c950f7)).
+- Model downloads and autostart support ([`cd560a5`](https://github.com/mahype/open-whisper/commit/cd560a5)).
+- Auto-save settings and initial recording indicator ([`4e7f145`](https://github.com/mahype/open-whisper/commit/4e7f145)).
+- Hotkey recorder UI ([`c272357`](https://github.com/mahype/open-whisper/commit/c272357)).
+
+### Fixed
+- `LocalLlm` now applies Mode prompts to the transcript instead of echoing them back ([`876c6fa`](https://github.com/mahype/open-whisper/commit/876c6fa)).
+- Settings window `styleMask` is clamped so SwiftUI cannot re-enable `fullSizeContentView` ([`d456c06`](https://github.com/mahype/open-whisper/commit/d456c06), [`fd4b4a9`](https://github.com/mahype/open-whisper/commit/fd4b4a9)).
+- Tray menu cleaned up by removing redundant status entries ([`329440c`](https://github.com/mahype/open-whisper/commit/329440c)).
+- Hard-check `sign_update` and separate Quit entry in the tray menu ([`d632990`](https://github.com/mahype/open-whisper/commit/d632990)).
+
+### CI & infrastructure
+- GitHub Actions CI and release workflows plus MIT LICENSE ([`4bda7cf`](https://github.com/mahype/open-whisper/commit/4bda7cf)).
+- macOS packaging scripts and app icon ([`056d39a`](https://github.com/mahype/open-whisper/commit/056d39a)).
+- CI runner bumped to `macos-15` for a newer Metal.framework ([`47caf7d`](https://github.com/mahype/open-whisper/commit/47caf7d)); Xcode 16 pinned on `macos-14` for Swift 6 ([`a1a2b63`](https://github.com/mahype/open-whisper/commit/a1a2b63)).
+- Legacy egui desktop app removed ([`82a3f6d`](https://github.com/mahype/open-whisper/commit/82a3f6d)).
+
+[Unreleased]: https://github.com/mahype/open-whisper/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/mahype/open-whisper/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/mahype/open-whisper/releases/tag/v0.2.0

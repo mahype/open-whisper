@@ -7,9 +7,9 @@ This document is for maintainers. It describes how Open Whisper is versioned, bu
 ```bash
 # 1. Update versions
 # 2. Tag and push
-git tag v0.1.0
-git push origin v0.1.0
-# 3. Watch the release workflow on GitHub
+git tag v0.2.2
+git push origin v0.2.2
+# 3. Watch the release workflow on GitHub — it also appends the Sparkle appcast entry
 # 4. Review the auto-generated release notes on GitHub, edit if needed
 ```
 
@@ -25,8 +25,8 @@ The **Git tag is the source of truth** for the version. Before tagging:
 
 ## Release tag format
 
-- Stable: `v0.1.0`, `v0.2.0`, `v1.0.0`
-- Release candidate: `v0.1.0-rc.1`
+- Stable: `v0.2.0`, `v0.2.1`, `v1.0.0`
+- Release candidate: `v0.2.2-rc.1`
 - Any tag matching `v*` triggers [.github/workflows/release.yml](../.github/workflows/release.yml).
 
 ## What the release workflow does
@@ -41,6 +41,7 @@ On push of a `v*` tag, the GitHub Actions release workflow:
 6. Submits to Apple's notary service via `notarytool` and staples the ticket.
 7. Packages the result into `OpenWhisper-<version>.dmg`.
 8. Uploads the DMG and a `SHA256SUMS.txt` to a **published** GitHub Release with auto-generated release notes.
+9. Signs the DMG with the Sparkle Ed25519 key and appends a new `<item>` to `appcast.xml` on the `gh-pages` branch, so existing installs see the update on their next check (see [Sparkle auto-updates](#sparkle-auto-updates)).
 
 You can edit the auto-generated release notes afterwards on GitHub.
 
@@ -55,6 +56,7 @@ Configure these under **Settings → Secrets and variables → Actions**:
 | `APPLE_ID` | Apple ID email tied to your developer account |
 | `APPLE_TEAM_ID` | 10-character Team ID from [developer.apple.com → Membership](https://developer.apple.com/account/#MembershipDetailsCard) |
 | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password generated at [appleid.apple.com](https://appleid.apple.com/account/manage) → *Sign-In and Security* → *App-Specific Passwords* |
+| `SPARKLE_ED_PRIVATE_KEY` | Sparkle Ed25519 private key (generated once with `generate_keys`). Used by `scripts/update-appcast.sh` to sign each DMG. |
 
 ### Generating `MACOS_CERTIFICATE_P12`
 
@@ -93,13 +95,51 @@ spctl --assess --type open --context context:primary-signature "dist/Open Whispe
 # Expected: "accepted, source=Notarized Developer ID"
 ```
 
+## Sparkle auto-updates
+
+Open Whisper ships with [Sparkle](https://sparkle-project.org/); every released DMG is signed with an Ed25519 key and advertised through an appcast on the `gh-pages` branch.
+
+### One-time setup
+
+Only needed once per project, or when rotating the signing key:
+
+```bash
+# From the checkout root, with Sparkle resolved via SwiftPM:
+./apps/open-whisper-macos/.build/.../generate_keys
+```
+
+The tool writes the key pair into your keychain and prints the **public key**. The public key is already embedded in [Info.plist](../apps/open-whisper-macos/Resources/Info.plist) as `SUPublicEDKey`. Store the **private key** as the `SPARKLE_ED_PRIVATE_KEY` GitHub secret — never commit it.
+
+### What happens on every release tag
+
+The release workflow invokes [scripts/update-appcast.sh](../scripts/update-appcast.sh), which:
+
+1. Signs the built DMG with Sparkle's `sign_update` using `SPARKLE_ED_PRIVATE_KEY`.
+2. Prepends a new `<item>` to `appcast.xml` on the `gh-pages` branch, including the version, pub-date, minimum-system-version (14.0), signature, and the GitHub release-notes URL.
+3. Commits and pushes the updated appcast.
+
+Users running a previous version will see the new release on their next scheduled check (every 24 h) or when they click *Settings → Updates → Check Now*.
+
+### Rollback for a bad Sparkle release
+
+If you need to pull an update without reverting the GitHub release itself, revert the appcast commit on `gh-pages` and push. Existing installs will stop seeing the bad version on their next check; users who already upgraded will not be auto-downgraded — they need to reinstall the previous DMG manually.
+
+### Verifying the feed locally
+
+```bash
+curl -s https://mahype.github.io/open-whisper/appcast.xml | head -40
+```
+
+The top `<item>` should match your latest tag with a non-empty `sparkle:edSignature` attribute.
+
 ## Rollback
 
 If a release has a critical bug:
 
 1. **Mark the GitHub release as pre-release** (or delete it). This removes it from the "Latest release" link users follow.
-2. Re-tag with a patch bump (`v0.1.1`) after pushing the fix. Do **not** re-use or re-point the broken tag — users and the notary service have already seen it.
-3. If the DMG is already notarized and in the wild, you cannot revoke it remotely. The only signal users get is that a newer release exists; make the release notes clear about the issue.
+2. Revert the matching appcast `<item>` on `gh-pages` so new installs and existing users stop being offered the bad version (see [Sparkle auto-updates](#sparkle-auto-updates)).
+3. Re-tag with a patch bump (`v0.2.2`) after pushing the fix. Do **not** re-use or re-point the broken tag — users and the notary service have already seen it.
+4. If the DMG is already notarized and in the wild, you cannot revoke it remotely. The only signal users get is that a newer release exists; make the release notes clear about the issue.
 
 ## Troubleshooting a failed release workflow
 

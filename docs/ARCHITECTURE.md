@@ -22,10 +22,13 @@ Open Whisper is split into a **shared Rust core**, an **FFI bridge** that expose
 │  lib.rs          FFI entry points, BridgeRuntime        │
 │  dictation.rs    cpal capture + whisper-rs transcription│
 │  model_manager   Whisper model download & cleanup       │
+│  llm_model_…     Local LLM GGUF download & cleanup      │
+│  local_llm.rs    llama-cpp-2 (Gemma 4, Metal)           │
+│  post_processing Local + Ollama / LM Studio dispatcher  │
+│  remote_models   Ollama / LM Studio model listing       │
 │  autostart.rs    auto-launch wrapper (Dev fallback)     │
 │  settings_store  settings.json read/write               │
 │  text_inserter   arboard + enigo (clipboard + paste)    │
-│  post_processing Ollama / LM Studio HTTP clients        │
 │  permission_…    TCC / platform-specific probes         │
 └───────────┬─────────────────────────────────────────────┘
             │ pure-Rust types & enums
@@ -33,8 +36,11 @@ Open Whisper is split into a **shared Rust core**, an **FFI bridge** that expose
 ┌─────────────────────────────────────────────────────────┐
 │  crates/open-whisper-core  (no_std-friendly domain)     │
 │                                                         │
-│  AppSettings, ModelPreset, StartupBehavior,             │
-│  TriggerMode, DeviceDto, RuntimeStatusDto, …            │
+│  AppSettings, ModelPreset, LlmPreset,                   │
+│  ProcessingMode, PostProcessingChoice,                  │
+│  CustomLlmModel, StartupBehavior, TriggerMode,          │
+│  WaveformStyle, WaveformColor, DeviceDto,               │
+│  RuntimeStatusDto, …                                    │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -49,7 +55,13 @@ Key types:
 - `AppSettings` — the root of everything the user configures.
 - `StartupBehavior` — `AskOnFirstLaunch`, `LaunchAtLogin`, `ManualLaunch`.
 - `TriggerMode` — `PushToTalk`, `Toggle`.
-- `ModelPreset`, `DeviceDto`, `RuntimeStatusDto`, `RecordingLevelsDto`, `DiagnosticsDto`.
+- `ModelPreset` — the seven Whisper presets (Tiny, Light, Standard, Quality, Large v3 Turbo Q5_0, Large v3 Turbo, Large v3).
+- `LlmPreset` — local Gemma 4 sizes (`Small`, `Medium`, `Large`).
+- `ProcessingMode` — a user-defined post-processing template: `id`, `name`, `prompt`, and an optional `post_processing_choice` that overrides the global backend for this Mode.
+- `PostProcessingChoice` — tagged enum: `LocalPreset { preset }`, `LocalCustom { id }`, `Ollama { model_name }`, `LmStudio { model_name }`.
+- `CustomLlmModel` + `CustomLlmSource` — user-added local GGUF files (either `LocalPath` or `DownloadUrl`).
+- `WaveformStyle`, `WaveformColor` — recording-indicator presentation.
+- `DeviceDto`, `RuntimeStatusDto`, `RecordingLevelsDto`, `DiagnosticsDto`.
 
 ### `open-whisper-bridge`
 
@@ -60,12 +72,15 @@ Module responsibilities:
 | Module | Responsibility |
 | --- | --- |
 | [lib.rs](../crates/open-whisper-bridge/src/lib.rs) | FFI entry points, the `BridgeRuntime` aggregate that owns all subsystems |
-| [dictation.rs](../crates/open-whisper-bridge/src/dictation.rs) | Mic capture via `cpal`, silence detection, whisper.cpp transcription |
-| [model_manager.rs](../crates/open-whisper-bridge/src/model_manager.rs) | Download, list, and delete whisper models |
+| [dictation.rs](../crates/open-whisper-bridge/src/dictation.rs) | Mic capture via `cpal`, VAD-based silence detection, whisper.cpp transcription |
+| [model_manager.rs](../crates/open-whisper-bridge/src/model_manager.rs) | Download, list, and delete Whisper `.bin` models |
+| [llm_model_manager.rs](../crates/open-whisper-bridge/src/llm_model_manager.rs) | Download, list, and delete local LLM GGUF files (Gemma 4 presets and user-added custom models) |
+| [local_llm.rs](../crates/open-whisper-bridge/src/local_llm.rs) | `llama-cpp-2` inference for Gemma 4 with Metal acceleration; idle-based auto-unload |
+| [post_processing.rs](../crates/open-whisper-bridge/src/post_processing.rs) | Applies the active `ProcessingMode`'s prompt via the resolved `PostProcessingChoice` — dispatches to `local_llm` or to Ollama / LM Studio over HTTP; 45 s timeout; cancellable |
+| [remote_models.rs](../crates/open-whisper-bridge/src/remote_models.rs) | Lists models exposed by a running Ollama or LM Studio endpoint for the backend picker |
 | [autostart.rs](../crates/open-whisper-bridge/src/autostart.rs) | `auto-launch` crate wrapper; writes a `LaunchAgent` plist on macOS, XDG autostart on Linux, registry on Windows. Used as a fallback when the app is **not** running from a `.app` bundle. |
 | [settings_store.rs](../crates/open-whisper-bridge/src/settings_store.rs) | Reads/writes `~/Library/Application Support/open-whisper/settings.json` |
-| [text_inserter.rs](../crates/open-whisper-bridge/src/text_inserter.rs) | `arboard` (clipboard) + `enigo` (simulated paste) |
-| [post_processing.rs](../crates/open-whisper-bridge/src/post_processing.rs) | Ollama/LM Studio HTTP clients for post-processing the raw transcript |
+| [text_inserter.rs](../crates/open-whisper-bridge/src/text_inserter.rs) | `arboard` (clipboard) + `enigo` (simulated paste); clipboard fallback when paste fails |
 | [permission_diagnostics.rs](../crates/open-whisper-bridge/src/permission_diagnostics.rs) | Platform-specific permission probing (TCC on macOS) |
 
 ### `apps/open-whisper-macos`
@@ -81,7 +96,15 @@ Key files:
 | [BridgeClient.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/BridgeClient.swift) | Typed wrapper around every `ow_*` FFI call |
 | [BridgeModels.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/BridgeModels.swift) | `Codable` DTOs matching the Rust side |
 | [AppModel.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/AppModel.swift) | Observable state for the UI |
-| [SettingsView.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/SettingsView.swift), [OnboardingView.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/OnboardingView.swift) | SwiftUI windows |
+| [SettingsView.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/SettingsView.swift) | Settings window with a sidebar-driven `SettingsSection` switch (Recording, Modes, Language Models, Start & Behavior, Updates, Diagnostics, Help) |
+| [AppUIComponents.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/AppUIComponents.swift) | Shared settings primitives and the Mode-Editor sheet (create / edit / delete a `ProcessingMode`) |
+| [LanguageModelsManagerSheet.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/LanguageModelsManagerSheet.swift) | Unified Whisper + local LLM model management (download / delete / import custom GGUF) |
+| [RecordingIndicatorView.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/RecordingIndicatorView.swift) | Floating live waveform indicator with phase-specific styling (recording / transcribing / post-processing / model-not-ready) |
+| [HotkeyRecorderField.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/HotkeyRecorderField.swift) / [HotkeyAssignmentAdvisor.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/HotkeyAssignmentAdvisor.swift) | Inline hotkey capture with collision and single-key warnings |
+| [UpdaterController.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/UpdaterController.swift), [UpdatesSettingsView.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/UpdatesSettingsView.swift) | Sparkle integration (see *Auto-updates* below) |
+| [OnboardingView.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/OnboardingView.swift) | First-run guided setup; re-launchable from the Help tab |
+| [Localization.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/Localization.swift) | `L(_:locale:)` string helper, `LocalizedRoot` environment wrapper, and `AppSettings.effectiveLocale` — drives the DE/EN UI (see *Localization* below) |
+| [FeedbackView.swift](../apps/open-whisper-macos/Sources/OpenWhisperMac/FeedbackView.swift) | Feedback dialog surfaced from the Help tab |
 
 ## FFI contract
 
@@ -105,8 +128,8 @@ The `BridgeRuntime` lives in a `thread_local! RefCell` on the bridge side. All F
 
 | Location | Content |
 | --- | --- |
-| `~/Library/Application Support/open-whisper/settings.json` | `AppSettings` — hotkey, input device, model, post-processing, startup behavior |
-| `~/Library/Application Support/open-whisper/models/` | Downloaded whisper `.bin` files |
+| `~/Library/Application Support/open-whisper/settings.json` | `AppSettings` — hotkey, input device, Whisper / LLM presets, Modes, post-processing backend, startup behavior, waveform, VAD |
+| `~/Library/Application Support/open-whisper/models/` | Downloaded Whisper `.bin` files **and** local LLM `.gguf` files (Gemma 4 presets plus any user-added custom models) |
 | `~/Library/LaunchAgents/open-whisper.plist` | *Dev fallback* — written by the `auto-launch` crate when the app runs outside a `.app` bundle |
 | macOS Login Items database (`sfltool dumpbtm`) | *Production* — registered via `SMAppService` from the Swift side when the app runs from a signed bundle |
 
@@ -120,6 +143,46 @@ macOS offers two autostart mechanisms, and Open Whisper uses both depending on h
 2. **`LaunchAgent` plist** (dev fallback) — used when running via `swift run` during development. The Rust `auto-launch` crate writes `~/Library/LaunchAgents/open-whisper.plist` pointing at the raw executable.
 
 The Swift UI picks the mechanism based on the `autostart_mechanism` field returned by the bridge. Users never see the distinction — they just see *Launch at login* in Settings.
+
+## Post-processing pipeline
+
+After a raw transcript is produced, `post_processing::process_text` runs the **active** `ProcessingMode`'s prompt against a language model. Selection works in two layers:
+
+1. **Which Mode?** Exactly one Mode is active at any time; users switch Modes from the menu bar or the Modes tab. Modes are pure prompt templates — removing a Mode does not remove its associated LLM.
+2. **Which backend?** A Mode may carry an optional `post_processing_choice`. If set, that choice wins. Otherwise the global post-processing backend from settings is used. The global backend can itself be *off*, in which case the raw transcript is returned unchanged.
+
+`PostProcessingChoice` is a tagged enum that maps 1:1 to a backend:
+
+| Variant | Backend |
+| --- | --- |
+| `LocalPreset { preset }` | `local_llm` loads the matching Gemma 4 GGUF via `llama-cpp-2` (Metal-accelerated) and runs inference in-process. The model stays resident and auto-unloads after the `local_llm_auto_unload_secs` idle window. |
+| `LocalCustom { id }` | Same code path as `LocalPreset`, but resolves to a user-provided GGUF file registered in `CustomLlmModel`. |
+| `Ollama { model_name }` | HTTP POST to the configured Ollama endpoint (default `http://127.0.0.1:11434/api/chat`). |
+| `LmStudio { model_name }` | HTTP POST to the configured LM Studio endpoint (default `http://127.0.0.1:1234/v1/chat/completions`, OpenAI-compatible). |
+
+All backends respect a **45-second timeout** and a shared `Arc<AtomicBool>` cancellation flag, so the UI can abort post-processing if the user cancels dictation mid-run.
+
+## Auto-updates (Sparkle)
+
+Open Whisper embeds [Sparkle 2.x](https://sparkle-project.org) as a Swift Package Manager dependency. The framework is copied into `Open Whisper.app/Contents/Frameworks/` during `scripts/build-macos-app.sh`.
+
+- `UpdaterController.swift` is a thin wrapper around `SPUStandardUpdaterController`. It refuses to start when Sparkle would otherwise show *"Unable to check for updates"* — specifically when the process is not running from a `.app` bundle (dev runs) or when `SUFeedURL` is missing from the `Info.plist`.
+- `UpdatesSettingsView.swift` drives the Updates tab: a *Check Now* button, an *Automatically check for updates* toggle, and a read-out of the current feed URL and version. A *Check for Updates…* entry is also available from the menu bar.
+- Relevant `Info.plist` keys:
+  - `SUFeedURL` → `https://mahype.github.io/open-whisper/appcast.xml`
+  - `SUPublicEDKey` → the Ed25519 public key bundled with the app
+  - `SUEnableAutomaticChecks` → `true`
+  - `SUScheduledCheckInterval` → `86400` (24 h)
+- The appcast is hosted on the repository's `gh-pages` branch. Release publishing and signing live in [scripts/update-appcast.sh](../scripts/update-appcast.sh); see [RELEASING.md](RELEASING.md#sparkle-auto-updates) for the maintainer workflow.
+
+## Localization
+
+The app ships with **English (source)** and **German** translations. The Rust bridge emits English-only status and error strings; the Swift layer owns all user-visible translation.
+
+- String catalogs live next to the Swift sources: `Resources/Localizable.xcstrings` is the source of truth; the `en.lproj` and `de.lproj` `Localizable.strings` files are generated siblings. `InfoPlist.strings` per-locale handles the permission prompt copy.
+- `Localization.swift` exposes `L(_:locale:)` for imperative lookups and `LocalizedRoot` for setting the SwiftUI `\.locale` environment on every hosting root (Settings, Onboarding, Feedback, the recording indicator panel).
+- Enum `label(locale:)` functions on core types (`StartupBehavior`, `TriggerMode`, `WaveformStyle`, `WaveformColor`, `ModelPreset`, `LlmPreset`, `PostProcessingBackend`, `DiagnosticStatus`, `PostProcessingChoice`, …) produce localized display strings on demand — no pre-computed labels live in state.
+- Language selection: `AppSettings.ui_language` is a `UiLanguage` enum (`System` / `En` / `De`). `OpenWhisperMacApp.init` writes `AppleLanguages` into `UserDefaults` on launch so the bundle resolves the right `.lproj`. Changing the picker requires an app restart; system-language detection at launch is transparent.
 
 ## Cross-platform outlook
 
