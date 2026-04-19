@@ -146,78 +146,132 @@ impl<'de> serde::Deserialize<'de> for WaveformColor {
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
 pub enum ModelPreset {
+    Tiny,
     Light,
     #[default]
     Standard,
+    LargeV3TurboQ5_0,
     Quality,
+    LargeV3Turbo,
+    LargeV3,
 }
 
 impl ModelPreset {
-    pub const ALL: [Self; 3] = [Self::Light, Self::Standard, Self::Quality];
+    pub const ALL: [Self; 7] = [
+        Self::Tiny,
+        Self::Light,
+        Self::Standard,
+        Self::Quality,
+        Self::LargeV3TurboQ5_0,
+        Self::LargeV3Turbo,
+        Self::LargeV3,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
+            Self::Tiny => "Mini",
             Self::Light => "Klein",
             Self::Standard => "Mittel",
+            Self::LargeV3TurboQ5_0 => "Turbo",
             Self::Quality => "Gross",
+            Self::LargeV3Turbo => "Turbo+",
+            Self::LargeV3 => "Maximal",
         }
     }
 
     pub fn display_label(self) -> &'static str {
         match self {
-            Self::Light => "Whisper Base (klein)",
-            Self::Standard => "Whisper Small (mittel)",
-            Self::Quality => "Whisper Medium (gross)",
+            Self::Tiny => "Whisper Tiny (78 MB)",
+            Self::Light => "Whisper Base (148 MB)",
+            Self::Standard => "Whisper Small (488 MB)",
+            Self::Quality => "Whisper Medium (1,5 GB)",
+            Self::LargeV3TurboQ5_0 => "Whisper Large v3 Turbo Q5_0 (574 MB)",
+            Self::LargeV3Turbo => "Whisper Large v3 Turbo (1,6 GB)",
+            Self::LargeV3 => "Whisper Large v3 (3,1 GB)",
         }
     }
 
     pub fn whisper_model(self) -> &'static str {
         match self {
+            Self::Tiny => "tiny",
             Self::Light => "base",
             Self::Standard => "small",
+            Self::LargeV3TurboQ5_0 => "large-v3-turbo-q5_0",
             Self::Quality => "medium",
+            Self::LargeV3Turbo => "large-v3-turbo",
+            Self::LargeV3 => "large-v3",
         }
     }
 
     pub fn default_filename(self) -> &'static str {
         match self {
+            Self::Tiny => "ggml-tiny.bin",
             Self::Light => "ggml-base.bin",
             Self::Standard => "ggml-small.bin",
+            Self::LargeV3TurboQ5_0 => "ggml-large-v3-turbo-q5_0.bin",
             Self::Quality => "ggml-medium.bin",
+            Self::LargeV3Turbo => "ggml-large-v3-turbo.bin",
+            Self::LargeV3 => "ggml-large-v3.bin",
         }
     }
 
     pub fn description(self) -> &'static str {
         match self {
+            Self::Tiny => {
+                "Winziges Modell fuer extrem schwache Rechner und sehr kurze Reaktionszeit."
+            }
             Self::Light => "Kleines lokales Modell fuer schwache Rechner und schnelle Reaktion.",
             Self::Standard => {
                 "Mittleres lokales Modell als guter Standard fuer Alltag und Genauigkeit."
             }
+            Self::LargeV3TurboQ5_0 => {
+                "Quantisierte Turbo-Variante: Large-v3-Qualitaet bei kompakter Groesse."
+            }
             Self::Quality => {
                 "Grosses lokales Modell mit hoeherer Genauigkeit, aber mehr CPU/RAM-Bedarf."
             }
+            Self::LargeV3Turbo => {
+                "Schnelles Large-v3-Turbo mit hoher Genauigkeit, gute Balance fuer aktuelle Macs."
+            }
+            Self::LargeV3 => "Maximale Genauigkeit. Grosser Download und hoher RAM-Bedarf.",
         }
     }
 
     pub fn download_url(self) -> &'static str {
         match self {
+            Self::Tiny => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
+            }
             Self::Light => {
                 "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
             }
             Self::Standard => {
                 "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
             }
+            Self::LargeV3TurboQ5_0 => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin"
+            }
             Self::Quality => {
                 "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin"
+            }
+            Self::LargeV3Turbo => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin"
+            }
+            Self::LargeV3 => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin"
             }
         }
     }
 
     pub fn download_size_bytes(self) -> u64 {
         match self {
+            Self::Tiny => 77_691_713,
             Self::Light => 147_951_465,
             Self::Standard => 487_601_967,
+            Self::LargeV3TurboQ5_0 => 574_041_195,
             Self::Quality => 1_533_763_059,
+            Self::LargeV3Turbo => 1_624_555_275,
+            Self::LargeV3 => 3_095_033_483,
         }
     }
 }

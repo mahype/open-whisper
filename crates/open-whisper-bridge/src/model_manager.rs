@@ -396,9 +396,13 @@ fn summary_for_existing_path(path: &Path) -> String {
 
 fn model_label_for_path(path: &Path) -> &'static str {
     match path.file_name().and_then(|value| value.to_str()) {
-        Some("ggml-base.bin") => "Whisper Base (klein)",
-        Some("ggml-small.bin") => "Whisper Small (mittel)",
-        Some("ggml-medium.bin") => "Whisper Medium (gross)",
+        Some("ggml-tiny.bin") => "Whisper Tiny",
+        Some("ggml-base.bin") => "Whisper Base",
+        Some("ggml-small.bin") => "Whisper Small",
+        Some("ggml-large-v3-turbo-q5_0.bin") => "Whisper Large v3 Turbo (kompakt)",
+        Some("ggml-medium.bin") => "Whisper Medium",
+        Some("ggml-large-v3-turbo.bin") => "Whisper Large v3 Turbo",
+        Some("ggml-large-v3.bin") => "Whisper Large v3",
         _ => "lokales Modell",
     }
 }

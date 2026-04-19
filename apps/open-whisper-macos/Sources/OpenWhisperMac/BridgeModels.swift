@@ -107,75 +107,127 @@ extension WaveformColor: Codable {
 }
 
 enum ModelPreset: String, Codable, CaseIterable, Identifiable {
+    case tiny
     case light
     case standard
     case quality
+    case largeV3TurboQ5_0 = "large_v3_turbo_q5_0"
+    case largeV3Turbo = "large_v3_turbo"
+    case largeV3 = "large_v3"
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
+        case .tiny:
+            return "Mini"
         case .light:
             return "Klein"
         case .standard:
             return "Mittel"
+        case .largeV3TurboQ5_0:
+            return "Turbo"
         case .quality:
             return "Gross"
+        case .largeV3Turbo:
+            return "Turbo+"
+        case .largeV3:
+            return "Maximal"
         }
     }
 
     var displayName: String {
         switch self {
+        case .tiny:
+            return "Whisper Tiny (78 MB)"
         case .light:
-            return "Whisper Base (klein)"
+            return "Whisper Base (148 MB)"
         case .standard:
-            return "Whisper Small (mittel)"
+            return "Whisper Small (488 MB)"
         case .quality:
-            return "Whisper Medium (gross)"
+            return "Whisper Medium (1,5 GB)"
+        case .largeV3TurboQ5_0:
+            return "Whisper Large v3 Turbo Q5_0 (574 MB)"
+        case .largeV3Turbo:
+            return "Whisper Large v3 Turbo (1,6 GB)"
+        case .largeV3:
+            return "Whisper Large v3 (3,1 GB)"
         }
     }
 
     var whisperModel: String {
         switch self {
+        case .tiny:
+            return "tiny"
         case .light:
             return "base"
         case .standard:
             return "small"
+        case .largeV3TurboQ5_0:
+            return "large-v3-turbo-q5_0"
         case .quality:
             return "medium"
+        case .largeV3Turbo:
+            return "large-v3-turbo"
+        case .largeV3:
+            return "large-v3"
         }
     }
 
     var defaultFilename: String {
         switch self {
+        case .tiny:
+            return "ggml-tiny.bin"
         case .light:
             return "ggml-base.bin"
         case .standard:
             return "ggml-small.bin"
+        case .largeV3TurboQ5_0:
+            return "ggml-large-v3-turbo-q5_0.bin"
         case .quality:
             return "ggml-medium.bin"
+        case .largeV3Turbo:
+            return "ggml-large-v3-turbo.bin"
+        case .largeV3:
+            return "ggml-large-v3.bin"
         }
     }
 
     var description: String {
         switch self {
+        case .tiny:
+            return "Winziges Modell fuer extrem schwache Rechner und sehr kurze Reaktionszeit."
         case .light:
             return "Kleines lokales Modell fuer schnelle Reaktion auf schwachen Rechnern."
         case .standard:
             return "Guter Standard fuer Alltag und Genauigkeit."
+        case .largeV3TurboQ5_0:
+            return "Quantisierte Turbo-Variante: Large-v3-Qualitaet bei kompakter Groesse."
         case .quality:
             return "Groesseres Modell mit hoeherer Genauigkeit und mehr CPU-/RAM-Bedarf."
+        case .largeV3Turbo:
+            return "Schnelles Large-v3-Turbo mit hoher Genauigkeit, gute Balance fuer aktuelle Macs."
+        case .largeV3:
+            return "Maximale Genauigkeit. Grosser Download und hoher RAM-Bedarf."
         }
     }
 
     var downloadSizeBytes: UInt64 {
         switch self {
+        case .tiny:
+            return 77_691_713
         case .light:
             return 147_951_465
         case .standard:
             return 487_601_967
+        case .largeV3TurboQ5_0:
+            return 574_041_195
         case .quality:
             return 1_533_763_059
+        case .largeV3Turbo:
+            return 1_624_555_275
+        case .largeV3:
+            return 3_095_033_483
         }
     }
 
@@ -515,7 +567,7 @@ struct ModelStatusDTO: Codable, Identifiable {
     var id: String { backendModelName }
 
     static let empty = ModelStatusDTO(
-        presetLabel: "Whisper Small (mittel)",
+        presetLabel: "Whisper Small",
         backendModelName: "small",
         path: "",
         summary: "Noch kein Modellstatus geladen.",

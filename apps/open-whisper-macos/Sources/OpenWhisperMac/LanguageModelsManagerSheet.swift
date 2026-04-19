@@ -141,15 +141,9 @@ struct LanguageModelsManagerSheet: View {
     @ViewBuilder
     private var transcriptionContent: some View {
         Section("Whisper-Presets") {
-            if model.modelStatusList.isEmpty {
-                ForEach(ModelPreset.allCases) { preset in
-                    whisperTile(preset: preset, status: nil)
-                }
-            } else {
-                ForEach(model.modelStatusList) { status in
-                    let preset = ModelPreset(whisperModel: status.backendModelName)
-                    whisperTile(preset: preset, status: status)
-                }
+            ForEach(ModelPreset.allCases) { preset in
+                let status = model.modelStatusList.first(where: { $0.backendModelName == preset.whisperModel })
+                whisperTile(preset: preset, status: status)
             }
         }
     }
@@ -157,15 +151,9 @@ struct LanguageModelsManagerSheet: View {
     @ViewBuilder
     private var postProcessingContent: some View {
         Section("Lokale Sprachmodelle") {
-            if model.llmStatusList.isEmpty {
-                ForEach(LlmPreset.allCases) { preset in
-                    llmTile(preset: preset, status: nil)
-                }
-            } else {
-                ForEach(model.llmStatusList) { status in
-                    let preset = LlmPreset(displayLabel: status.displayLabel)
-                    llmTile(preset: preset, status: status)
-                }
+            ForEach(LlmPreset.allCases) { preset in
+                let status = model.llmStatusList.first(where: { $0.displayLabel == preset.displayName })
+                llmTile(preset: preset, status: status)
             }
         }
 
@@ -480,24 +468,3 @@ struct LanguageModelsManagerSheet: View {
     }
 }
 
-private extension ModelPreset {
-    init(whisperModel: String) {
-        switch whisperModel {
-        case "base": self = .light
-        case "medium": self = .quality
-        default: self = .standard
-        }
-    }
-}
-
-private extension LlmPreset {
-    init(displayLabel: String) {
-        if displayLabel.contains("E2B") || displayLabel.contains("1B") {
-            self = .small
-        } else if displayLabel.contains("26B") || displayLabel.contains("12B") {
-            self = .large
-        } else {
-            self = .medium
-        }
-    }
-}
