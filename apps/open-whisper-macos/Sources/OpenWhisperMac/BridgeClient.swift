@@ -61,6 +61,10 @@ final class BridgeClient {
         try encodeAndCall(["preset": preset.rawValue], function: ow_delete_llm_model)
     }
 
+    func listRemoteModels(backend: RemoteModelBackend) throws -> [RemoteModelDTO] {
+        try encodeAndCall(["backend": backend.rawValue], function: ow_list_remote_models)
+    }
+
     func runPermissionDiagnostics() throws -> DiagnosticsDTO {
         try decodeResponse(from: ow_run_permission_diagnostics())
     }

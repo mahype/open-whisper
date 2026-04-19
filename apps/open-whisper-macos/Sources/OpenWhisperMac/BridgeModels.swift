@@ -278,6 +278,28 @@ enum PostProcessingBackend: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum RemoteModelBackend: String, Codable, CaseIterable, Identifiable {
+    case ollama
+    case lmStudio = "lm_studio"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .ollama: return "Ollama"
+        case .lmStudio: return "LM Studio"
+        }
+    }
+}
+
+struct RemoteModelDTO: Codable, Identifiable, Hashable {
+    var backend: RemoteModelBackend
+    var name: String
+    var summary: String
+
+    var id: String { "\(backend.rawValue).\(name)" }
+}
+
 enum DiagnosticStatus: String, Codable {
     case ok
     case info

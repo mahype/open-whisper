@@ -9,6 +9,10 @@ final class AppModel: ObservableObject {
     @Published var modelStatus: ModelStatusDTO = .empty
     @Published var modelStatusList: [ModelStatusDTO] = []
     @Published var llmStatusList: [LlmModelStatusDTO] = []
+    @Published var ollamaModels: [RemoteModelDTO] = []
+    @Published var lmStudioModels: [RemoteModelDTO] = []
+    @Published var ollamaModelsError: String?
+    @Published var lmStudioModelsError: String?
     @Published var diagnostics: DiagnosticsDTO = .empty
     @Published var runtime: RuntimeStatusDTO = .empty
     @Published var bridgeError: String?
@@ -195,9 +199,9 @@ final class AppModel: ObservableObject {
                 case .local:
                     return .localPreset(self.settings.localLlm)
                 case .ollama:
-                    return .ollama
+                    return .ollamaModel(self.settings.ollama.modelName)
                 case .lmStudio:
-                    return .lmStudio
+                    return .lmStudioModel(self.settings.lmStudio.modelName)
                 }
             },
             set: { newValue in
@@ -205,14 +209,36 @@ final class AppModel: ObservableObject {
                 case .localPreset(let preset):
                     self.settings.activePostProcessingBackend = .local
                     self.settings.localLlm = preset
-                case .ollama:
+                case .ollamaModel(let name):
                     self.settings.activePostProcessingBackend = .ollama
-                case .lmStudio:
+                    self.settings.ollama.modelName = name
+                case .lmStudioModel(let name):
                     self.settings.activePostProcessingBackend = .lmStudio
+                    self.settings.lmStudio.modelName = name
                 }
                 self.requestAutoSave()
             }
         )
+    }
+
+    var postProcessingChoices: [PostProcessingChoice] {
+        var choices: [PostProcessingChoice] = LlmPreset.allCases.map { .localPreset($0) }
+
+        var ollamaNames = ollamaModels.map(\.name)
+        let currentOllama = settings.ollama.modelName
+        if !currentOllama.isEmpty && !ollamaNames.contains(currentOllama) {
+            ollamaNames.insert(currentOllama, at: 0)
+        }
+        choices.append(contentsOf: ollamaNames.map { .ollamaModel($0) })
+
+        var lmNames = lmStudioModels.map(\.name)
+        let currentLmStudio = settings.lmStudio.modelName
+        if !currentLmStudio.isEmpty && !lmNames.contains(currentLmStudio) {
+            lmNames.insert(currentLmStudio, at: 0)
+        }
+        choices.append(contentsOf: lmNames.map { .lmStudioModel($0) })
+
+        return choices
     }
 
     func reloadAll() {
@@ -511,6 +537,30 @@ final class AppModel: ObservableObject {
             poll()
         } catch {
             publish(error)
+        }
+    }
+
+    func refreshRemoteModels(backend: RemoteModelBackend) {
+        do {
+            let list = try bridge.listRemoteModels(backend: backend)
+            switch backend {
+            case .ollama:
+                ollamaModels = list
+                ollamaModelsError = nil
+            case .lmStudio:
+                lmStudioModels = list
+                lmStudioModelsError = nil
+            }
+        } catch {
+            let message = (error as? BridgeError)?.message ?? error.localizedDescription
+            switch backend {
+            case .ollama:
+                ollamaModels = []
+                ollamaModelsError = message
+            case .lmStudio:
+                lmStudioModels = []
+                lmStudioModelsError = message
+            }
         }
     }
 

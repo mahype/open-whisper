@@ -10,6 +10,7 @@ mod local_llm;
 mod model_manager;
 mod permission_diagnostics;
 mod post_processing;
+mod remote_models;
 #[allow(dead_code)]
 mod settings_store;
 #[allow(dead_code)]
@@ -27,7 +28,7 @@ use llm_model_manager::LlmModelDownloadManager;
 use model_manager::ModelDownloadManager;
 use open_whisper_core::{
     AppSettings, DeviceDto, DiagnosticsDto, LlmModelStatusDto, LlmPreset, ModelPreset,
-    ModelStatusDto, RecordingLevelsDto, RuntimeStatusDto,
+    ModelStatusDto, RecordingLevelsDto, RemoteModelBackend, RemoteModelDto, RuntimeStatusDto,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -470,6 +471,18 @@ impl BridgeRuntime {
         Ok(message)
     }
 
+    fn list_remote_models(
+        &mut self,
+        backend: RemoteModelBackend,
+    ) -> Result<Vec<RemoteModelDto>, String> {
+        self.poll();
+        let provider = match backend {
+            RemoteModelBackend::Ollama => &self.settings.ollama,
+            RemoteModelBackend::LmStudio => &self.settings.lm_studio,
+        };
+        remote_models::list_remote_models(backend, provider)
+    }
+
     fn run_permission_diagnostics(&mut self) -> DiagnosticsDto {
         self.poll();
         permission_diagnostics::collect(
@@ -633,6 +646,11 @@ struct LlmPresetRequest {
 #[derive(Deserialize)]
 struct HotkeyValidationRequest {
     hotkey: String,
+}
+
+#[derive(Deserialize)]
+struct RemoteBackendRequest {
+    backend: RemoteModelBackend,
 }
 
 fn with_runtime<T>(f: impl FnOnce(&mut BridgeRuntime) -> Result<T, String>) -> Result<T, String> {
@@ -810,6 +828,16 @@ pub extern "C" fn ow_delete_llm_model(request_json: *const c_char) -> *mut c_cha
     };
 
     response_from_result(with_runtime(|runtime| runtime.delete_llm_model(preset)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_list_remote_models(request_json: *const c_char) -> *mut c_char {
+    let backend = match parse_json_arg::<RemoteBackendRequest>(request_json, "RemoteBackendRequest") {
+        Ok(request) => request.backend,
+        Err(err) => return response_from_result::<Vec<RemoteModelDto>>(Err(err)),
+    };
+
+    response_from_result(with_runtime(|runtime| runtime.list_remote_models(backend)))
 }
 
 #[unsafe(no_mangle)]

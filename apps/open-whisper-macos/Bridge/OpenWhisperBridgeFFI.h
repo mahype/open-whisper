@@ -13,6 +13,7 @@ char *ow_delete_model(const char *request_json);
 char *ow_get_llm_status_list(void);
 char *ow_start_llm_download(const char *request_json);
 char *ow_delete_llm_model(const char *request_json);
+char *ow_list_remote_models(const char *request_json);
 char *ow_run_permission_diagnostics(void);
 char *ow_start_dictation(void);
 char *ow_stop_dictation(void);

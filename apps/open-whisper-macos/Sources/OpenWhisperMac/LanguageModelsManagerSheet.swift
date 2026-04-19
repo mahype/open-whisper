@@ -2,17 +2,17 @@ import SwiftUI
 
 enum PostProcessingChoice: Hashable, Identifiable {
     case localPreset(LlmPreset)
-    case ollama
-    case lmStudio
+    case ollamaModel(String)
+    case lmStudioModel(String)
 
     var id: String {
         switch self {
         case .localPreset(let preset):
             return "local.\(preset.rawValue)"
-        case .ollama:
-            return "ollama"
-        case .lmStudio:
-            return "lmStudio"
+        case .ollamaModel(let name):
+            return "ollama.\(name)"
+        case .lmStudioModel(let name):
+            return "lmStudio.\(name)"
         }
     }
 
@@ -20,15 +20,11 @@ enum PostProcessingChoice: Hashable, Identifiable {
         switch self {
         case .localPreset(let preset):
             return "\(preset.displayName) (lokal)"
-        case .ollama:
-            return "Ollama"
-        case .lmStudio:
-            return "LM Studio"
+        case .ollamaModel(let name):
+            return name.isEmpty ? "Ollama (kein Modell)" : "Ollama · \(name)"
+        case .lmStudioModel(let name):
+            return name.isEmpty ? "LM Studio (kein Modell)" : "LM Studio · \(name)"
         }
-    }
-
-    static var allChoices: [PostProcessingChoice] {
-        LlmPreset.allCases.map { .localPreset($0) } + [.ollama, .lmStudio]
     }
 }
 
@@ -121,16 +117,98 @@ struct LanguageModelsManagerSheet: View {
 
         Section("Ollama") {
             TextField("Endpoint", text: model.binding(for: \.ollama.endpoint))
-            TextField("Modellname", text: model.binding(for: \.ollama.modelName))
-            Text("Hinweis: Remote-Modellliste wird in einem spaeteren Schritt direkt vom Endpoint abgefragt.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                Button("Modelle abrufen") {
+                    model.refreshRemoteModels(backend: .ollama)
+                }
+                if let err = model.ollamaModelsError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .lineLimit(2)
+                }
+            }
+            if model.ollamaModels.isEmpty && model.ollamaModelsError == nil {
+                Text("Noch keine Modellliste abgerufen. Laufender Ollama-Server ben\u{F6}tigt.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(model.ollamaModels) { entry in
+                    remoteModelTile(entry: entry, isActive: isActiveOllama(entry))
+                }
+            }
         }
 
         Section("LM Studio") {
             TextField("Endpoint", text: model.binding(for: \.lmStudio.endpoint))
-            TextField("Modellname", text: model.binding(for: \.lmStudio.modelName))
+            HStack(spacing: 10) {
+                Button("Modelle abrufen") {
+                    model.refreshRemoteModels(backend: .lmStudio)
+                }
+                if let err = model.lmStudioModelsError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .lineLimit(2)
+                }
+            }
+            if model.lmStudioModels.isEmpty && model.lmStudioModelsError == nil {
+                Text("Noch keine Modellliste abgerufen. Laufender LM-Studio-Server ben\u{F6}tigt.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(model.lmStudioModels) { entry in
+                    remoteModelTile(entry: entry, isActive: isActiveLmStudio(entry))
+                }
+            }
         }
+    }
+
+    private func isActiveOllama(_ entry: RemoteModelDTO) -> Bool {
+        model.settings.activePostProcessingBackend == .ollama
+            && model.settings.ollama.modelName == entry.name
+    }
+
+    private func isActiveLmStudio(_ entry: RemoteModelDTO) -> Bool {
+        model.settings.activePostProcessingBackend == .lmStudio
+            && model.settings.lmStudio.modelName == entry.name
+    }
+
+    @ViewBuilder
+    private func remoteModelTile(entry: RemoteModelDTO, isActive: Bool) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(entry.name)
+                        .font(.body.weight(.medium))
+                    if isActive {
+                        Text("Aktiv")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.vertical, 2)
+                            .padding(.horizontal, 6)
+                            .background(Color.accentColor.opacity(0.14), in: Capsule())
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+                Text(entry.summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button(isActive ? "Aktiv" : "Ausw\u{E4}hlen") {
+                switch entry.backend {
+                case .ollama:
+                    model.postProcessingChoiceBinding.wrappedValue = .ollamaModel(entry.name)
+                case .lmStudio:
+                    model.postProcessingChoiceBinding.wrappedValue = .lmStudioModel(entry.name)
+                }
+            }
+            .disabled(isActive)
+        }
+        .padding(.vertical, 2)
     }
 
     @ViewBuilder

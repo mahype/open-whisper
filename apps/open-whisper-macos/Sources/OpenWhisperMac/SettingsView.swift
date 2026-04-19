@@ -195,7 +195,7 @@ struct SettingsView: View {
 
         Section("Nachbearbeitung") {
             Picker("Modell", selection: model.postProcessingChoiceBinding) {
-                ForEach(PostProcessingChoice.allChoices) { choice in
+                ForEach(model.postProcessingChoices) { choice in
                     Text(choice.label).tag(choice)
                 }
             }

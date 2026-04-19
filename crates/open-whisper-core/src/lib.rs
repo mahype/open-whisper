@@ -629,6 +629,29 @@ pub struct DiagnosticsDto {
     pub items: Vec<DiagnosticItemDto>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RemoteModelBackend {
+    Ollama,
+    LmStudio,
+}
+
+impl RemoteModelBackend {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Ollama => "Ollama",
+            Self::LmStudio => "LM Studio",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteModelDto {
+    pub backend: RemoteModelBackend,
+    pub name: String,
+    pub summary: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RecordingLevelsDto {
     pub levels: Vec<f32>,
