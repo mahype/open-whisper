@@ -4,7 +4,7 @@ use open_whisper_core::{AppSettings, CustomLlmSource, PostProcessingBackend};
 use reqwest::blocking::Client;
 use serde_json::{Value, json};
 
-use crate::local_llm;
+use crate::{llm_model_manager, local_llm};
 
 const USER_AGENT: &str = "open-whisper-bridge/0.1";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
@@ -30,10 +30,20 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
                         )?
                     }
                     CustomLlmSource::DownloadUrl { .. } => {
-                        return Err(format!(
-                            "Eigenes Sprachmodell '{}' wurde ueber URL hinzugefuegt, aber noch nicht heruntergeladen.",
-                            custom.name
-                        ));
+                        let path = llm_model_manager::default_custom_llm_path(&custom.id)?;
+                        if !path.exists() {
+                            return Err(format!(
+                                "Eigenes Sprachmodell '{}' wurde noch nicht heruntergeladen.",
+                                custom.name
+                            ));
+                        }
+                        local_llm::generate_with_custom_path(
+                            &custom.id,
+                            &custom.name,
+                            &path,
+                            &mode.prompt,
+                            raw_transcript,
+                        )?
                     }
                 }
             } else {

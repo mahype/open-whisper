@@ -9,6 +9,7 @@ final class AppModel: ObservableObject {
     @Published var modelStatus: ModelStatusDTO = .empty
     @Published var modelStatusList: [ModelStatusDTO] = []
     @Published var llmStatusList: [LlmModelStatusDTO] = []
+    @Published var customLlmStatusList: [CustomLlmStatusDTO] = []
     @Published var ollamaModels: [RemoteModelDTO] = []
     @Published var lmStudioModels: [RemoteModelDTO] = []
     @Published var ollamaModelsError: String?
@@ -266,7 +267,47 @@ final class AppModel: ObservableObject {
         requestAutoSave()
     }
 
+    @discardableResult
+    func addCustomUrlLlm(name: String, url: String) -> String {
+        let id = UUID().uuidString.lowercased()
+        let trimmedUrl = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let filename = URL(string: trimmedUrl)?.lastPathComponent ?? "\(id).gguf"
+        let entry = CustomLlmModel(
+            id: id,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            source: .downloadUrl(url: trimmedUrl, filename: filename)
+        )
+        settings.customLlmModels.append(entry)
+        flushAutoSave()
+        return id
+    }
+
+    func startCustomLlmDownload(id: String) {
+        do {
+            _ = try bridge.startCustomLlmDownload(id: id)
+            bridgeError = nil
+            poll()
+        } catch {
+            publish(error)
+        }
+    }
+
+    func deleteCustomLlmFile(id: String) {
+        do {
+            _ = try bridge.deleteCustomLlmModel(id: id)
+            bridgeError = nil
+            poll()
+        } catch {
+            publish(error)
+        }
+    }
+
     func removeCustomLlm(id: String) {
+        if let entry = settings.customLlmModels.first(where: { $0.id == id }) {
+            if case .downloadUrl = entry.source {
+                _ = try? bridge.deleteCustomLlmModel(id: id)
+            }
+        }
         settings.customLlmModels.removeAll(where: { $0.id == id })
         if settings.activeCustomLlmId == id {
             settings.activeCustomLlmId = ""
@@ -283,6 +324,7 @@ final class AppModel: ObservableObject {
             modelStatus = try bridge.getModelStatus()
             modelStatusList = (try? bridge.getModelStatusList()) ?? []
             llmStatusList = (try? bridge.getLlmStatusList()) ?? []
+            customLlmStatusList = (try? bridge.getCustomLlmStatusList()) ?? []
             diagnostics = try bridge.runPermissionDiagnostics()
             runtime = try bridge.getRuntimeStatus()
             bridgeError = nil

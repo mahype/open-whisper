@@ -53,6 +53,10 @@ struct LanguageModelsManagerSheet: View {
     @Binding var selectedTab: LanguageModelsManagerTab
     let onDone: () -> Void
 
+    @State private var isShowingUrlDialog: Bool = false
+    @State private var urlDialogName: String = ""
+    @State private var urlDialogUrl: String = ""
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -88,6 +92,50 @@ struct LanguageModelsManagerSheet: View {
         }
         .padding(20)
         .frame(minWidth: 640, idealWidth: 700, minHeight: 480, idealHeight: 560)
+        .sheet(isPresented: $isShowingUrlDialog) {
+            urlAddDialog
+        }
+    }
+
+    private var urlAddDialog: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Sprachmodell per URL hinzuf\u{FC}gen")
+                .font(.headline)
+
+            Form {
+                TextField("Anzeigename", text: $urlDialogName)
+                TextField("Download-URL (.gguf)", text: $urlDialogUrl)
+            }
+            .formStyle(.grouped)
+
+            Text("Die Datei wird nach dem Hinzuf\u{FC}gen \u{FC}ber den 'Herunterladen'-Button geladen. Quellen wie Hugging Face 'resolve/main'-Links werden empfohlen.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack {
+                Spacer()
+                Button("Abbrechen") {
+                    isShowingUrlDialog = false
+                }
+                Button("Hinzuf\u{FC}gen") {
+                    let trimmedName = urlDialogName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let trimmedUrl = urlDialogUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmedName.isEmpty, !trimmedUrl.isEmpty else { return }
+                    model.addCustomUrlLlm(name: trimmedName, url: trimmedUrl)
+                    urlDialogName = ""
+                    urlDialogUrl = ""
+                    isShowingUrlDialog = false
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(
+                    urlDialogName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || urlDialogUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 420, idealWidth: 480, minHeight: 240)
     }
 
     @ViewBuilder
@@ -123,7 +171,7 @@ struct LanguageModelsManagerSheet: View {
 
         Section("Eigene Modelle") {
             if model.settings.customLlmModels.isEmpty {
-                Text("Noch keine eigenen Sprachmodelle hinzugef\u{FC}gt. Lokale GGUF-Dateien k\u{F6}nnen \u{FC}ber den Button unten ausgew\u{E4}hlt werden.")
+                Text("Noch keine eigenen Sprachmodelle hinzugef\u{FC}gt.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -132,8 +180,15 @@ struct LanguageModelsManagerSheet: View {
                 }
             }
 
-            Button("+ Eigenes Modell hinzuf\u{FC}gen") {
-                presentCustomLlmFilePicker()
+            HStack(spacing: 10) {
+                Button("+ Datei ausw\u{E4}hlen") {
+                    presentCustomLlmFilePicker()
+                }
+                Button("+ Von URL laden") {
+                    urlDialogName = ""
+                    urlDialogUrl = ""
+                    isShowingUrlDialog = true
+                }
             }
         }
 
@@ -190,37 +245,61 @@ struct LanguageModelsManagerSheet: View {
     private func customLlmTile(entry: CustomLlmModel) -> some View {
         let isActive = model.settings.activePostProcessingBackend == .local
             && model.settings.activeCustomLlmId == entry.id
+        let status = model.customLlmStatusList.first(where: { $0.id == entry.id })
+        let needsDownload = status?.needsDownload ?? false
+        let isDownloading = status?.isDownloading ?? false
+        let isDownloaded = status?.isDownloaded ?? false
 
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(entry.name)
-                        .font(.body.weight(.medium))
-                    if isActive {
-                        Text("Aktiv")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.vertical, 2)
-                            .padding(.horizontal, 6)
-                            .background(Color.accentColor.opacity(0.14), in: Capsule())
-                            .foregroundStyle(Color.accentColor)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(entry.name)
+                            .font(.body.weight(.medium))
+                        if isActive {
+                            Text("Aktiv")
+                                .font(.caption2.weight(.semibold))
+                                .padding(.vertical, 2)
+                                .padding(.horizontal, 6)
+                                .background(Color.accentColor.opacity(0.14), in: Capsule())
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    Text(status?.sourceLabel ?? entry.source.summaryText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer()
+
+                Button(isActive ? "Aktiv" : "Ausw\u{E4}hlen") {
+                    model.postProcessingChoiceBinding.wrappedValue = .localCustom(id: entry.id, name: entry.name)
+                }
+                .disabled(isActive)
+
+                if needsDownload {
+                    if isDownloaded {
+                        Button("Datei l\u{F6}schen") {
+                            model.deleteCustomLlmFile(id: entry.id)
+                        }
+                        .disabled(isDownloading)
+                    } else {
+                        Button(isDownloading ? "Lade..." : "Herunterladen") {
+                            model.startCustomLlmDownload(id: entry.id)
+                        }
+                        .disabled(isDownloading)
                     }
                 }
-                Text(entry.source.summaryText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+
+                Button("Entfernen") {
+                    model.removeCustomLlm(id: entry.id)
+                }
             }
 
-            Spacer()
-
-            Button(isActive ? "Aktiv" : "Ausw\u{E4}hlen") {
-                model.postProcessingChoiceBinding.wrappedValue = .localCustom(id: entry.id, name: entry.name)
-            }
-            .disabled(isActive)
-
-            Button("L\u{F6}schen") {
-                model.removeCustomLlm(id: entry.id)
+            if isDownloading, let basisPoints = status?.progressBasisPoints {
+                ProgressView(value: Double(basisPoints) / 10_000.0)
             }
         }
         .padding(.vertical, 2)

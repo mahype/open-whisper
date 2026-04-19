@@ -526,6 +526,18 @@ struct ModelStatusDTO: Codable, Identifiable {
     )
 }
 
+struct CustomLlmStatusDTO: Codable, Identifiable, Hashable {
+    var id: String
+    var name: String
+    var sourceLabel: String
+    var path: String
+    var isDownloaded: Bool
+    var isDownloading: Bool
+    var isLoaded: Bool
+    var needsDownload: Bool
+    var progressBasisPoints: UInt16?
+}
+
 struct LlmModelStatusDTO: Codable, Identifiable {
     var presetLabel: String
     var displayLabel: String

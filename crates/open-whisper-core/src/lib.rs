@@ -612,6 +612,19 @@ pub struct ModelStatusDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CustomLlmStatusDto {
+    pub id: String,
+    pub name: String,
+    pub source_label: String,
+    pub path: String,
+    pub is_downloaded: bool,
+    pub is_downloading: bool,
+    pub is_loaded: bool,
+    pub needs_download: bool,
+    pub progress_basis_points: Option<u16>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LlmModelStatusDto {
     pub preset_label: String,
     pub display_label: String,

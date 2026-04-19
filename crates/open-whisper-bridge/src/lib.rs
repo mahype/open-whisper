@@ -27,8 +27,9 @@ use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState, hotkey:
 use llm_model_manager::LlmModelDownloadManager;
 use model_manager::ModelDownloadManager;
 use open_whisper_core::{
-    AppSettings, DeviceDto, DiagnosticsDto, LlmModelStatusDto, LlmPreset, ModelPreset,
-    ModelStatusDto, RecordingLevelsDto, RemoteModelBackend, RemoteModelDto, RuntimeStatusDto,
+    AppSettings, CustomLlmSource, CustomLlmStatusDto, DeviceDto, DiagnosticsDto, LlmModelStatusDto,
+    LlmPreset, ModelPreset, ModelStatusDto, RecordingLevelsDto, RemoteModelBackend, RemoteModelDto,
+    RuntimeStatusDto,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -464,6 +465,109 @@ impl BridgeRuntime {
         Ok(message)
     }
 
+    fn custom_llm_status_list(&mut self) -> Vec<CustomLlmStatusDto> {
+        self.poll();
+
+        let loaded_custom_id = local_llm::shared_runtime()
+            .try_lock()
+            .ok()
+            .and_then(|runtime| runtime.loaded_custom_id());
+        let active_custom_download = self.llm_downloads.active_download_custom_id();
+        let active_progress = self.llm_downloads.progress_basis_points();
+
+        self.settings
+            .custom_llm_models
+            .iter()
+            .map(|entry| {
+                let (path_buf, needs_download, source_label) = match &entry.source {
+                    CustomLlmSource::LocalPath { path } => (
+                        Some(std::path::PathBuf::from(path)),
+                        false,
+                        format!("Lokale Datei: {path}"),
+                    ),
+                    CustomLlmSource::DownloadUrl { url, .. } => (
+                        llm_model_manager::default_custom_llm_path(&entry.id).ok(),
+                        true,
+                        format!("Download-URL: {url}"),
+                    ),
+                };
+                let path_display = path_buf
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default();
+                let is_downloaded = path_buf
+                    .as_ref()
+                    .map(|p| p.exists())
+                    .unwrap_or(false);
+                let is_downloading = active_custom_download.as_deref() == Some(entry.id.as_str());
+                let progress_basis_points = if is_downloading { active_progress } else { None };
+
+                CustomLlmStatusDto {
+                    id: entry.id.clone(),
+                    name: entry.name.clone(),
+                    source_label,
+                    path: path_display,
+                    is_downloaded,
+                    is_downloading,
+                    is_loaded: loaded_custom_id.as_deref() == Some(entry.id.as_str()),
+                    needs_download,
+                    progress_basis_points,
+                }
+            })
+            .collect()
+    }
+
+    fn start_custom_llm_download(&mut self, id: &str) -> Result<String, String> {
+        self.poll();
+        let entry = self
+            .settings
+            .custom_llm_models
+            .iter()
+            .find(|entry| entry.id == id)
+            .ok_or_else(|| format!("Eigenes Sprachmodell '{id}' nicht gefunden."))?
+            .clone();
+        let url = match &entry.source {
+            CustomLlmSource::DownloadUrl { url, .. } => url.clone(),
+            CustomLlmSource::LocalPath { .. } => {
+                return Err(format!(
+                    "'{}' ist ein lokal ausgewaehltes Modell - kein Download noetig.",
+                    entry.name
+                ));
+            }
+        };
+        let message = self
+            .llm_downloads
+            .start_custom_download(&entry.id, &entry.name, &url)?;
+        self.last_status = message.clone();
+        Ok(message)
+    }
+
+    fn delete_custom_llm_download(&mut self, id: &str) -> Result<String, String> {
+        self.poll();
+        let Some(entry) = self
+            .settings
+            .custom_llm_models
+            .iter()
+            .find(|entry| entry.id == id)
+            .cloned()
+        else {
+            return Err(format!("Eigenes Sprachmodell '{id}' nicht gefunden."));
+        };
+        match &entry.source {
+            CustomLlmSource::DownloadUrl { .. } => {
+                let message = self
+                    .llm_downloads
+                    .delete_custom_file(&entry.id, &entry.name)?;
+                self.last_status = message.clone();
+                Ok(message)
+            }
+            CustomLlmSource::LocalPath { .. } => Ok(format!(
+                "'{}' ist eine externe Datei und wird nicht geloescht.",
+                entry.name
+            )),
+        }
+    }
+
     fn delete_llm_model(&mut self, preset: LlmPreset) -> Result<String, String> {
         self.poll();
         let message = self.llm_downloads.delete_preset(preset)?;
@@ -653,6 +757,11 @@ struct RemoteBackendRequest {
     backend: RemoteModelBackend,
 }
 
+#[derive(Deserialize)]
+struct CustomLlmIdRequest {
+    id: String,
+}
+
 fn with_runtime<T>(f: impl FnOnce(&mut BridgeRuntime) -> Result<T, String>) -> Result<T, String> {
     RUNTIME.with(|runtime| {
         let mut runtime = runtime.borrow_mut();
@@ -828,6 +937,33 @@ pub extern "C" fn ow_delete_llm_model(request_json: *const c_char) -> *mut c_cha
     };
 
     response_from_result(with_runtime(|runtime| runtime.delete_llm_model(preset)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_get_custom_llm_status_list() -> *mut c_char {
+    response_ok(with_runtime_value(BridgeRuntime::custom_llm_status_list))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_start_custom_llm_download(request_json: *const c_char) -> *mut c_char {
+    let id = match parse_json_arg::<CustomLlmIdRequest>(request_json, "CustomLlmIdRequest") {
+        Ok(request) => request.id,
+        Err(err) => return response_from_result::<String>(Err(err)),
+    };
+
+    response_from_result(with_runtime(|runtime| runtime.start_custom_llm_download(&id)))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_delete_custom_llm_model(request_json: *const c_char) -> *mut c_char {
+    let id = match parse_json_arg::<CustomLlmIdRequest>(request_json, "CustomLlmIdRequest") {
+        Ok(request) => request.id,
+        Err(err) => return response_from_result::<String>(Err(err)),
+    };
+
+    response_from_result(with_runtime(|runtime| {
+        runtime.delete_custom_llm_download(&id)
+    }))
 }
 
 #[unsafe(no_mangle)]

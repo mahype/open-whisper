@@ -61,6 +61,18 @@ final class BridgeClient {
         try encodeAndCall(["preset": preset.rawValue], function: ow_delete_llm_model)
     }
 
+    func getCustomLlmStatusList() throws -> [CustomLlmStatusDTO] {
+        try decodeResponse(from: ow_get_custom_llm_status_list())
+    }
+
+    func startCustomLlmDownload(id: String) throws -> String {
+        try encodeAndCall(["id": id], function: ow_start_custom_llm_download)
+    }
+
+    func deleteCustomLlmModel(id: String) throws -> String {
+        try encodeAndCall(["id": id], function: ow_delete_custom_llm_model)
+    }
+
     func listRemoteModels(backend: RemoteModelBackend) throws -> [RemoteModelDTO] {
         try encodeAndCall(["backend": backend.rawValue], function: ow_list_remote_models)
     }

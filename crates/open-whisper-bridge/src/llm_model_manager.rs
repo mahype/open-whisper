@@ -52,7 +52,7 @@ impl LlmModelDownloadManager {
 
         self.download_rx = Some(rx);
         self.state = LlmDownloadState::Downloading {
-            preset,
+            target: LlmDownloadTarget::Preset(preset),
             downloaded_bytes: 0,
             total_bytes: None,
             started_at: Instant::now(),
@@ -70,6 +70,102 @@ impl LlmModelDownloadManager {
             "Download fuer {} gestartet.",
             preset.display_label()
         ))
+    }
+
+    pub fn start_custom_download(
+        &mut self,
+        id: &str,
+        display_name: &str,
+        url: &str,
+    ) -> Result<String, String> {
+        if self.is_downloading() {
+            return Err("Ein Sprachmodell-Download laeuft bereits.".to_owned());
+        }
+
+        let target_path = default_custom_llm_path(id)?;
+        if target_path.exists() {
+            self.state = LlmDownloadState::Ready {
+                path: target_path.clone(),
+            };
+            return Ok(format!("{} ist bereits vorhanden.", display_name));
+        }
+
+        let download_url = url.trim().to_owned();
+        if download_url.is_empty() {
+            return Err("URL fuer eigenes Sprachmodell ist leer.".to_owned());
+        }
+        let download_path = target_path.clone();
+        let temp_path = temporary_download_path(&target_path);
+        let (tx, rx) = mpsc::channel();
+
+        self.download_rx = Some(rx);
+        self.state = LlmDownloadState::Downloading {
+            target: LlmDownloadTarget::Custom {
+                id: id.to_owned(),
+                display_name: display_name.to_owned(),
+            },
+            downloaded_bytes: 0,
+            total_bytes: None,
+            started_at: Instant::now(),
+        };
+
+        thread::spawn(move || {
+            let result = download_model_file(&download_url, &download_path, &temp_path, &tx);
+            if let Err(err) = result {
+                let _ = cleanup_temp_file(&temp_path);
+                let _ = tx.send(DownloadEvent::Failed(err));
+            }
+        });
+
+        Ok(format!("Download fuer {} gestartet.", display_name))
+    }
+
+    pub fn delete_custom_file(
+        &mut self,
+        id: &str,
+        display_name: &str,
+    ) -> Result<String, String> {
+        if self.is_downloading_custom(id) {
+            return Err(
+                "Ein laufender Download kann nicht gleichzeitig geloescht werden.".to_owned(),
+            );
+        }
+
+        let path = default_custom_llm_path(id)?;
+        if !path.exists() {
+            return Ok(format!(
+                "{} war lokal bereits nicht vorhanden.",
+                display_name
+            ));
+        }
+        fs::remove_file(&path)
+            .map_err(|err| format!("Sprachmodell konnte nicht geloescht werden: {err}"))?;
+
+        if !self.is_downloading() {
+            self.state = LlmDownloadState::Missing;
+        }
+
+        Ok(format!("{} wurde lokal geloescht.", display_name))
+    }
+
+    pub fn is_downloading_custom(&self, id: &str) -> bool {
+        matches!(
+            &self.state,
+            LlmDownloadState::Downloading { target: LlmDownloadTarget::Custom { id: active, .. }, .. }
+                if active == id
+        )
+    }
+
+    pub fn active_download_custom_id(&self) -> Option<String> {
+        if let LlmDownloadState::Downloading {
+            target: LlmDownloadTarget::Custom { id, .. },
+            ..
+        } = &self.state
+        {
+            Some(id.clone())
+        } else {
+            None
+        }
     }
 
     pub fn delete_downloaded_model(&mut self, settings: &AppSettings) -> Result<String, String> {
@@ -105,11 +201,19 @@ impl LlmModelDownloadManager {
     }
 
     pub fn is_downloading_preset(&self, preset: LlmPreset) -> bool {
-        matches!(self.state, LlmDownloadState::Downloading { preset: active, .. } if active == preset)
+        matches!(
+            &self.state,
+            LlmDownloadState::Downloading { target: LlmDownloadTarget::Preset(active), .. }
+                if *active == preset
+        )
     }
 
     pub fn active_download_preset(&self) -> Option<LlmPreset> {
-        if let LlmDownloadState::Downloading { preset, .. } = &self.state {
+        if let LlmDownloadState::Downloading {
+            target: LlmDownloadTarget::Preset(preset),
+            ..
+        } = &self.state
+        {
             Some(*preset)
         } else {
             None
@@ -229,7 +333,7 @@ impl LlmModelDownloadManager {
             ),
             LlmDownloadState::Ready { path } => summary_for_existing_path(path),
             LlmDownloadState::Downloading {
-                preset,
+                target,
                 downloaded_bytes,
                 total_bytes,
                 started_at,
@@ -242,9 +346,13 @@ impl LlmModelDownloadManager {
                     ),
                     _ => format!("{} geladen", human_readable_size(*downloaded_bytes)),
                 };
+                let label = match target {
+                    LlmDownloadTarget::Preset(preset) => preset.display_label().to_owned(),
+                    LlmDownloadTarget::Custom { display_name, .. } => display_name.clone(),
+                };
                 format!(
                     "Download fuer {} laeuft seit {} ({progress}).",
-                    preset.display_label(),
+                    label,
                     human_readable_duration(started_at.elapsed())
                 )
             }
@@ -261,6 +369,12 @@ impl Default for LlmModelDownloadManager {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LlmDownloadTarget {
+    Preset(LlmPreset),
+    Custom { id: String, display_name: String },
+}
+
 enum LlmDownloadState {
     Idle,
     Missing,
@@ -268,7 +382,7 @@ enum LlmDownloadState {
         path: PathBuf,
     },
     Downloading {
-        preset: LlmPreset,
+        target: LlmDownloadTarget,
         downloaded_bytes: u64,
         total_bytes: Option<u64>,
         started_at: Instant,
@@ -305,6 +419,20 @@ pub fn default_llm_model_path(preset: LlmPreset) -> Result<PathBuf, String> {
         .config_dir()
         .join("llm-models")
         .join(preset.default_filename()))
+}
+
+pub fn default_custom_llm_path(id: &str) -> Result<PathBuf, String> {
+    let trimmed = id.trim();
+    if trimmed.is_empty() {
+        return Err("Eigenes Sprachmodell hat keine ID.".to_owned());
+    }
+    let project_dirs = ProjectDirs::from("dev", "awesome", "open-whisper")
+        .ok_or_else(|| "Config-Verzeichnis fuer Sprachmodelle nicht verfuegbar.".to_owned())?;
+    Ok(project_dirs
+        .config_dir()
+        .join("llm-models")
+        .join("custom")
+        .join(format!("{trimmed}.gguf")))
 }
 
 fn download_model_file(
