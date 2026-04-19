@@ -1,7 +1,10 @@
 use std::{
     num::NonZeroU32,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{
+        Arc, Mutex, OnceLock,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -98,6 +101,7 @@ impl LocalLlmRuntime {
         preset: LlmPreset,
         system_prompt: &str,
         user_text: &str,
+        cancelled: &Arc<AtomicBool>,
     ) -> Result<String, String> {
         let target_path = default_llm_model_path(preset)?;
         if !target_path.exists() {
@@ -112,6 +116,7 @@ impl LocalLlmRuntime {
             preset.context_size(),
             system_prompt,
             user_text,
+            cancelled,
         )
     }
 
@@ -122,6 +127,7 @@ impl LocalLlmRuntime {
         path: &Path,
         system_prompt: &str,
         user_text: &str,
+        cancelled: &Arc<AtomicBool>,
     ) -> Result<String, String> {
         if !path.exists() {
             return Err(format!(
@@ -136,6 +142,7 @@ impl LocalLlmRuntime {
             CUSTOM_CONTEXT_SIZE,
             system_prompt,
             user_text,
+            cancelled,
         )
     }
 
@@ -146,6 +153,7 @@ impl LocalLlmRuntime {
         n_ctx_value: u32,
         system_prompt: &str,
         user_text: &str,
+        cancelled: &Arc<AtomicBool>,
     ) -> Result<String, String> {
         self.ensure_loaded(key, target_path)?;
         self.last_used = Instant::now();
@@ -203,6 +211,10 @@ impl LocalLlmRuntime {
         let n_max = n_input + MAX_OUTPUT_TOKENS;
 
         while n_cur < n_max {
+            if cancelled.load(Ordering::Relaxed) {
+                return Err("Nachbearbeitung abgebrochen.".to_owned());
+            }
+
             let token = sampler.sample(&ctx, batch.n_tokens() - 1);
             sampler.accept(token);
 
@@ -287,11 +299,12 @@ pub fn generate_with_shared_runtime(
     preset: LlmPreset,
     system_prompt: &str,
     user_text: &str,
+    cancelled: &Arc<AtomicBool>,
 ) -> Result<String, String> {
     let mut runtime = shared_runtime()
         .lock()
         .map_err(|_| "Lokales Sprachmodell-Runtime-Mutex wurde vergiftet.".to_owned())?;
-    runtime.generate(preset, system_prompt, user_text)
+    runtime.generate(preset, system_prompt, user_text, cancelled)
 }
 
 pub fn generate_with_custom_path(
@@ -300,11 +313,12 @@ pub fn generate_with_custom_path(
     path: &Path,
     system_prompt: &str,
     user_text: &str,
+    cancelled: &Arc<AtomicBool>,
 ) -> Result<String, String> {
     let mut runtime = shared_runtime()
         .lock()
         .map_err(|_| "Lokales Sprachmodell-Runtime-Mutex wurde vergiftet.".to_owned())?;
-    runtime.generate_custom(id, display_name, path, system_prompt, user_text)
+    runtime.generate_custom(id, display_name, path, system_prompt, user_text, cancelled)
 }
 
 pub fn maybe_unload_shared_runtime(auto_unload_secs: u32) {

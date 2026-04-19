@@ -1,4 +1,11 @@
-use std::{path::Path, time::Duration};
+use std::{
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use open_whisper_core::{AppSettings, CustomLlmSource, PostProcessingBackend};
 use reqwest::blocking::Client;
@@ -9,9 +16,17 @@ use crate::{llm_model_manager, local_llm};
 const USER_AGENT: &str = "open-whisper-bridge/0.1";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
 
-pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<String, String> {
-    if !settings.post_processing_enabled {
+pub fn process_text(
+    settings: &AppSettings,
+    raw_transcript: &str,
+    cancelled: &Arc<AtomicBool>,
+) -> Result<String, String> {
+    if !settings.active_mode_post_processing_enabled() {
         return Ok(raw_transcript.to_owned());
+    }
+
+    if cancelled.load(Ordering::Relaxed) {
+        return Err("Nachbearbeitung abgebrochen.".to_owned());
     }
 
     let mode = settings.active_mode();
@@ -27,6 +42,7 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
                             Path::new(path),
                             &mode.prompt,
                             raw_transcript,
+                            cancelled,
                         )?
                     }
                     CustomLlmSource::DownloadUrl { .. } => {
@@ -43,6 +59,7 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
                             &path,
                             &mode.prompt,
                             raw_transcript,
+                            cancelled,
                         )?
                     }
                 }
@@ -51,6 +68,7 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
                     settings.local_llm,
                     &mode.prompt,
                     raw_transcript,
+                    cancelled,
                 )?
             }
         }
@@ -77,6 +95,10 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
             )?
         }
     };
+
+    if cancelled.load(Ordering::Relaxed) {
+        return Err("Nachbearbeitung abgebrochen.".to_owned());
+    }
 
     let trimmed = text.trim();
     if trimmed.is_empty() {
@@ -232,7 +254,8 @@ mod tests {
     #[test]
     fn disabled_mode_returns_original_text() {
         let settings = AppSettings::default();
-        let result = process_text(&settings, "roher text").unwrap();
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let result = process_text(&settings, "roher text", &cancelled).unwrap();
         assert_eq!(result, "roher text");
     }
 

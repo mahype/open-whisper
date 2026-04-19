@@ -20,6 +20,7 @@ char *ow_list_remote_models(const char *request_json);
 char *ow_run_permission_diagnostics(void);
 char *ow_start_dictation(void);
 char *ow_stop_dictation(void);
+char *ow_cancel_dictation(void);
 char *ow_get_runtime_status(void);
 char *ow_get_recording_levels(void);
 char *ow_validate_hotkey(const char *request_json);

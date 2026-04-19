@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var modeSummaryItem: NSMenuItem!
     private var modeSwitchItem: NSMenuItem!
     private var modelItem: NSMenuItem!
+    private var modelSwitchItem: NSMenuItem!
     private var statusItemLine: NSMenuItem!
     private var quitItem: NSMenuItem!
     private var settingsWindow: NSWindow?
@@ -20,6 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var recordingIndicatorWindow: NSWindow?
     private let recordingLevelFeed = RecordingLevelFeed()
     private let modeMenu = NSMenu()
+    private let modelMenu = NSMenu()
+    private var escapeGlobalMonitor: Any?
+    private var escapeLocalMonitor: Any?
+    private static let escapeKeyCode: UInt16 = 53
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -37,6 +42,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         modeSwitchItem.submenu = modeMenu
         modelItem = NSMenuItem(title: "Modellstatus wird geladen...", action: nil, keyEquivalent: "")
         modelItem.isEnabled = false
+        modelSwitchItem = NSMenuItem(title: "Transkriptionsmodell wechseln", action: nil, keyEquivalent: "")
+        modelSwitchItem.submenu = modelMenu
         statusItemLine = NSMenuItem(title: "Status wird geladen...", action: nil, keyEquivalent: "")
         statusItemLine.isEnabled = false
         quitItem = NSMenuItem(title: "Beenden", action: #selector(quitApp), keyEquivalent: "q")
@@ -52,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             modeSwitchItem,
             .separator(),
             modelItem,
+            modelSwitchItem,
             statusItemLine,
             .separator(),
             quitItem,
@@ -128,12 +136,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         model.persistPostProcessingEnabledImmediately(false)
     }
 
+    @objc private func selectWhisperPreset(_ sender: NSMenuItem) {
+        guard
+            let raw = sender.representedObject as? String,
+            let preset = ModelPreset(rawValue: raw)
+        else { return }
+        model.persistWhisperPresetImmediately(preset)
+    }
+
     private func refreshMenuState() {
         let runtime = model.runtime
         dictationItem.title = runtime.isRecording ? "Diktat stoppen" : "Diktat starten"
         modeSummaryItem.title = model.trayModeLabel
         rebuildModeMenu()
         modelItem.title = model.trayModelLabel
+        rebuildModelMenu()
         statusItemLine.title = model.bridgeError ?? runtime.lastStatus
         statusItem.button?.image = statusImage(recording: runtime.isRecording)
         statusItem.button?.toolTip = model.bridgeError ?? runtime.lastStatus
@@ -160,8 +177,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         guard model.settings.showRecordingIndicator, let phase else {
             recordingLevelFeed.stop()
             recordingIndicatorWindow?.orderOut(nil)
+            removeEscapeMonitor()
             return
         }
+
+        installEscapeMonitor()
 
         if phase == .recording {
             recordingLevelFeed.start()
@@ -282,6 +302,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
     }
 
+    private func rebuildModelMenu() {
+        modelMenu.removeAllItems()
+        let activePreset = model.settings.localModel
+        for preset in model.availableModelPresets {
+            let item = NSMenuItem(
+                title: preset.displayName,
+                action: #selector(selectWhisperPreset(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = preset.rawValue
+            item.state = (preset == activePreset) ? .on : .off
+            modelMenu.addItem(item)
+        }
+    }
+
     private func show(_ window: NSWindow) {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
@@ -306,5 +342,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Open Whisper")
         image?.isTemplate = true
         return image
+    }
+
+    private func installEscapeMonitor() {
+        if escapeGlobalMonitor == nil {
+            escapeGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard event.keyCode == AppDelegate.escapeKeyCode else { return }
+                Task { @MainActor [weak self] in
+                    self?.model.cancelDictation()
+                }
+            }
+        }
+
+        if escapeLocalMonitor == nil {
+            escapeLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard event.keyCode == AppDelegate.escapeKeyCode else { return event }
+                self?.model.cancelDictation()
+                return nil
+            }
+        }
+    }
+
+    private func removeEscapeMonitor() {
+        if let monitor = escapeGlobalMonitor {
+            NSEvent.removeMonitor(monitor)
+            escapeGlobalMonitor = nil
+        }
+        if let monitor = escapeLocalMonitor {
+            NSEvent.removeMonitor(monitor)
+            escapeLocalMonitor = nil
+        }
     }
 }

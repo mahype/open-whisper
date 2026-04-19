@@ -176,8 +176,8 @@ struct SettingsView: View {
     private var languageModelsContent: some View {
         Section("Transkription") {
             Picker("Modell", selection: model.binding(for: \.localModel)) {
-                ForEach(ModelPreset.allCases) { preset in
-                    Text(preset.displayName).tag(preset)
+                ForEach(model.availableModelPresets) { preset in
+                    Text(model.whisperPresetPickerLabel(preset)).tag(preset)
                 }
             }
 
@@ -197,8 +197,8 @@ struct SettingsView: View {
 
         Section("Nachbearbeitung") {
             Picker("Modell", selection: model.postProcessingChoiceBinding) {
-                ForEach(model.postProcessingChoices) { choice in
-                    Text(choice.label).tag(choice)
+                ForEach(model.availablePostProcessingChoices) { choice in
+                    Text(model.postProcessingChoicePickerLabel(choice)).tag(choice)
                 }
             }
 

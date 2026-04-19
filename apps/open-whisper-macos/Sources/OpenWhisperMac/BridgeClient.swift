@@ -89,6 +89,10 @@ final class BridgeClient {
         try decodeResponse(from: ow_stop_dictation())
     }
 
+    func cancelDictation() throws -> String {
+        try decodeResponse(from: ow_cancel_dictation())
+    }
+
     func getRuntimeStatus() throws -> RuntimeStatusDTO {
         try decodeResponse(from: ow_get_runtime_status())
     }

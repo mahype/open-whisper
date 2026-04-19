@@ -242,6 +242,73 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func isWhisperPresetDownloaded(_ preset: ModelPreset) -> Bool {
+        modelStatusList.first(where: { $0.backendModelName == preset.whisperModel })?.isDownloaded ?? false
+    }
+
+    func isLlmPresetDownloaded(_ preset: LlmPreset) -> Bool {
+        llmStatusList.first(where: { $0.displayLabel == preset.displayName })?.isDownloaded ?? false
+    }
+
+    func isCustomLlmAvailable(_ entry: CustomLlmModel) -> Bool {
+        switch entry.source {
+        case .localPath:
+            return true
+        case .downloadUrl:
+            return customLlmStatusList.first(where: { $0.id == entry.id })?.isDownloaded ?? false
+        }
+    }
+
+    func isPostProcessingChoiceAvailable(_ choice: PostProcessingChoice) -> Bool {
+        switch choice {
+        case .localPreset(let preset):
+            return isLlmPresetDownloaded(preset)
+        case .localCustom(let id, _):
+            guard let entry = settings.customLlmModels.first(where: { $0.id == id }) else {
+                return false
+            }
+            return isCustomLlmAvailable(entry)
+        case .ollamaModel(let name):
+            return ollamaModels.contains(where: { $0.name == name })
+        case .lmStudioModel(let name):
+            return lmStudioModels.contains(where: { $0.name == name })
+        }
+    }
+
+    var availableModelPresets: [ModelPreset] {
+        var list = ModelPreset.allCases.filter { isWhisperPresetDownloaded($0) }
+        if !list.contains(settings.localModel) {
+            list.insert(settings.localModel, at: 0)
+        }
+        return list
+    }
+
+    func whisperPresetPickerLabel(_ preset: ModelPreset) -> String {
+        isWhisperPresetDownloaded(preset) ? preset.displayName : "\(preset.displayName) (nicht geladen)"
+    }
+
+    var availablePostProcessingChoices: [PostProcessingChoice] {
+        var list: [PostProcessingChoice] = []
+        list.append(contentsOf: LlmPreset.allCases
+            .filter { isLlmPresetDownloaded($0) }
+            .map { PostProcessingChoice.localPreset($0) })
+        list.append(contentsOf: settings.customLlmModels
+            .filter { isCustomLlmAvailable($0) }
+            .map { PostProcessingChoice.localCustom(id: $0.id, name: $0.name) })
+        list.append(contentsOf: ollamaModels.map { PostProcessingChoice.ollamaModel($0.name) })
+        list.append(contentsOf: lmStudioModels.map { PostProcessingChoice.lmStudioModel($0.name) })
+
+        let current = postProcessingChoiceBinding.wrappedValue
+        if !list.contains(where: { $0.id == current.id }) {
+            list.insert(current, at: 0)
+        }
+        return list
+    }
+
+    func postProcessingChoicePickerLabel(_ choice: PostProcessingChoice) -> String {
+        isPostProcessingChoiceAvailable(choice) ? choice.label : "\(choice.label) (nicht geladen)"
+    }
+
     var postProcessingChoices: [PostProcessingChoice] {
         var choices: [PostProcessingChoice] = LlmPreset.allCases.map { .localPreset($0) }
 
@@ -358,6 +425,9 @@ final class AppModel: ObservableObject {
             }
             if let list = try? bridge.getLlmStatusList() {
                 llmStatusList = list
+            }
+            if let list = try? bridge.getCustomLlmStatusList() {
+                customLlmStatusList = list
             }
             bridgeError = nil
             onStateChanged?()
@@ -499,6 +569,32 @@ final class AppModel: ObservableObject {
         do {
             var freshSettings = try bridge.loadSettings()
             freshSettings.postProcessingEnabled = enabled
+            _ = try bridge.saveSettings(freshSettings)
+            reloadAll()
+        } catch {
+            publish(error)
+        }
+    }
+
+    func persistWhisperPresetImmediately(_ preset: ModelPreset) {
+        do {
+            var freshSettings = try bridge.loadSettings()
+            let previousFilename = URL(fileURLWithPath: freshSettings.localModelPath).lastPathComponent
+            let previousDefaults = Set(ModelPreset.allCases.map(\.defaultFilename))
+
+            freshSettings.localModel = preset
+            if freshSettings.localModelPath.isEmpty || previousDefaults.contains(previousFilename) {
+                let basePath = modelStatus.path.isEmpty ? freshSettings.localModelPath : modelStatus.path
+                if !basePath.isEmpty {
+                    let newURL = URL(fileURLWithPath: basePath)
+                        .deletingLastPathComponent()
+                        .appendingPathComponent(preset.defaultFilename)
+                    freshSettings.localModelPath = newURL.path
+                } else {
+                    freshSettings.localModelPath = ""
+                }
+            }
+
             _ = try bridge.saveSettings(freshSettings)
             reloadAll()
         } catch {
@@ -668,6 +764,16 @@ final class AppModel: ObservableObject {
             } else {
                 _ = try bridge.startDictation()
             }
+            bridgeError = nil
+            poll()
+        } catch {
+            publish(error)
+        }
+    }
+
+    func cancelDictation() {
+        do {
+            _ = try bridge.cancelDictation()
             bridgeError = nil
             poll()
         } catch {

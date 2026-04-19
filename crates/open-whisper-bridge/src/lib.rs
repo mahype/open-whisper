@@ -19,6 +19,10 @@ mod text_inserter;
 use std::{
     cell::RefCell,
     ffi::{CStr, CString, c_char},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use autostart::AutostartManager;
@@ -49,6 +53,7 @@ struct BridgeRuntime {
     dictation_trigger_count: u64,
     last_status: String,
     last_transcript: String,
+    cancelled: Arc<AtomicBool>,
 }
 
 struct PendingPostProcessing {
@@ -121,6 +126,7 @@ impl BridgeRuntime {
             dictation_trigger_count: 0,
             last_status,
             last_transcript: String::new(),
+            cancelled: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -139,20 +145,26 @@ impl BridgeRuntime {
             match rx.try_recv() {
                 Ok(Ok(processed_text)) => {
                     self.post_processing_rx = None;
-                    let mode_name = self
-                        .pending_post_processing
-                        .as_ref()
-                        .map(|pending| pending.mode_name.clone())
-                        .unwrap_or_else(|| self.settings.active_mode_name().to_owned());
-                    self.pending_post_processing = None;
-                    self.finish_transcript(
-                        processed_text,
-                        &format!("Nachbearbeitung '{mode_name}' abgeschlossen."),
-                    );
+                    if self.cancelled.load(Ordering::Relaxed) {
+                        self.pending_post_processing = None;
+                    } else {
+                        let mode_name = self
+                            .pending_post_processing
+                            .as_ref()
+                            .map(|pending| pending.mode_name.clone())
+                            .unwrap_or_else(|| self.settings.active_mode_name().to_owned());
+                        self.pending_post_processing = None;
+                        self.finish_transcript(
+                            processed_text,
+                            &format!("Nachbearbeitung '{mode_name}' abgeschlossen."),
+                        );
+                    }
                 }
                 Ok(Err(err)) => {
                     self.post_processing_rx = None;
-                    if let Some(pending) = self.pending_post_processing.take() {
+                    if self.cancelled.load(Ordering::Relaxed) {
+                        self.pending_post_processing = None;
+                    } else if let Some(pending) = self.pending_post_processing.take() {
                         let fallback_status = format!(
                             "Nachbearbeitung '{}' ueber {} fehlgeschlagen. Rohtranskript wird verwendet. {err}",
                             pending.mode_name, pending.provider_label
@@ -164,7 +176,9 @@ impl BridgeRuntime {
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                     self.post_processing_rx = None;
-                    if let Some(pending) = self.pending_post_processing.take() {
+                    if self.cancelled.load(Ordering::Relaxed) {
+                        self.pending_post_processing = None;
+                    } else if let Some(pending) = self.pending_post_processing.take() {
                         let fallback_status = format!(
                             "Nachbearbeitung '{}' wurde unerwartet beendet. Rohtranskript wird verwendet.",
                             pending.mode_name
@@ -188,6 +202,9 @@ impl BridgeRuntime {
             match action {
                 HotKeyAction::Pressed => {
                     self.dictation_trigger_count += 1;
+                    if !self.dictation.is_recording() && !self.dictation.is_transcribing() {
+                        self.reset_cancellation();
+                    }
                     let outcomes = self.dictation.handle_hotkey(&self.settings, true);
                     self.apply_dictation_outcomes(outcomes);
                 }
@@ -205,10 +222,17 @@ impl BridgeRuntime {
     fn apply_dictation_outcomes(&mut self, outcomes: Vec<DictationOutcome>) {
         for outcome in outcomes {
             match outcome {
-                DictationOutcome::Status(message) => self.last_status = message,
+                DictationOutcome::Status(message) => {
+                    if !self.cancelled.load(Ordering::Relaxed) {
+                        self.last_status = message;
+                    }
+                }
                 DictationOutcome::TranscriptReady(transcript) => {
+                    if self.cancelled.load(Ordering::Relaxed) {
+                        continue;
+                    }
                     let mode = self.settings.active_mode().clone();
-                    if self.settings.post_processing_enabled {
+                    if self.settings.active_mode_post_processing_enabled() {
                         let provider_label = self
                             .settings
                             .active_post_processing_backend
@@ -218,8 +242,13 @@ impl BridgeRuntime {
                         let raw_transcript = transcript.clone();
                         let settings = self.settings.clone();
                         let (tx, rx) = std::sync::mpsc::channel();
+                        let cancelled = self.cancelled.clone();
                         std::thread::spawn(move || {
-                            let result = post_processing::process_text(&settings, &raw_transcript);
+                            let result = post_processing::process_text(
+                                &settings,
+                                &raw_transcript,
+                                &cancelled,
+                            );
                             let _ = tx.send(result);
                         });
                         self.post_processing_rx = Some(rx);
@@ -237,6 +266,39 @@ impl BridgeRuntime {
                 }
             }
         }
+    }
+
+    fn reset_cancellation(&mut self) {
+        self.cancelled = Arc::new(AtomicBool::new(false));
+    }
+
+    fn cancel_dictation(&mut self) -> Result<String, String> {
+        let was_recording = self.dictation.is_recording();
+        let was_transcribing = self.dictation.is_transcribing();
+        let was_post_processing = self.post_processing_rx.is_some();
+        let was_blocked = self.dictation.is_blocked(
+            std::time::Instant::now(),
+            std::time::Duration::from_secs(6),
+        );
+
+        if !was_recording && !was_transcribing && !was_post_processing && !was_blocked {
+            return Ok(self.last_status.clone());
+        }
+
+        self.cancelled.store(true, Ordering::Relaxed);
+
+        let recording_cancelled = self.dictation.cancel_recording();
+        let _ = self.dictation.abandon_transcription();
+        self.post_processing_rx = None;
+        self.pending_post_processing = None;
+        self.dictation.clear_blocked();
+
+        if !recording_cancelled {
+            dictation::play_cancel_cue();
+        }
+
+        self.last_status = "Diktat abgebrochen.".to_owned();
+        Ok(self.last_status.clone())
     }
 
     fn finish_transcript(&mut self, transcript: String, ready_status: &str) {
@@ -599,6 +661,7 @@ impl BridgeRuntime {
 
     fn start_dictation(&mut self) -> Result<String, String> {
         self.poll();
+        self.reset_cancellation();
         let message = self.dictation.start_recording(&self.settings)?;
         self.last_status = message.clone();
         Ok(message)
@@ -1024,6 +1087,11 @@ pub extern "C" fn ow_start_dictation() -> *mut c_char {
 #[unsafe(no_mangle)]
 pub extern "C" fn ow_stop_dictation() -> *mut c_char {
     response_from_result(with_runtime(BridgeRuntime::stop_dictation))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn ow_cancel_dictation() -> *mut c_char {
+    response_from_result(with_runtime(BridgeRuntime::cancel_dictation))
 }
 
 #[unsafe(no_mangle)]

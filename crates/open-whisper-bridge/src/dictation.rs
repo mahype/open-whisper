@@ -22,6 +22,7 @@ const CUE_NOTE_GAP_MS: u32 = 18;
 const CUE_VOLUME: f32 = 0.12;
 const RECORDING_START_NOTES: [(f32, u32); 2] = [(523.25, 60), (659.25, 92)];
 const RECORDING_STOP_NOTES: [(f32, u32); 2] = [(659.25, 54), (523.25, 98)];
+const RECORDING_CANCEL_NOTES: [(f32, u32); 3] = [(523.25, 50), (392.00, 60), (329.63, 110)];
 
 pub enum DictationOutcome {
     Status(String),
@@ -243,6 +244,19 @@ impl DictationController {
         ))])
     }
 
+    pub fn cancel_recording(&mut self) -> bool {
+        if self.recording.take().is_some() {
+            play_recording_cue(RecordingCue::Cancel);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn abandon_transcription(&mut self) -> bool {
+        self.transcription_rx.take().is_some()
+    }
+
     pub fn poll(&mut self, settings: &AppSettings) -> Vec<DictationOutcome> {
         let mut outcomes = Vec::new();
 
@@ -404,7 +418,6 @@ struct RecordingBuffer {
     silence_limit_samples: usize,
     silence_run_samples: usize,
     voice_detected: bool,
-    last_voice_sample_index: usize,
     silence_notification_sent: bool,
     level_history: VecDeque<f32>,
 }
@@ -422,7 +435,6 @@ impl RecordingBuffer {
             silence_limit_samples,
             silence_run_samples: 0,
             voice_detected: false,
-            last_voice_sample_index: 0,
             silence_notification_sent: false,
             level_history: VecDeque::with_capacity(LEVEL_HISTORY_CAPACITY),
         }
@@ -443,7 +455,6 @@ impl RecordingBuffer {
 
         if rms >= self.vad_threshold {
             self.voice_detected = true;
-            self.last_voice_sample_index = self.samples.len();
             self.silence_run_samples = 0;
             self.silence_notification_sent = false;
             return;
@@ -465,14 +476,8 @@ impl RecordingBuffer {
     }
 
     fn finish(&mut self, duration: Duration) -> RecordedAudio {
-        let trim_index = if self.voice_detected && self.last_voice_sample_index > 0 {
-            self.last_voice_sample_index
-        } else {
-            self.samples.len()
-        };
-
         RecordedAudio {
-            samples: self.samples[..trim_index].to_vec(),
+            samples: std::mem::take(&mut self.samples),
             sample_rate: self.sample_rate,
             duration,
         }
@@ -833,15 +838,20 @@ fn system_default_label() -> &'static str {
 }
 
 #[derive(Clone, Copy)]
-enum RecordingCue {
+pub enum RecordingCue {
     Start,
     Stop,
+    Cancel,
 }
 
 fn play_recording_cue(cue: RecordingCue) {
     thread::spawn(move || {
         let _ = play_recording_cue_blocking(cue);
     });
+}
+
+pub fn play_cancel_cue() {
+    play_recording_cue(RecordingCue::Cancel);
 }
 
 fn play_recording_cue_blocking(cue: RecordingCue) -> Result<(), String> {
@@ -975,6 +985,7 @@ fn cue_notes(cue: RecordingCue) -> &'static [(f32, u32)] {
     match cue {
         RecordingCue::Start => &RECORDING_START_NOTES,
         RecordingCue::Stop => &RECORDING_STOP_NOTES,
+        RecordingCue::Cancel => &RECORDING_CANCEL_NOTES,
     }
 }
 
@@ -1063,14 +1074,20 @@ mod tests {
         let sample_rate = 48_000;
         let start = render_recording_cue(RecordingCue::Start, sample_rate);
         let stop = render_recording_cue(RecordingCue::Stop, sample_rate);
-        let max_samples = ms_to_output_samples(260, sample_rate);
+        let cancel = render_recording_cue(RecordingCue::Cancel, sample_rate);
+        let max_samples = ms_to_output_samples(320, sample_rate);
 
         assert!(!start.is_empty());
         assert!(!stop.is_empty());
+        assert!(!cancel.is_empty());
         assert!(start.len() <= max_samples);
         assert!(stop.len() <= max_samples);
+        assert!(cancel.len() <= max_samples);
         assert!(start.iter().any(|sample| sample.abs() > 0.001));
         assert!(stop.iter().any(|sample| sample.abs() > 0.001));
+        assert!(cancel.iter().any(|sample| sample.abs() > 0.001));
         assert_ne!(start, stop);
+        assert_ne!(start, cancel);
+        assert_ne!(stop, cancel);
     }
 }
