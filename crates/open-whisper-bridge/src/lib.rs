@@ -96,13 +96,6 @@ impl BridgeRuntime {
 
         llm_downloads.refresh_local_state(&settings);
 
-        if !llm_downloads.is_downloaded(&settings) {
-            match llm_downloads.start_download(&settings) {
-                Ok(message) => last_status = message,
-                Err(err) => last_status = err,
-            }
-        }
-
         if let Ok(Some(message)) = autostart.sync_saved_settings(&settings) {
             last_status = message;
         }

@@ -29,8 +29,8 @@ struct OnboardingView: View {
         switch model.onboardingStep {
         case 0: return "Willkommen"
         case 1: return "Audio & Hotkey"
-        case 2: return "Modell & Start"
-        case 3: return "Nachbearbeitung"
+        case 2: return "Sprachmodelle"
+        case 3: return "Start & Verhalten"
         default: return "Diagnose"
         }
     }
@@ -96,95 +96,65 @@ struct OnboardingView: View {
                 )
             }
         case 2:
-            Section("Modell") {
-                ForEach(ModelPreset.allCases) { preset in
-                    ModelPresetTile(preset: preset, isSelected: model.settings.localModel == preset) {
-                        model.choosePreset(preset)
+            Section("Transkription") {
+                Picker("Whisper-Modell", selection: model.binding(for: \.localModel)) {
+                    ForEach(ModelPreset.allCases) { preset in
+                        Text(preset.displayName).tag(preset)
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                }
+
+                Text("\(model.settings.localModel.description) (\(model.settings.localModel.downloadSizeText))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let status = currentWhisperStatus {
+                    if status.isDownloading, let basisPoints = status.progressBasisPoints {
+                        ProgressView(value: Double(basisPoints) / 10_000.0)
+                    }
+                    LabeledContent("Status", value: status.summary)
                 }
             }
 
-            Section("Status") {
-                LabeledContent("Auswahl", value: model.selectedModelDisplayName)
-                LabeledContent("Status", value: model.selectedModelStatusText)
-
-                if let progress = model.modelDownloadProgress {
-                    ProgressView(value: progress)
+            Section("Nachbearbeitung") {
+                Picker("Sprachmodell", selection: model.binding(for: \.localLlm)) {
+                    ForEach(LlmPreset.allCases) { preset in
+                        Text(preset.displayName).tag(preset)
+                    }
                 }
 
-                HStack(spacing: 10) {
-                    Button(model.modelStatus.isDownloading ? "Download laeuft..." : "Herunterladen") {
-                        model.startModelDownload()
-                    }
-                    .disabled(model.modelStatus.isDownloading)
+                Text("\(model.settings.localLlm.description) (\(model.settings.localLlm.approxSizeLabel))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-                    Button("Loeschen") {
-                        model.deleteModel()
+                if let status = currentLlmStatus {
+                    if status.isDownloading, let basisPoints = status.progressBasisPoints {
+                        ProgressView(value: Double(basisPoints) / 10_000.0)
                     }
-                    .disabled(model.modelStatus.isDownloading)
+                    LabeledContent("Status", value: status.summary)
                 }
             }
 
-            Section("Start & Verhalten") {
+            Section {
+                Text("Beide Modelle starten den Download im Hintergrund, sobald du auf 'Weiter' klickst. Du kannst sie spaeter in den Einstellungen unter 'Sprachmodelle' aendern oder verwalten.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        case 3:
+            Section("Systemstart") {
                 Picker("Systemstart", selection: model.binding(for: \.startupBehavior)) {
                     ForEach(StartupBehavior.allCases) { behavior in
                         Text(behavior.label).tag(behavior)
                     }
                 }
+            }
 
+            Section("Textausgabe") {
                 Toggle("Text automatisch einfuegen", isOn: model.binding(for: \.insertTextAutomatically))
                 Toggle("Clipboard wiederherstellen", isOn: model.binding(for: \.restoreClipboardAfterInsert))
+            }
+
+            Section("Diktat-Stopp") {
                 Toggle("Silence-Stop aktivieren", isOn: model.binding(for: \.vadEnabled))
-            }
-        case 3:
-            Section("Sprachmodell fuer Nachbearbeitung") {
-                Text("Waehle ein Gemma-4-Modell, das deine Diktate automatisch aufraeumen oder in einem bestimmten Stil umschreiben kann. Der Download laeuft im Hintergrund. Du kannst das Modell pro Modus aendern oder den Schritt ueberspringen.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Modellgroesse") {
-                Picker("Default", selection: model.binding(for: \.localLlm)) {
-                    ForEach(LlmPreset.allCases) { preset in
-                        Text(preset.displayName).tag(preset)
-                    }
-                }
-                .pickerStyle(.radioGroup)
-
-                Text(model.settings.localLlm.description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Download-Groesse: \(model.settings.localLlm.approxSizeLabel)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Download") {
-                let defaultStatus = model.llmStatusList.first { status in
-                    status.displayLabel == model.settings.localLlm.displayName
-                }
-
-                LabeledContent("Status", value: defaultStatus?.summary ?? "Noch nicht geprueft.")
-
-                if let status = defaultStatus,
-                   status.isDownloading,
-                   let basisPoints = status.progressBasisPoints {
-                    ProgressView(value: Double(basisPoints) / 10_000.0)
-                }
-
-                HStack(spacing: 10) {
-                    Button(defaultStatus?.isDownloading == true ? "Lade..." : "Herunterladen") {
-                        model.startLlmDownload(preset: model.settings.localLlm)
-                    }
-                    .disabled(defaultStatus?.isDownloading == true || defaultStatus?.isDownloaded == true)
-
-                    if defaultStatus?.isDownloaded == true {
-                        Text("Bereit.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
         default:
             Section("Uebersicht") {
@@ -226,7 +196,11 @@ struct OnboardingView: View {
                 .keyboardShortcut(.defaultAction)
             } else {
                 Button("Weiter") {
-                    model.onboardingStep = min(4, model.onboardingStep + 1)
+                    let current = model.onboardingStep
+                    if current == 2 {
+                        triggerModelDownloadsIfNeeded()
+                    }
+                    model.onboardingStep = min(4, current + 1)
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
@@ -243,5 +217,30 @@ struct OnboardingView: View {
             return [model.settings.inputDeviceName]
         }
         return names
+    }
+
+    private var currentWhisperStatus: ModelStatusDTO? {
+        if model.modelStatusList.isEmpty {
+            return model.modelStatus
+        }
+        return model.modelStatusList.first { $0.backendModelName == model.settings.localModel.whisperModel }
+    }
+
+    private var currentLlmStatus: LlmModelStatusDTO? {
+        model.llmStatusList.first { $0.displayLabel == model.settings.localLlm.displayName }
+    }
+
+    private func triggerModelDownloadsIfNeeded() {
+        let whisperDownloaded = currentWhisperStatus?.isDownloaded ?? false
+        let whisperDownloading = currentWhisperStatus?.isDownloading ?? false
+        if !whisperDownloaded && !whisperDownloading {
+            model.startModelDownload(preset: model.settings.localModel)
+        }
+
+        let llmDownloaded = currentLlmStatus?.isDownloaded ?? false
+        let llmDownloading = currentLlmStatus?.isDownloading ?? false
+        if !llmDownloaded && !llmDownloading {
+            model.startLlmDownload(preset: model.settings.localLlm)
+        }
     }
 }

@@ -231,8 +231,8 @@ struct StepRail: View {
     private let steps = [
         "Willkommen",
         "Audio & Hotkey",
-        "Modell & Start",
-        "Nachbearbeitung",
+        "Sprachmodelle",
+        "Start & Verhalten",
         "Diagnose",
     ]
 
