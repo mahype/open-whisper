@@ -459,11 +459,22 @@ pub struct CustomLlmModel {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PostProcessingChoice {
+    LocalPreset { preset: LlmPreset },
+    LocalCustom { id: String },
+    Ollama { model_name: String },
+    LmStudio { model_name: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct ProcessingMode {
     pub id: String,
     pub name: String,
     pub prompt: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_processing_choice: Option<PostProcessingChoice>,
 }
 
 impl ProcessingMode {
@@ -472,6 +483,7 @@ impl ProcessingMode {
             id: "cleanup".to_owned(),
             name: "Aufraeumen".to_owned(),
             prompt: "Korrigiere Satzzeichen, Grossschreibung und offensichtliche Erkennungsfehler im diktierten Text, ohne den Inhalt zu veraendern. Gib nur den bereinigten Text zurueck.".to_owned(),
+            post_processing_choice: None,
         }
     }
 }
@@ -571,6 +583,34 @@ impl AppSettings {
         self.custom_llm_models
             .iter()
             .find(|entry| entry.id == self.active_custom_llm_id)
+    }
+
+    pub fn global_post_processing_choice(&self) -> PostProcessingChoice {
+        match self.active_post_processing_backend {
+            PostProcessingBackend::Local => {
+                if let Some(custom) = self.active_custom_llm() {
+                    PostProcessingChoice::LocalCustom {
+                        id: custom.id.clone(),
+                    }
+                } else {
+                    PostProcessingChoice::LocalPreset {
+                        preset: self.local_llm,
+                    }
+                }
+            }
+            PostProcessingBackend::Ollama => PostProcessingChoice::Ollama {
+                model_name: self.ollama.model_name.clone(),
+            },
+            PostProcessingBackend::LmStudio => PostProcessingChoice::LmStudio {
+                model_name: self.lm_studio.model_name.clone(),
+            },
+        }
+    }
+
+    pub fn effective_post_processing_choice(&self, mode: &ProcessingMode) -> PostProcessingChoice {
+        mode.post_processing_choice
+            .clone()
+            .unwrap_or_else(|| self.global_post_processing_choice())
     }
 
     pub fn active_provider_summary(&self) -> String {
@@ -808,6 +848,7 @@ mod tests {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),
             prompt: "Arbeite wie ein Entwickler.".to_owned(),
+            post_processing_choice: None,
         });
         settings.active_mode_id = "dev".to_owned();
 
@@ -853,6 +894,7 @@ mod tests {
                     id: "standard".to_owned(),
                     name: "Standard".to_owned(),
                     prompt: String::new(),
+                    post_processing_choice: None,
                 },
                 ProcessingMode::cleanup(),
             ],
@@ -876,6 +918,7 @@ mod tests {
                     id: "standard".to_owned(),
                     name: "Standard".to_owned(),
                     prompt: String::new(),
+                    post_processing_choice: None,
                 },
                 ProcessingMode::cleanup(),
             ],
@@ -942,6 +985,7 @@ mod tests {
             id: "email".to_owned(),
             name: "Email".to_owned(),
             prompt: "Formatiere als Email.".to_owned(),
+            post_processing_choice: None,
         });
         settings.active_mode_id = "email".to_owned();
 

@@ -18,7 +18,7 @@ final class AppModel: ObservableObject {
     @Published var runtime: RuntimeStatusDTO = .empty
     @Published var bridgeError: String?
     @Published var onboardingStep: Int = 0
-    @Published var selectedModeID: String = "cleanup"
+    @Published var editingModeID: String = "cleanup"
     @Published var isCapturingHotkey = false
     @Published var hotkeyCapturePreview = ""
     @Published var hotkeyCaptureError: String?
@@ -74,7 +74,7 @@ final class AppModel: ObservableObject {
     }
 
     var selectedPostProcessingDisplayName: String {
-        postProcessingChoiceBinding.wrappedValue.label
+        postProcessingChoiceLabel(postProcessingChoiceBinding.wrappedValue)
     }
 
     var selectedModelStatusText: String {
@@ -82,6 +82,29 @@ final class AppModel: ObservableObject {
             return "Download laeuft"
         }
         return modelStatus.isDownloaded ? "Bereit" : "Noch nicht geladen"
+    }
+
+    var selectedTranscriptionSummaryText: String {
+        let preset = settings.localModel
+        return "\(preset.description) \u{2013} \(preset.downloadSizeText) \u{2013} \(selectedModelStatusText)"
+    }
+
+    var postProcessingSummaryText: String {
+        switch postProcessingChoiceBinding.wrappedValue {
+        case .localPreset(let preset):
+            return "\(preset.description) \u{2013} \(preset.approxSizeLabel)"
+        case .localCustom(let id):
+            let name = settings.customLlmModels.first(where: { $0.id == id })?.name ?? "unbekannt"
+            return "Eigenes lokales Modell: \(name)"
+        case .ollamaModel(let name):
+            let endpoint = settings.ollama.endpoint
+            let model = name.isEmpty ? "kein Modell" : name
+            return "Ollama \u{2013} \(endpoint) / \(model)"
+        case .lmStudioModel(let name):
+            let endpoint = settings.lmStudio.endpoint
+            let model = name.isEmpty ? "kein Modell" : name
+            return "LM Studio \u{2013} \(endpoint) / \(model)"
+        }
     }
 
     var selectedModelSizeText: String {
@@ -129,15 +152,15 @@ final class AppModel: ObservableObject {
         settings.modes.first(where: { $0.id == settings.activeModeId }) ?? settings.modes.first ?? .cleanup
     }
 
-    var selectedMode: ProcessingMode {
-        settings.modes.first(where: { $0.id == selectedModeID }) ?? activeMode
+    var editingMode: ProcessingMode {
+        settings.modes.first(where: { $0.id == editingModeID }) ?? activeMode
     }
 
     var activeModeName: String {
         runtime.activeModeName.isEmpty ? activeMode.name : runtime.activeModeName
     }
 
-    var canDeleteSelectedMode: Bool {
+    var canDeleteModes: Bool {
         settings.modes.count > 1
     }
 
@@ -166,14 +189,29 @@ final class AppModel: ObservableObject {
     func modeBinding<Value>(for keyPath: WritableKeyPath<ProcessingMode, Value>) -> Binding<Value> {
         Binding(
             get: {
-                self.settings.modes.first(where: { $0.id == self.selectedModeID })?[keyPath: keyPath]
+                self.settings.modes.first(where: { $0.id == self.editingModeID })?[keyPath: keyPath]
                     ?? self.activeMode[keyPath: keyPath]
             },
             set: { newValue in
-                guard let index = self.settings.modes.firstIndex(where: { $0.id == self.selectedModeID }) else {
+                guard let index = self.settings.modes.firstIndex(where: { $0.id == self.editingModeID }) else {
                     return
                 }
                 self.settings.modes[index][keyPath: keyPath] = newValue
+                self.requestAutoSave()
+            }
+        )
+    }
+
+    func modeChoiceBinding() -> Binding<PostProcessingChoice?> {
+        Binding(
+            get: {
+                self.settings.modes.first(where: { $0.id == self.editingModeID })?.postProcessingChoice
+            },
+            set: { newValue in
+                guard let index = self.settings.modes.firstIndex(where: { $0.id == self.editingModeID }) else {
+                    return
+                }
+                self.settings.modes[index].postProcessingChoice = newValue
                 self.requestAutoSave()
             }
         )
@@ -196,7 +234,7 @@ final class AppModel: ObservableObject {
                 case .local:
                     if !self.settings.activeCustomLlmId.isEmpty,
                        let entry = self.settings.customLlmModels.first(where: { $0.id == self.settings.activeCustomLlmId }) {
-                        return .localCustom(id: entry.id, name: entry.name)
+                        return .localCustom(id: entry.id)
                     }
                     return .localPreset(self.settings.localLlm)
                 case .ollama:
@@ -211,7 +249,7 @@ final class AppModel: ObservableObject {
                     self.settings.activePostProcessingBackend = .local
                     self.settings.activeCustomLlmId = ""
                     self.settings.localLlm = preset
-                case .localCustom(let id, _):
+                case .localCustom(let id):
                     self.settings.activePostProcessingBackend = .local
                     self.settings.activeCustomLlmId = id
                 case .ollamaModel(let name):
@@ -249,7 +287,7 @@ final class AppModel: ObservableObject {
         switch choice {
         case .localPreset(let preset):
             return isLlmPresetDownloaded(preset)
-        case .localCustom(let id, _):
+        case .localCustom(let id):
             guard let entry = settings.customLlmModels.first(where: { $0.id == id }) else {
                 return false
             }
@@ -280,7 +318,7 @@ final class AppModel: ObservableObject {
             .map { PostProcessingChoice.localPreset($0) })
         list.append(contentsOf: settings.customLlmModels
             .filter { isCustomLlmAvailable($0) }
-            .map { PostProcessingChoice.localCustom(id: $0.id, name: $0.name) })
+            .map { PostProcessingChoice.localCustom(id: $0.id) })
         list.append(contentsOf: ollamaModels.map { PostProcessingChoice.ollamaModel($0.name) })
         list.append(contentsOf: lmStudioModels.map { PostProcessingChoice.lmStudioModel($0.name) })
 
@@ -291,15 +329,28 @@ final class AppModel: ObservableObject {
         return list
     }
 
+    func postProcessingChoiceLabel(_ choice: PostProcessingChoice) -> String {
+        switch choice {
+        case .localCustom(let id):
+            if let entry = settings.customLlmModels.first(where: { $0.id == id }) {
+                return "\(entry.name) (eigen, lokal)"
+            }
+            return choice.fallbackLabel
+        default:
+            return choice.fallbackLabel
+        }
+    }
+
     func postProcessingChoicePickerLabel(_ choice: PostProcessingChoice) -> String {
-        isPostProcessingChoiceAvailable(choice) ? choice.label : "\(choice.label) (nicht geladen)"
+        let label = postProcessingChoiceLabel(choice)
+        return isPostProcessingChoiceAvailable(choice) ? label : "\(label) (nicht geladen)"
     }
 
     var postProcessingChoices: [PostProcessingChoice] {
         var choices: [PostProcessingChoice] = LlmPreset.allCases.map { .localPreset($0) }
 
         choices.append(
-            contentsOf: settings.customLlmModels.map { .localCustom(id: $0.id, name: $0.name) }
+            contentsOf: settings.customLlmModels.map { .localCustom(id: $0.id) }
         )
 
         var ollamaNames = ollamaModels.map(\.name)
@@ -526,13 +577,12 @@ final class AppModel: ObservableObject {
         requestAutoSave()
     }
 
-    func setSelectedMode(_ modeID: String) {
-        selectedModeID = modeID
+    func beginEditingMode(_ modeID: String) {
+        editingModeID = modeID
     }
 
     func setActiveMode(_ modeID: String) {
         settings.activeModeId = modeID
-        selectedModeID = modeID
         flushAutoSave()
     }
 
@@ -588,7 +638,8 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func createMode() {
+    @discardableResult
+    func createMode() -> String {
         let existingNames = Set(settings.modes.map(\.name))
         let baseName = "Neue Nachbearbeitung"
         var suffix = 1
@@ -604,19 +655,18 @@ final class AppModel: ObservableObject {
             prompt: ""
         )
         settings.modes.append(mode)
-        selectedModeID = mode.id
         flushAutoSave()
+        return mode.id
     }
 
-    func deleteSelectedMode() {
-        guard canDeleteSelectedMode,
-              let index = settings.modes.firstIndex(where: { $0.id == selectedModeID }) else {
+    func deleteMode(_ modeID: String) {
+        guard canDeleteModes,
+              let index = settings.modes.firstIndex(where: { $0.id == modeID }) else {
             return
         }
 
-        let deletedModeID = settings.modes[index].id
         settings.modes.remove(at: index)
-        if settings.activeModeId == deletedModeID {
+        if settings.activeModeId == modeID {
             settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.cleanup.id
         }
         ensureSelectedMode()
@@ -826,8 +876,8 @@ final class AppModel: ObservableObject {
             settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.cleanup.id
         }
 
-        if !settings.modes.contains(where: { $0.id == selectedModeID }) {
-            selectedModeID = settings.activeModeId
+        if !settings.modes.contains(where: { $0.id == editingModeID }) {
+            editingModeID = settings.activeModeId
         }
     }
 }

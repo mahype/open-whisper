@@ -9,20 +9,28 @@ struct UpdatesSettingsView: View {
                 get: { updaterController.automaticallyChecksForUpdates },
                 set: { updaterController.automaticallyChecksForUpdates = $0 }
             ))
+            .disabled(!updaterController.isAvailable)
 
             Button("Jetzt nach Updates suchen") {
                 updaterController.checkForUpdates()
             }
+            .disabled(!updaterController.isAvailable)
         }
 
         Section {
-            Text("""
-            Open Whisper prüft beim Start und danach alle 24 Stunden auf neue \
-            Versionen. Updates werden im Hintergrund heruntergeladen und installiert, \
-            sobald du neu startest.
-            """)
-            .font(.callout)
-            .foregroundStyle(.secondary)
+            if updaterController.isAvailable {
+                Text("""
+                Open Whisper prüft beim Start und danach alle 24 Stunden auf neue \
+                Versionen. Updates werden im Hintergrund heruntergeladen und installiert, \
+                sobald du neu startest.
+                """)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            } else {
+                Text("Updates sind nur in der installierten .app verfügbar (Dev-Build).")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

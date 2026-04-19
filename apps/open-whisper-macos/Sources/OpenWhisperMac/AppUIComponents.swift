@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum SettingsSection: String, CaseIterable, Identifiable {
@@ -52,30 +53,24 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
 struct ModeListTile: View {
     let mode: ProcessingMode
-    let isSelected: Bool
     let isActive: Bool
-    let action: () -> Void
+    let isEnabled: Bool
+    let canDelete: Bool
+    let onActivate: () -> Void
     let onEdit: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.7))
+            Image(systemName: isActive ? "largecircle.fill.circle" : "circle")
+                .font(.body)
+                .foregroundStyle(isActive ? Color.accentColor : Color.secondary.opacity(0.7))
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(mode.name)
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.primary)
-                    if isActive {
-                        Text("Aktiv")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.vertical, 2)
-                            .padding(.horizontal, 6)
-                            .background(Color.accentColor.opacity(0.14), in: Capsule())
-                            .foregroundStyle(Color.accentColor)
-                    }
-                }
+                Text(mode.name)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
                 Text(mode.prompt.isEmpty ? "Kein Prompt hinterlegt" : mode.prompt)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -90,10 +85,25 @@ struct ModeListTile: View {
             }
             .buttonStyle(.borderless)
             .help("Nachbearbeitung bearbeiten")
+
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .foregroundStyle(canDelete ? .secondary : Color.secondary.opacity(0.35))
+            }
+            .buttonStyle(.borderless)
+            .disabled(!canDelete)
+            .help(canDelete ? "Nachbearbeitung loeschen" : "Mindestens eine Nachbearbeitung muss bestehen bleiben")
         }
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { onEdit() }
-        .onTapGesture { action() }
+        .opacity(isEnabled ? 1.0 : 0.45)
+        .onTapGesture { onActivate() }
+        .onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
     }
 }
 
@@ -164,6 +174,21 @@ struct ModeEditorSheet: View {
                         )
                         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 }
+
+                Section("Sprachmodell") {
+                    Picker("Modell", selection: model.modeChoiceBinding()) {
+                        Text("Standard (global)")
+                            .tag(Optional<PostProcessingChoice>.none)
+                        ForEach(model.availablePostProcessingChoices) { choice in
+                            Text(model.postProcessingChoicePickerLabel(choice))
+                                .tag(Optional(choice))
+                        }
+                    }
+
+                    Text(modelHintText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
@@ -176,6 +201,14 @@ struct ModeEditorSheet: View {
         }
         .padding(20)
         .frame(minWidth: 460, idealWidth: 520, minHeight: 380, idealHeight: 440)
+    }
+
+    private var modelHintText: String {
+        if let choice = model.modeChoiceBinding().wrappedValue {
+            return "Dieses Profil nutzt: \(model.postProcessingChoiceLabel(choice))."
+        }
+        let global = model.postProcessingChoiceBinding.wrappedValue
+        return "Nutzt globales Modell: \(model.postProcessingChoiceLabel(global))."
     }
 }
 

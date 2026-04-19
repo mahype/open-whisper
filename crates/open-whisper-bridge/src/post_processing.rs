@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use open_whisper_core::{AppSettings, CustomLlmSource, PostProcessingBackend};
+use open_whisper_core::{AppSettings, CustomLlmSource, PostProcessingChoice};
 use reqwest::blocking::Client;
 use serde_json::{Value, json};
 
@@ -30,64 +30,69 @@ pub fn process_text(
     }
 
     let mode = settings.active_mode();
+    let choice = settings.effective_post_processing_choice(mode);
 
-    let text = match settings.active_post_processing_backend {
-        PostProcessingBackend::Local => {
-            if let Some(custom) = settings.active_custom_llm() {
-                match &custom.source {
-                    CustomLlmSource::LocalPath { path } => local_llm::generate_with_custom_path(
-                        &custom.id,
-                        &custom.name,
-                        Path::new(path),
-                        &mode.prompt,
-                        raw_transcript,
-                        cancelled,
-                    )?,
-                    CustomLlmSource::DownloadUrl { .. } => {
-                        let path = llm_model_manager::default_custom_llm_path(&custom.id)?;
-                        if !path.exists() {
-                            return Err(format!(
-                                "Eigenes Sprachmodell '{}' wurde noch nicht heruntergeladen.",
-                                custom.name
-                            ));
-                        }
-                        local_llm::generate_with_custom_path(
-                            &custom.id,
-                            &custom.name,
-                            &path,
-                            &mode.prompt,
-                            raw_transcript,
-                            cancelled,
-                        )?
-                    }
-                }
-            } else {
-                local_llm::generate_with_shared_runtime(
-                    settings.local_llm,
+    let text = match choice {
+        PostProcessingChoice::LocalPreset { preset } => local_llm::generate_with_shared_runtime(
+            preset,
+            &mode.prompt,
+            raw_transcript,
+            cancelled,
+        )?,
+        PostProcessingChoice::LocalCustom { id } => {
+            let custom = settings
+                .custom_llm_models
+                .iter()
+                .find(|entry| entry.id == id)
+                .ok_or_else(|| {
+                    format!("Eigenes Sprachmodell '{id}' ist in den Einstellungen nicht bekannt.")
+                })?;
+            match &custom.source {
+                CustomLlmSource::LocalPath { path } => local_llm::generate_with_custom_path(
+                    &custom.id,
+                    &custom.name,
+                    Path::new(path),
                     &mode.prompt,
                     raw_transcript,
                     cancelled,
-                )?
+                )?,
+                CustomLlmSource::DownloadUrl { .. } => {
+                    let path = llm_model_manager::default_custom_llm_path(&custom.id)?;
+                    if !path.exists() {
+                        return Err(format!(
+                            "Eigenes Sprachmodell '{}' wurde noch nicht heruntergeladen.",
+                            custom.name
+                        ));
+                    }
+                    local_llm::generate_with_custom_path(
+                        &custom.id,
+                        &custom.name,
+                        &path,
+                        &mode.prompt,
+                        raw_transcript,
+                        cancelled,
+                    )?
+                }
             }
         }
-        PostProcessingBackend::Ollama => {
+        PostProcessingChoice::Ollama { model_name } => {
             let client = build_http_client()?;
             let system_prompt = build_system_prompt(&mode.prompt);
             request_ollama(
                 &client,
                 &settings.ollama.endpoint,
-                &settings.ollama.model_name,
+                &model_name,
                 &system_prompt,
                 raw_transcript,
             )?
         }
-        PostProcessingBackend::LmStudio => {
+        PostProcessingChoice::LmStudio { model_name } => {
             let client = build_http_client()?;
             let system_prompt = build_system_prompt(&mode.prompt);
             request_lm_studio(
                 &client,
                 &settings.lm_studio.endpoint,
-                &settings.lm_studio.model_name,
+                &model_name,
                 &system_prompt,
                 raw_transcript,
             )?
@@ -244,7 +249,9 @@ fn join_base_url(endpoint: &str, suffix: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use open_whisper_core::{AppSettings, PostProcessingBackend, ProcessingMode};
+    use open_whisper_core::{
+        AppSettings, LlmPreset, PostProcessingBackend, PostProcessingChoice, ProcessingMode,
+    };
 
     #[test]
     fn empty_prompt_gets_safe_default_instruction() {
@@ -287,6 +294,7 @@ mod tests {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),
             prompt: "Nutze Entwickler-Sprache.".to_owned(),
+            post_processing_choice: None,
         });
         settings.active_mode_id = "dev".to_owned();
 
@@ -295,5 +303,57 @@ mod tests {
             settings.active_post_processing_backend,
             PostProcessingBackend::Ollama
         );
+    }
+
+    #[test]
+    fn profile_override_beats_global_choice() {
+        let mut settings = AppSettings {
+            active_post_processing_backend: PostProcessingBackend::Local,
+            local_llm: LlmPreset::Small,
+            post_processing_enabled: true,
+            ..AppSettings::default()
+        };
+        settings.modes.push(ProcessingMode {
+            id: "email".to_owned(),
+            name: "E-Mail".to_owned(),
+            prompt: "Formatiere als E-Mail.".to_owned(),
+            post_processing_choice: Some(PostProcessingChoice::Ollama {
+                model_name: "llama3.1".to_owned(),
+            }),
+        });
+        settings.active_mode_id = "email".to_owned();
+
+        let mode = settings.active_mode();
+        assert_eq!(
+            settings.effective_post_processing_choice(mode),
+            PostProcessingChoice::Ollama {
+                model_name: "llama3.1".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn missing_profile_override_falls_back_to_global_choice() {
+        let settings = AppSettings {
+            active_post_processing_backend: PostProcessingBackend::Local,
+            local_llm: LlmPreset::Medium,
+            ..AppSettings::default()
+        };
+
+        let mode = settings.active_mode();
+        assert!(mode.post_processing_choice.is_none());
+        assert_eq!(
+            settings.effective_post_processing_choice(mode),
+            PostProcessingChoice::LocalPreset {
+                preset: LlmPreset::Medium,
+            }
+        );
+    }
+
+    #[test]
+    fn legacy_processing_mode_without_choice_deserializes() {
+        let json = r#"{"id":"foo","name":"Foo","prompt":"bar"}"#;
+        let mode: ProcessingMode = serde_json::from_str(json).unwrap();
+        assert!(mode.post_processing_choice.is_none());
     }
 }

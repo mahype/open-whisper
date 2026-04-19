@@ -9,21 +9,27 @@ struct SettingsView: View {
     @State private var isEditingMode: Bool = false
     @State private var isManagingLanguageModels: Bool = false
     @State private var managerTab: LanguageModelsManagerTab = .transcription
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(SettingsSection.allCases, selection: $selectedSection) { section in
                 Label(section.title, systemImage: section.symbolName)
                     .tag(section)
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 220)
+            .frame(minWidth: 240, idealWidth: 240)
+            .navigationSplitViewColumnWidth(240)
+            .toolbar(removing: .sidebarToggle)
         } detail: {
             Form {
                 detailContent(for: detailSection)
             }
             .formStyle(.grouped)
             .navigationTitle(detailSection.title)
+            .safeAreaInset(edge: .bottom) {
+                bottomBar
+            }
             .sheet(isPresented: $isEditingMode) {
                 ModeEditorSheet(model: model) {
                     isEditingMode = false
@@ -39,9 +45,6 @@ struct SettingsView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .safeAreaInset(edge: .bottom) {
-            bottomBar
-        }
         .frame(width: 820, height: 720)
     }
 
@@ -152,29 +155,26 @@ struct SettingsView: View {
             ForEach(model.availableModes) { mode in
                 ModeListTile(
                     mode: mode,
-                    isSelected: model.selectedModeID == mode.id,
                     isActive: model.settings.postProcessingEnabled && model.settings.activeModeId == mode.id,
-                    action: { model.setSelectedMode(mode.id) },
+                    isEnabled: model.settings.postProcessingEnabled,
+                    canDelete: model.canDeleteModes,
+                    onActivate: { model.setActiveMode(mode.id) },
                     onEdit: {
-                        model.setSelectedMode(mode.id)
+                        model.beginEditingMode(mode.id)
                         isEditingMode = true
-                    }
+                    },
+                    onDelete: { model.deleteMode(mode.id) }
                 )
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             }
 
             HStack(spacing: 10) {
                 Button("Neue Nachbearbeitung") {
-                    model.createMode()
+                    let newID = model.createMode()
+                    model.beginEditingMode(newID)
                     isEditingMode = true
                 }
-                Button("Loeschen") { model.deleteSelectedMode() }
-                    .disabled(!model.canDeleteSelectedMode)
                 Spacer()
-                Button(model.settings.activeModeId == model.selectedMode.id ? "Aktiv" : "Als aktiv setzen") {
-                    model.setActiveMode(model.selectedMode.id)
-                }
-                .disabled(model.settings.activeModeId == model.selectedMode.id)
             }
         }
     }
@@ -188,9 +188,10 @@ struct SettingsView: View {
                 }
             }
 
-            Text(model.selectedModelStatusText)
+            Text(model.selectedTranscriptionSummaryText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             if let progress = model.modelDownloadProgress {
                 ProgressView(value: progress)
@@ -209,25 +210,15 @@ struct SettingsView: View {
                 }
             }
 
-            Text(postProcessingSummaryText)
+            Text(model.postProcessingSummaryText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button("Sprachmodelle verwalten...") {
                 managerTab = .postProcessing
                 isManagingLanguageModels = true
             }
-        }
-    }
-
-    private var postProcessingSummaryText: String {
-        switch model.settings.activePostProcessingBackend {
-        case .local:
-            return "Lokal \u{2013} \(model.settings.localLlm.approxSizeLabel)"
-        case .ollama:
-            return "Ollama \u{2013} \(model.settings.ollama.endpoint) / \(model.settings.ollama.modelName)"
-        case .lmStudio:
-            return "LM Studio \u{2013} \(model.settings.lmStudio.endpoint) / \(model.settings.lmStudio.modelName)"
         }
     }
 

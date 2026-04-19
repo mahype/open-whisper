@@ -1,39 +1,6 @@
 import AppKit
 import SwiftUI
 
-enum PostProcessingChoice: Hashable, Identifiable {
-    case localPreset(LlmPreset)
-    case localCustom(id: String, name: String)
-    case ollamaModel(String)
-    case lmStudioModel(String)
-
-    var id: String {
-        switch self {
-        case .localPreset(let preset):
-            return "local.\(preset.rawValue)"
-        case .localCustom(let id, _):
-            return "custom.\(id)"
-        case .ollamaModel(let name):
-            return "ollama.\(name)"
-        case .lmStudioModel(let name):
-            return "lmStudio.\(name)"
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .localPreset(let preset):
-            return "\(preset.displayName) (lokal)"
-        case .localCustom(_, let name):
-            return "\(name) (eigen, lokal)"
-        case .ollamaModel(let name):
-            return name.isEmpty ? "Ollama (kein Modell)" : "Ollama · \(name)"
-        case .lmStudioModel(let name):
-            return name.isEmpty ? "LM Studio (kein Modell)" : "LM Studio · \(name)"
-        }
-    }
-}
-
 enum LanguageModelsManagerTab: String, CaseIterable, Identifiable {
     case transcription
     case postProcessing
@@ -263,7 +230,7 @@ struct LanguageModelsManagerSheet: View {
                 Spacer()
 
                 Button(isActive ? "Aktiv" : "Ausw\u{E4}hlen") {
-                    model.postProcessingChoiceBinding.wrappedValue = .localCustom(id: entry.id, name: entry.name)
+                    model.postProcessingChoiceBinding.wrappedValue = .localCustom(id: entry.id)
                 }
                 .disabled(isActive)
 

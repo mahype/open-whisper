@@ -436,10 +436,110 @@ struct CustomLlmModel: Codable, Identifiable, Hashable, Equatable {
     var source: CustomLlmSource
 }
 
+enum PostProcessingChoice: Codable, Hashable, Identifiable {
+    case localPreset(LlmPreset)
+    case localCustom(id: String)
+    case ollamaModel(String)
+    case lmStudioModel(String)
+
+    var id: String {
+        switch self {
+        case .localPreset(let preset):
+            return "local.\(preset.rawValue)"
+        case .localCustom(let id):
+            return "custom.\(id)"
+        case .ollamaModel(let name):
+            return "ollama.\(name)"
+        case .lmStudioModel(let name):
+            return "lmStudio.\(name)"
+        }
+    }
+
+    var fallbackLabel: String {
+        switch self {
+        case .localPreset(let preset):
+            return "\(preset.displayName) (lokal)"
+        case .localCustom:
+            return "Eigenes Sprachmodell (lokal)"
+        case .ollamaModel(let name):
+            return name.isEmpty ? "Ollama (kein Modell)" : "Ollama · \(name)"
+        case .lmStudioModel(let name):
+            return name.isEmpty ? "LM Studio (kein Modell)" : "LM Studio · \(name)"
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case kind
+        case preset
+        case id
+        case modelName
+    }
+
+    private enum Kind: String, Codable {
+        case localPreset = "local_preset"
+        case localCustom = "local_custom"
+        case ollama
+        case lmStudio = "lm_studio"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try container.decode(Kind.self, forKey: .kind)
+        switch kind {
+        case .localPreset:
+            let preset = try container.decode(LlmPreset.self, forKey: .preset)
+            self = .localPreset(preset)
+        case .localCustom:
+            let id = try container.decode(String.self, forKey: .id)
+            self = .localCustom(id: id)
+        case .ollama:
+            let name = try container.decode(String.self, forKey: .modelName)
+            self = .ollamaModel(name)
+        case .lmStudio:
+            let name = try container.decode(String.self, forKey: .modelName)
+            self = .lmStudioModel(name)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .localPreset(let preset):
+            try container.encode(Kind.localPreset, forKey: .kind)
+            try container.encode(preset, forKey: .preset)
+        case .localCustom(let id):
+            try container.encode(Kind.localCustom, forKey: .kind)
+            try container.encode(id, forKey: .id)
+        case .ollamaModel(let name):
+            try container.encode(Kind.ollama, forKey: .kind)
+            try container.encode(name, forKey: .modelName)
+        case .lmStudioModel(let name):
+            try container.encode(Kind.lmStudio, forKey: .kind)
+            try container.encode(name, forKey: .modelName)
+        }
+    }
+}
+
 struct ProcessingMode: Codable, Identifiable, Hashable {
     var id: String
     var name: String
     var prompt: String
+    var postProcessingChoice: PostProcessingChoice?
+
+    init(id: String, name: String, prompt: String, postProcessingChoice: PostProcessingChoice? = nil) {
+        self.id = id
+        self.name = name
+        self.prompt = prompt
+        self.postProcessingChoice = postProcessingChoice
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.prompt = try container.decode(String.self, forKey: .prompt)
+        self.postProcessingChoice = try container.decodeIfPresent(PostProcessingChoice.self, forKey: .postProcessingChoice)
+    }
 
     static let cleanup = ProcessingMode(
         id: "cleanup",

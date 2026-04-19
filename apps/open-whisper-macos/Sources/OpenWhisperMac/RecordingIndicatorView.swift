@@ -70,7 +70,8 @@ struct RecordingIndicatorView: View {
             }
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .padding(.top, 4)
+        .padding(.bottom, 10)
         .frame(width: 260, height: 86)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
@@ -177,6 +178,7 @@ struct RecordingIndicatorView: View {
 
     private var statusRow: some View {
         HStack(alignment: .top, spacing: 8) {
+            Spacer(minLength: 0)
             statusDot
                 .padding(.top, 3)
             VStack(alignment: .leading, spacing: 1) {
@@ -195,7 +197,6 @@ struct RecordingIndicatorView: View {
             }
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
