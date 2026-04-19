@@ -56,7 +56,8 @@ struct RecordingIndicatorView: View {
     let phase: IndicatorPhase
     var style: WaveformStyle = .centeredBars
     var color: WaveformColor = .accent
-    var modeName: String = ""
+    var modelName: String = ""
+    var modeName: String? = nil
     @ObservedObject var feed: RecordingLevelFeed
 
     var body: some View {
@@ -68,8 +69,8 @@ struct RecordingIndicatorView: View {
                 statusRow
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
         .frame(width: 260, height: 86)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
@@ -115,7 +116,7 @@ struct RecordingIndicatorView: View {
     }
 
     private var shouldShowStatusRow: Bool {
-        guard !modeName.isEmpty else { return false }
+        guard !modelName.isEmpty else { return false }
         switch phase {
         case .recording, .transcribing, .postProcessing: return true
         case .modelNotReady: return false
@@ -175,13 +176,23 @@ struct RecordingIndicatorView: View {
     }
 
     private var statusRow: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             statusDot
-            Text(modeName)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
+                .padding(.top, 3)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(modelName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if let modeName, !modeName.isEmpty {
+                    Text(modeName)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,7 +217,7 @@ struct RecordingIndicatorView: View {
             ForEach(Array(feed.bars.enumerated()), id: \.offset) { _, level in
                 Capsule()
                     .fill(tint)
-                    .frame(width: 3, height: barHeight(for: level))
+                    .frame(width: 4, height: barHeight(for: level))
                     .animation(.linear(duration: RecordingLevelFeed.pollingInterval), value: level)
             }
         }
@@ -298,7 +309,7 @@ struct RecordingIndicatorView: View {
     }
 
     private func barHeight(for level: Float) -> CGFloat {
-        return max(2.0, normalizedLevel(level) * 36.0)
+        return max(2.0, normalizedLevel(level) * 48.0)
     }
 
     private func normalizedLevel(_ level: Float) -> CGFloat {
