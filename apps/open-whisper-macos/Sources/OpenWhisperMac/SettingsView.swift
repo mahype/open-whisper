@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -295,6 +296,16 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var helpContent: some View {
+        Section("Über Open Whisper") {
+            LabeledContent("Version", value: appVersionString)
+            LabeledContent("Bundle", value: bundleIdentifierString)
+
+            Button("Versionshinweise auf GitHub öffnen") {
+                openReleaseNotes()
+            }
+            .disabled(!canOpenReleaseNotes)
+        }
+
         Section("Setup") {
             Text("Du kannst den Einrichtungs-Assistenten jederzeit erneut starten, um Mikrofon, Hotkey und Sprachmodelle neu zu konfigurieren.")
                 .font(.callout)
@@ -304,6 +315,27 @@ struct SettingsView: View {
                 onReopenOnboarding()
             }
         }
+    }
+
+    private var appVersionString: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    }
+
+    private var bundleIdentifierString: String {
+        Bundle.main.bundleIdentifier ?? "—"
+    }
+
+    private var canOpenReleaseNotes: Bool {
+        // Dev builds (run via `swift run`) keep the default "0.0.0" from Info.plist;
+        // no matching GitHub release exists for those.
+        appVersionString != "—" && appVersionString != "0.0.0"
+    }
+
+    private func openReleaseNotes() {
+        guard canOpenReleaseNotes,
+              let url = URL(string: "https://github.com/mahype/open-whisper/releases/tag/v\(appVersionString)")
+        else { return }
+        NSWorkspace.shared.open(url)
     }
 
     private var bottomBar: some View {
