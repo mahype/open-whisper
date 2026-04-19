@@ -30,9 +30,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         dictationItem = NSMenuItem(title: "Diktat starten", action: #selector(toggleDictation), keyEquivalent: "")
         settingsItem = NSMenuItem(title: "Einstellungen...", action: #selector(showSettings), keyEquivalent: ",")
         onboardingItem = NSMenuItem(title: "Onboarding erneut oeffnen", action: #selector(showOnboarding), keyEquivalent: "")
-        modeSummaryItem = NSMenuItem(title: "Modus wird geladen...", action: nil, keyEquivalent: "")
+        modeSummaryItem = NSMenuItem(title: "Nachbearbeitung wird geladen...", action: nil, keyEquivalent: "")
         modeSummaryItem.isEnabled = false
-        modeSwitchItem = NSMenuItem(title: "Modus wechseln", action: nil, keyEquivalent: "")
+        modeSwitchItem = NSMenuItem(title: "Nachbearbeitung wechseln", action: nil, keyEquivalent: "")
         modeSwitchItem.submenu = modeMenu
         modelItem = NSMenuItem(title: "Modellstatus wird geladen...", action: nil, keyEquivalent: "")
         modelItem.isEnabled = false
@@ -121,6 +121,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             return
         }
         model.persistActiveModeImmediately(modeID)
+    }
+
+    @objc private func disablePostProcessing(_ sender: Any?) {
+        model.persistPostProcessingEnabledImmediately(false)
     }
 
     private func refreshMenuState() {
@@ -218,6 +222,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private func rebuildModeMenu() {
         modeMenu.removeAllItems()
 
+        let postProcessingEnabled = model.persistedPostProcessingEnabled
+
+        let offItem = NSMenuItem(
+            title: "Aus",
+            action: #selector(disablePostProcessing(_:)),
+            keyEquivalent: ""
+        )
+        offItem.target = self
+        offItem.state = postProcessingEnabled ? .off : .on
+        modeMenu.addItem(offItem)
+
+        modeMenu.addItem(.separator())
+
         for mode in model.persistedModes {
             let item = NSMenuItem(
                 title: mode.name,
@@ -226,7 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             )
             item.target = self
             item.representedObject = mode.id
-            item.state = model.persistedActiveModeID == mode.id ? .on : .off
+            item.state = (postProcessingEnabled && model.persistedActiveModeID == mode.id) ? .on : .off
             modeMenu.addItem(item)
         }
     }

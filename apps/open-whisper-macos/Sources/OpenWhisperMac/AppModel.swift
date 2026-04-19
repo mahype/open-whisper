@@ -18,7 +18,7 @@ final class AppModel: ObservableObject {
     @Published var runtime: RuntimeStatusDTO = .empty
     @Published var bridgeError: String?
     @Published var onboardingStep: Int = 0
-    @Published var selectedModeID: String = "standard"
+    @Published var selectedModeID: String = "cleanup"
     @Published var isCapturingHotkey = false
     @Published var hotkeyCapturePreview = ""
     @Published var hotkeyCaptureError: String?
@@ -130,7 +130,7 @@ final class AppModel: ObservableObject {
     }
 
     var activeMode: ProcessingMode {
-        settings.modes.first(where: { $0.id == settings.activeModeId }) ?? settings.modes.first ?? .standard
+        settings.modes.first(where: { $0.id == settings.activeModeId }) ?? settings.modes.first ?? .cleanup
     }
 
     var selectedMode: ProcessingMode {
@@ -142,11 +142,13 @@ final class AppModel: ObservableObject {
     }
 
     var trayModeLabel: String {
-        "Modus: \(activeModeName)"
+        settings.postProcessingEnabled
+            ? "Nachbearbeitung: \(activeModeName)"
+            : "Nachbearbeitung: Aus"
     }
 
     var canDeleteSelectedMode: Bool {
-        selectedMode.id != "standard"
+        settings.modes.count > 1
     }
 
     var persistedModes: [ProcessingMode] {
@@ -155,6 +157,10 @@ final class AppModel: ObservableObject {
 
     var persistedActiveModeID: String {
         persistedSettingsSnapshot.activeModeId
+    }
+
+    var persistedPostProcessingEnabled: Bool {
+        persistedSettingsSnapshot.postProcessingEnabled
     }
 
     func binding<Value>(for keyPath: WritableKeyPath<AppSettings, Value>) -> Binding<Value> {
@@ -477,6 +483,18 @@ final class AppModel: ObservableObject {
                 return
             }
             freshSettings.activeModeId = modeID
+            freshSettings.postProcessingEnabled = true
+            _ = try bridge.saveSettings(freshSettings)
+            reloadAll()
+        } catch {
+            publish(error)
+        }
+    }
+
+    func persistPostProcessingEnabledImmediately(_ enabled: Bool) {
+        do {
+            var freshSettings = try bridge.loadSettings()
+            freshSettings.postProcessingEnabled = enabled
             _ = try bridge.saveSettings(freshSettings)
             reloadAll()
         } catch {
@@ -486,7 +504,7 @@ final class AppModel: ObservableObject {
 
     func createMode() {
         let existingNames = Set(settings.modes.map(\.name))
-        let baseName = "Neuer Modus"
+        let baseName = "Neue Nachbearbeitung"
         var suffix = 1
         var candidate = baseName
         while existingNames.contains(candidate) {
@@ -497,8 +515,7 @@ final class AppModel: ObservableObject {
         let mode = ProcessingMode(
             id: UUID().uuidString.lowercased(),
             name: candidate,
-            prompt: "",
-            postProcessingEnabled: true
+            prompt: ""
         )
         settings.modes.append(mode)
         selectedModeID = mode.id
@@ -514,7 +531,7 @@ final class AppModel: ObservableObject {
         let deletedModeID = settings.modes[index].id
         settings.modes.remove(at: index)
         if settings.activeModeId == deletedModeID {
-            settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.standard.id
+            settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.cleanup.id
         }
         ensureSelectedMode()
         flushAutoSave()
@@ -706,11 +723,11 @@ final class AppModel: ObservableObject {
 
     private func ensureSelectedMode() {
         if settings.modes.isEmpty {
-            settings.modes = [.standard]
+            settings.modes = [.cleanup]
         }
 
         if !settings.modes.contains(where: { $0.id == settings.activeModeId }) {
-            settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.standard.id
+            settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.cleanup.id
         }
 
         if !settings.modes.contains(where: { $0.id == selectedModeID }) {

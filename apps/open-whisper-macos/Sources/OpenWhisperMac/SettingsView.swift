@@ -139,12 +139,14 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var modesContent: some View {
-        Section("Modi") {
+        Section("Nachbearbeitung") {
+            Toggle("Nachbearbeitung aktivieren", isOn: model.binding(for: \.postProcessingEnabled))
+
             ForEach(model.availableModes) { mode in
                 ModeListTile(
                     mode: mode,
                     isSelected: model.selectedModeID == mode.id,
-                    isActive: model.settings.activeModeId == mode.id,
+                    isActive: model.settings.postProcessingEnabled && model.settings.activeModeId == mode.id,
                     action: { model.setSelectedMode(mode.id) },
                     onEdit: {
                         model.setSelectedMode(mode.id)
@@ -155,7 +157,7 @@ struct SettingsView: View {
             }
 
             HStack(spacing: 10) {
-                Button("Neuer Modus") {
+                Button("Neue Nachbearbeitung") {
                     model.createMode()
                     isEditingMode = true
                 }
@@ -260,7 +262,7 @@ struct SettingsView: View {
         Section("Aktuell registriert") {
             LabeledContent("Systemstart", value: model.runtime.startupSummary)
             LabeledContent("Hotkey", value: model.runtime.hotkeyText)
-            LabeledContent("Modus", value: model.activeModeName)
+            LabeledContent("Nachbearbeitung", value: model.activeModeName)
         }
     }
 

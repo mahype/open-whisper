@@ -440,20 +440,12 @@ struct ProcessingMode: Codable, Identifiable, Hashable {
     var id: String
     var name: String
     var prompt: String
-    var postProcessingEnabled: Bool
 
-    static let standard = ProcessingMode(
-        id: "standard",
-        name: "Standard",
-        prompt: "",
-        postProcessingEnabled: false
+    static let cleanup = ProcessingMode(
+        id: "cleanup",
+        name: "Aufraeumen",
+        prompt: "Korrigiere Satzzeichen, Grossschreibung und offensichtliche Erkennungsfehler im diktierten Text, ohne den Inhalt zu veraendern. Gib nur den bereinigten Text zurueck."
     )
-
-    var postProcessingSummary: String {
-        postProcessingEnabled
-            ? "Nachverarbeitung aktiv"
-            : "Direktes Diktat ohne Nachverarbeitung"
-    }
 }
 
 struct TranscriptionLanguageOption: Identifiable, Hashable {
@@ -512,6 +504,7 @@ struct AppSettings: Codable, Equatable {
     var customLlmModels: [CustomLlmModel]
     var ollama: ExternalProviderSettings
     var lmStudio: ExternalProviderSettings
+    var postProcessingEnabled: Bool
     var modes: [ProcessingMode]
     var activeModeId: String
 
@@ -542,8 +535,9 @@ struct AppSettings: Codable, Equatable {
         customLlmModels: [],
         ollama: ExternalProviderSettings(endpoint: "http://127.0.0.1:11434", modelName: "whisper"),
         lmStudio: ExternalProviderSettings(endpoint: "http://127.0.0.1:1234", modelName: "openai/whisper-small"),
-        modes: [.standard],
-        activeModeId: "standard"
+        postProcessingEnabled: false,
+        modes: [.cleanup],
+        activeModeId: "cleanup"
     )
 }
 

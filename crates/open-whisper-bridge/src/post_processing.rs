@@ -10,11 +10,11 @@ const USER_AGENT: &str = "open-whisper-bridge/0.1";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
 
 pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<String, String> {
-    let mode = settings.active_mode();
-
-    if !mode.post_processing_enabled {
+    if !settings.post_processing_enabled {
         return Ok(raw_transcript.to_owned());
     }
+
+    let mode = settings.active_mode();
 
     let text = match settings.active_post_processing_backend {
         PostProcessingBackend::Local => {
@@ -256,11 +256,11 @@ mod tests {
     fn active_backend_reflects_global_setting() {
         let mut settings = AppSettings::default();
         settings.active_post_processing_backend = PostProcessingBackend::Ollama;
+        settings.post_processing_enabled = true;
         settings.modes.push(ProcessingMode {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),
             prompt: "Nutze Entwickler-Sprache.".to_owned(),
-            post_processing_enabled: true,
         });
         settings.active_mode_id = "dev".to_owned();
 

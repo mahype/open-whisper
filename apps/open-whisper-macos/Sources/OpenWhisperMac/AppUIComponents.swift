@@ -14,7 +14,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .recording:
             return "Aufnahme"
         case .modes:
-            return "Modi"
+            return "Nachbearbeitung"
         case .languageModels:
             return "Sprachmodelle"
         case .startup:
@@ -66,7 +66,7 @@ struct ModeListTile: View {
                             .foregroundStyle(Color.accentColor)
                     }
                 }
-                Text(mode.postProcessingSummary)
+                Text(mode.prompt.isEmpty ? "Kein Prompt hinterlegt" : mode.prompt)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -79,7 +79,7 @@ struct ModeListTile: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.borderless)
-            .help("Modus bearbeiten")
+            .help("Nachbearbeitung bearbeiten")
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { onEdit() }
@@ -128,7 +128,7 @@ struct ModeEditorSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Modus bearbeiten")
+                Text("Nachbearbeitung bearbeiten")
                     .font(.title3.weight(.semibold))
                 Spacer()
             }
@@ -136,12 +136,6 @@ struct ModeEditorSheet: View {
             Form {
                 Section {
                     TextField("Name", text: model.modeBinding(for: \.name))
-
-                    Toggle("Nachverarbeitung aktiv", isOn: model.modeBinding(for: \.postProcessingEnabled))
-
-                    Text(model.selectedMode.postProcessingSummary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 Section("Prompt") {

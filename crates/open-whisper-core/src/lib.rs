@@ -466,40 +466,21 @@ pub struct ProcessingMode {
     pub id: String,
     pub name: String,
     pub prompt: String,
-    pub post_processing_enabled: bool,
 }
 
 impl ProcessingMode {
-    pub fn standard() -> Self {
-        Self {
-            id: "standard".to_owned(),
-            name: "Standard".to_owned(),
-            prompt: String::new(),
-            post_processing_enabled: false,
-        }
-    }
-
     pub fn cleanup() -> Self {
         Self {
             id: "cleanup".to_owned(),
             name: "Aufraeumen".to_owned(),
             prompt: "Korrigiere Satzzeichen, Grossschreibung und offensichtliche Erkennungsfehler im diktierten Text, ohne den Inhalt zu veraendern. Gib nur den bereinigten Text zurueck.".to_owned(),
-            post_processing_enabled: true,
-        }
-    }
-
-    pub fn post_processing_summary(&self) -> &'static str {
-        if self.post_processing_enabled {
-            "Nachverarbeitung aktiv"
-        } else {
-            "Direktes Diktat ohne Nachverarbeitung"
         }
     }
 }
 
 impl Default for ProcessingMode {
     fn default() -> Self {
-        Self::standard()
+        Self::cleanup()
     }
 }
 
@@ -532,19 +513,24 @@ pub struct AppSettings {
     pub custom_llm_models: Vec<CustomLlmModel>,
     pub ollama: ExternalProviderSettings,
     pub lm_studio: ExternalProviderSettings,
+    pub post_processing_enabled: bool,
     pub modes: Vec<ProcessingMode>,
     pub active_mode_id: String,
 }
 
 impl AppSettings {
     pub fn normalize(&mut self) {
-        if self.modes.is_empty() {
-            self.modes.push(ProcessingMode::standard());
-            self.modes.push(ProcessingMode::cleanup());
+        let had_standard = self.modes.iter().any(|mode| mode.id == "standard");
+        if had_standard {
+            self.post_processing_enabled = self.active_mode_id != "standard";
+            self.modes.retain(|mode| mode.id != "standard");
+            if self.active_mode_id == "standard" {
+                self.active_mode_id.clear();
+            }
         }
 
-        if !self.modes.iter().any(|mode| mode.id == "standard") {
-            self.modes.insert(0, ProcessingMode::standard());
+        if self.modes.is_empty() {
+            self.modes.push(ProcessingMode::cleanup());
         }
 
         if self.active_mode_id.trim().is_empty()
@@ -554,12 +540,12 @@ impl AppSettings {
                 .modes
                 .first()
                 .map(|mode| mode.id.clone())
-                .unwrap_or_else(|| "standard".to_owned());
+                .unwrap_or_default();
         }
 
         for mode in &mut self.modes {
             if mode.name.trim().is_empty() {
-                mode.name = "Neuer Modus".to_owned();
+                mode.name = "Neue Nachbearbeitung".to_owned();
             }
         }
     }
@@ -577,7 +563,7 @@ impl AppSettings {
     }
 
     pub fn active_mode_post_processing_enabled(&self) -> bool {
-        self.active_mode().post_processing_enabled
+        self.post_processing_enabled
     }
 
     pub fn active_custom_llm(&self) -> Option<&CustomLlmModel> {
@@ -590,23 +576,23 @@ impl AppSettings {
     }
 
     pub fn active_provider_summary(&self) -> String {
-        let mode = self.active_mode();
-        if !mode.post_processing_enabled {
+        if !self.post_processing_enabled {
             return format!("Lokales Whisper mit {}", self.local_model.display_label());
         }
+        let mode = self.active_mode();
         match self.active_post_processing_backend {
             PostProcessingBackend::Local => {
                 let label = self
                     .active_custom_llm()
                     .map(|entry| entry.name.clone())
                     .unwrap_or_else(|| self.local_llm.display_label().to_owned());
-                format!("Lokales Whisper + {} im Modus '{}'", label, mode.name)
+                format!("Lokales Whisper + {} ({})", label, mode.name)
             }
             PostProcessingBackend::Ollama => {
-                format!("Lokales Whisper + Ollama im Modus '{}'", mode.name)
+                format!("Lokales Whisper + Ollama ({})", mode.name)
             }
             PostProcessingBackend::LmStudio => {
-                format!("Lokales Whisper + LM Studio im Modus '{}'", mode.name)
+                format!("Lokales Whisper + LM Studio ({})", mode.name)
             }
         }
     }
@@ -641,8 +627,9 @@ impl Default for AppSettings {
             custom_llm_models: Vec::new(),
             ollama: ExternalProviderSettings::ollama_defaults(),
             lm_studio: ExternalProviderSettings::lm_studio_defaults(),
-            modes: vec![ProcessingMode::standard(), ProcessingMode::cleanup()],
-            active_mode_id: "standard".to_owned(),
+            post_processing_enabled: false,
+            modes: vec![ProcessingMode::cleanup()],
+            active_mode_id: "cleanup".to_owned(),
         }
     }
 }
@@ -788,7 +775,8 @@ mod tests {
         assert!(settings.restore_clipboard_after_insert);
         assert_eq!(settings.trigger_mode, TriggerMode::Toggle);
         assert!(!settings.vad_enabled);
-        assert_eq!(settings.active_mode_name(), "Standard");
+        assert!(!settings.post_processing_enabled);
+        assert_eq!(settings.active_mode_name(), "Aufraeumen");
     }
 
     #[test]
@@ -815,11 +803,11 @@ mod tests {
     fn remote_provider_summary_uses_backend_and_mode() {
         let mut settings = AppSettings::default();
         settings.active_post_processing_backend = PostProcessingBackend::Ollama;
+        settings.post_processing_enabled = true;
         settings.modes.push(ProcessingMode {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),
             prompt: "Arbeite wie ein Entwickler.".to_owned(),
-            post_processing_enabled: true,
         });
         settings.active_mode_id = "dev".to_owned();
 
@@ -852,17 +840,61 @@ mod tests {
 
         settings.normalize();
 
-        assert_eq!(settings.modes.len(), 2);
-        assert_eq!(settings.modes[0].id, "standard");
-        assert_eq!(settings.modes[1].id, "cleanup");
-        assert_eq!(settings.active_mode_id, "standard");
+        assert_eq!(settings.modes.len(), 1);
+        assert_eq!(settings.modes[0].id, "cleanup");
+        assert_eq!(settings.active_mode_id, "cleanup");
     }
 
     #[test]
-    fn cleanup_mode_is_enabled_by_default() {
+    fn normalize_migrates_legacy_standard_active() {
+        let mut settings = AppSettings {
+            modes: vec![
+                ProcessingMode {
+                    id: "standard".to_owned(),
+                    name: "Standard".to_owned(),
+                    prompt: String::new(),
+                },
+                ProcessingMode::cleanup(),
+            ],
+            active_mode_id: "standard".to_owned(),
+            post_processing_enabled: false,
+            ..AppSettings::default()
+        };
+
+        settings.normalize();
+
+        assert!(!settings.modes.iter().any(|mode| mode.id == "standard"));
+        assert_eq!(settings.active_mode_id, "cleanup");
+        assert!(!settings.post_processing_enabled);
+    }
+
+    #[test]
+    fn normalize_migrates_legacy_custom_active() {
+        let mut settings = AppSettings {
+            modes: vec![
+                ProcessingMode {
+                    id: "standard".to_owned(),
+                    name: "Standard".to_owned(),
+                    prompt: String::new(),
+                },
+                ProcessingMode::cleanup(),
+            ],
+            active_mode_id: "cleanup".to_owned(),
+            post_processing_enabled: false,
+            ..AppSettings::default()
+        };
+
+        settings.normalize();
+
+        assert!(!settings.modes.iter().any(|mode| mode.id == "standard"));
+        assert_eq!(settings.active_mode_id, "cleanup");
+        assert!(settings.post_processing_enabled);
+    }
+
+    #[test]
+    fn cleanup_mode_is_default_processing_mode() {
         let cleanup = ProcessingMode::cleanup();
         assert_eq!(cleanup.id, "cleanup");
-        assert!(cleanup.post_processing_enabled);
         assert!(!cleanup.prompt.is_empty());
     }
 
@@ -903,11 +935,11 @@ mod tests {
         let mut settings = AppSettings::default();
         settings.local_llm = LlmPreset::Large;
         settings.active_post_processing_backend = PostProcessingBackend::Local;
+        settings.post_processing_enabled = true;
         settings.modes.push(ProcessingMode {
             id: "email".to_owned(),
             name: "Email".to_owned(),
             prompt: "Formatiere als Email.".to_owned(),
-            post_processing_enabled: true,
         });
         settings.active_mode_id = "email".to_owned();
 

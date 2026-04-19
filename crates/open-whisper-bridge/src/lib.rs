@@ -147,14 +147,14 @@ impl BridgeRuntime {
                     self.pending_post_processing = None;
                     self.finish_transcript(
                         processed_text,
-                        &format!("Nachverarbeitung im Modus '{mode_name}' abgeschlossen."),
+                        &format!("Nachbearbeitung '{mode_name}' abgeschlossen."),
                     );
                 }
                 Ok(Err(err)) => {
                     self.post_processing_rx = None;
                     if let Some(pending) = self.pending_post_processing.take() {
                         let fallback_status = format!(
-                            "Nachverarbeitung im Modus '{}' ueber {} fehlgeschlagen. Rohtranskript wird verwendet. {err}",
+                            "Nachbearbeitung '{}' ueber {} fehlgeschlagen. Rohtranskript wird verwendet. {err}",
                             pending.mode_name, pending.provider_label
                         );
                         self.finish_transcript(pending.raw_transcript, &fallback_status);
@@ -166,7 +166,7 @@ impl BridgeRuntime {
                     self.post_processing_rx = None;
                     if let Some(pending) = self.pending_post_processing.take() {
                         let fallback_status = format!(
-                            "Nachverarbeitung im Modus '{}' wurde unerwartet beendet. Rohtranskript wird verwendet.",
+                            "Nachbearbeitung '{}' wurde unerwartet beendet. Rohtranskript wird verwendet.",
                             pending.mode_name
                         );
                         self.finish_transcript(pending.raw_transcript, &fallback_status);
@@ -208,7 +208,7 @@ impl BridgeRuntime {
                 DictationOutcome::Status(message) => self.last_status = message,
                 DictationOutcome::TranscriptReady(transcript) => {
                     let mode = self.settings.active_mode().clone();
-                    if mode.post_processing_enabled {
+                    if self.settings.post_processing_enabled {
                         let provider_label = self
                             .settings
                             .active_post_processing_backend
@@ -229,7 +229,7 @@ impl BridgeRuntime {
                             provider_label,
                         });
                         self.last_status = format!(
-                            "Whisper-Transkript bereit. Nachverarbeitung im Modus '{mode_name}' laeuft."
+                            "Whisper-Transkript bereit. Nachbearbeitung '{mode_name}' laeuft."
                         );
                     } else {
                         self.finish_transcript(transcript, "Transkript bereit.");
