@@ -213,9 +213,12 @@ impl BridgeRuntime {
                 DictationOutcome::Status(message) => self.last_status = message,
                 DictationOutcome::TranscriptReady(transcript) => {
                     let mode = self.settings.active_mode().clone();
-                    let provider = self.settings.active_mode_provider();
-                    if provider != open_whisper_core::PostProcessingProvider::Disabled {
-                        let provider_label = provider.label().to_owned();
+                    if mode.post_processing_enabled {
+                        let provider_label = self
+                            .settings
+                            .active_post_processing_backend
+                            .label()
+                            .to_owned();
                         let mode_name = mode.name.clone();
                         let raw_transcript = transcript.clone();
                         let settings = self.settings.clone();

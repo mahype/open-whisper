@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use open_whisper_core::{AppSettings, PostProcessingProvider};
+use open_whisper_core::{AppSettings, PostProcessingBackend};
 use reqwest::blocking::Client;
 use serde_json::{Value, json};
 
@@ -11,20 +11,18 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
 
 pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<String, String> {
     let mode = settings.active_mode();
-    let provider = settings.active_mode_provider();
 
-    if provider == PostProcessingProvider::Disabled {
+    if !mode.post_processing_enabled {
         return Ok(raw_transcript.to_owned());
     }
 
-    let text = match provider {
-        PostProcessingProvider::Disabled => raw_transcript.to_owned(),
-        PostProcessingProvider::LocalLlm => local_llm::generate_with_shared_runtime(
-            mode.local_llm,
+    let text = match settings.active_post_processing_backend {
+        PostProcessingBackend::Local => local_llm::generate_with_shared_runtime(
+            settings.local_llm,
             &mode.prompt,
             raw_transcript,
         )?,
-        PostProcessingProvider::Ollama => {
+        PostProcessingBackend::Ollama => {
             let client = build_http_client()?;
             let system_prompt = build_system_prompt(&mode.prompt);
             request_ollama(
@@ -35,7 +33,7 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
                 raw_transcript,
             )?
         }
-        PostProcessingProvider::LmStudio => {
+        PostProcessingBackend::LmStudio => {
             let client = build_http_client()?;
             let system_prompt = build_system_prompt(&mode.prompt);
             request_lm_studio(
@@ -191,7 +189,7 @@ fn join_base_url(endpoint: &str, suffix: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use open_whisper_core::{AppSettings, PostProcessingProvider, ProcessingMode};
+    use open_whisper_core::{AppSettings, PostProcessingBackend, ProcessingMode};
 
     #[test]
     fn empty_prompt_gets_safe_default_instruction() {
@@ -223,20 +221,21 @@ mod tests {
     }
 
     #[test]
-    fn enabled_mode_uses_provider_label() {
+    fn active_backend_reflects_global_setting() {
         let mut settings = AppSettings::default();
+        settings.active_post_processing_backend = PostProcessingBackend::Ollama;
         settings.modes.push(ProcessingMode {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),
-            post_processing_provider: PostProcessingProvider::Ollama,
             prompt: "Nutze Entwickler-Sprache.".to_owned(),
-            local_llm: open_whisper_core::LlmPreset::default(),
+            post_processing_enabled: true,
         });
         settings.active_mode_id = "dev".to_owned();
 
+        assert!(settings.active_mode_post_processing_enabled());
         assert_eq!(
-            settings.active_mode_provider(),
-            PostProcessingProvider::Ollama
+            settings.active_post_processing_backend,
+            PostProcessingBackend::Ollama
         );
     }
 }

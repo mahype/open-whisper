@@ -147,23 +147,7 @@ struct ModeEditorSheet: View {
                 Section {
                     TextField("Name", text: model.modeBinding(for: \.name))
 
-                    Picker("Nachverarbeitung", selection: model.modeBinding(for: \.postProcessingProvider)) {
-                        ForEach(PostProcessingProvider.allCases) { provider in
-                            Text(provider.label).tag(provider)
-                        }
-                    }
-
-                    if model.selectedMode.postProcessingProvider == .localLlm {
-                        Picker("Sprachmodell", selection: model.modeBinding(for: \.localLlm)) {
-                            ForEach(LlmPreset.allCases) { preset in
-                                Text(preset.displayName).tag(preset)
-                            }
-                        }
-
-                        Text("Groesse: \(model.selectedMode.localLlm.approxSizeLabel)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Toggle("Nachverarbeitung aktiv", isOn: model.modeBinding(for: \.postProcessingEnabled))
 
                     Text(model.selectedMode.postProcessingSummary)
                         .font(.caption)

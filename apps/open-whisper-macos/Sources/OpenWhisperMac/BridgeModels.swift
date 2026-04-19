@@ -259,9 +259,8 @@ enum ProviderKind: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum PostProcessingProvider: String, Codable, CaseIterable, Identifiable {
-    case disabled
-    case localLlm = "local_llm"
+enum PostProcessingBackend: String, Codable, CaseIterable, Identifiable {
+    case local
     case ollama
     case lmStudio = "lm_studio"
 
@@ -269,9 +268,7 @@ enum PostProcessingProvider: String, Codable, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .disabled:
-            return "Aus"
-        case .localLlm:
+        case .local:
             return "Lokales Modell"
         case .ollama:
             return "Ollama"
@@ -309,29 +306,20 @@ struct ExternalProviderSettings: Codable, Equatable {
 struct ProcessingMode: Codable, Identifiable, Hashable {
     var id: String
     var name: String
-    var postProcessingProvider: PostProcessingProvider
     var prompt: String
-    var localLlm: LlmPreset
+    var postProcessingEnabled: Bool
 
     static let standard = ProcessingMode(
         id: "standard",
         name: "Standard",
-        postProcessingProvider: .disabled,
         prompt: "",
-        localLlm: .medium
+        postProcessingEnabled: false
     )
 
     var postProcessingSummary: String {
-        switch postProcessingProvider {
-        case .disabled:
-            return "Direktes Diktat ohne Nachverarbeitung"
-        case .localLlm:
-            return "Nachverarbeitung ueber \(localLlm.displayName)"
-        case .ollama:
-            return "Nachverarbeitung ueber Ollama"
-        case .lmStudio:
-            return "Nachverarbeitung ueber LM Studio"
-        }
+        postProcessingEnabled
+            ? "Nachverarbeitung aktiv"
+            : "Direktes Diktat ohne Nachverarbeitung"
     }
 }
 
@@ -386,6 +374,7 @@ struct AppSettings: Codable, Equatable {
     var localLlmPath: String
     var localLlmAutoUnloadSecs: UInt32
     var activeProvider: ProviderKind
+    var activePostProcessingBackend: PostProcessingBackend
     var ollama: ExternalProviderSettings
     var lmStudio: ExternalProviderSettings
     var modes: [ProcessingMode]
@@ -413,6 +402,7 @@ struct AppSettings: Codable, Equatable {
         localLlmPath: "",
         localLlmAutoUnloadSecs: 180,
         activeProvider: .localWhisper,
+        activePostProcessingBackend: .local,
         ollama: ExternalProviderSettings(endpoint: "http://127.0.0.1:11434", modelName: "whisper"),
         lmStudio: ExternalProviderSettings(endpoint: "http://127.0.0.1:1234", modelName: "openai/whisper-small"),
         modes: [.standard],

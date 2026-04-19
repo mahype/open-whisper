@@ -363,9 +363,8 @@ final class AppModel: ObservableObject {
         let mode = ProcessingMode(
             id: UUID().uuidString.lowercased(),
             name: candidate,
-            postProcessingProvider: .ollama,
             prompt: "",
-            localLlm: settings.localLlm
+            postProcessingEnabled: true
         )
         settings.modes.append(mode)
         selectedModeID = mode.id

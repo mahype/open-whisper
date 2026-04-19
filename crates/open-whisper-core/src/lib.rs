@@ -351,21 +351,19 @@ impl ProviderKind {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
-pub enum PostProcessingProvider {
+pub enum PostProcessingBackend {
     #[default]
-    Disabled,
-    LocalLlm,
+    Local,
     Ollama,
     LmStudio,
 }
 
-impl PostProcessingProvider {
-    pub const ALL: [Self; 4] = [Self::LocalLlm, Self::Disabled, Self::Ollama, Self::LmStudio];
+impl PostProcessingBackend {
+    pub const ALL: [Self; 3] = [Self::Local, Self::Ollama, Self::LmStudio];
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Disabled => "Aus",
-            Self::LocalLlm => "Lokales Modell",
+            Self::Local => "Lokales Modell",
             Self::Ollama => "Ollama",
             Self::LmStudio => "LM Studio",
         }
@@ -399,9 +397,8 @@ impl ExternalProviderSettings {
 pub struct ProcessingMode {
     pub id: String,
     pub name: String,
-    pub post_processing_provider: PostProcessingProvider,
     pub prompt: String,
-    pub local_llm: LlmPreset,
+    pub post_processing_enabled: bool,
 }
 
 impl ProcessingMode {
@@ -409,9 +406,8 @@ impl ProcessingMode {
         Self {
             id: "standard".to_owned(),
             name: "Standard".to_owned(),
-            post_processing_provider: PostProcessingProvider::Disabled,
             prompt: String::new(),
-            local_llm: LlmPreset::default(),
+            post_processing_enabled: false,
         }
     }
 
@@ -419,18 +415,16 @@ impl ProcessingMode {
         Self {
             id: "cleanup".to_owned(),
             name: "Aufraeumen".to_owned(),
-            post_processing_provider: PostProcessingProvider::LocalLlm,
             prompt: "Korrigiere Satzzeichen, Grossschreibung und offensichtliche Erkennungsfehler im diktierten Text, ohne den Inhalt zu veraendern. Gib nur den bereinigten Text zurueck.".to_owned(),
-            local_llm: LlmPreset::default(),
+            post_processing_enabled: true,
         }
     }
 
     pub fn post_processing_summary(&self) -> &'static str {
-        match self.post_processing_provider {
-            PostProcessingProvider::Disabled => "Direktes Diktat ohne Nachverarbeitung",
-            PostProcessingProvider::LocalLlm => "Nachverarbeitung ueber lokales Sprachmodell",
-            PostProcessingProvider::Ollama => "Nachverarbeitung ueber Ollama",
-            PostProcessingProvider::LmStudio => "Nachverarbeitung ueber LM Studio",
+        if self.post_processing_enabled {
+            "Nachverarbeitung aktiv"
+        } else {
+            "Direktes Diktat ohne Nachverarbeitung"
         }
     }
 }
@@ -465,6 +459,7 @@ pub struct AppSettings {
     pub local_llm_path: String,
     pub local_llm_auto_unload_secs: u32,
     pub active_provider: ProviderKind,
+    pub active_post_processing_backend: PostProcessingBackend,
     pub ollama: ExternalProviderSettings,
     pub lm_studio: ExternalProviderSettings,
     pub modes: Vec<ProcessingMode>,
@@ -511,25 +506,25 @@ impl AppSettings {
         &self.active_mode().name
     }
 
-    pub fn active_mode_provider(&self) -> PostProcessingProvider {
-        self.active_mode().post_processing_provider
+    pub fn active_mode_post_processing_enabled(&self) -> bool {
+        self.active_mode().post_processing_enabled
     }
 
     pub fn active_provider_summary(&self) -> String {
         let mode = self.active_mode();
-        match self.active_mode_provider() {
-            PostProcessingProvider::Disabled => {
-                format!("Lokales Whisper mit {}", self.local_model.display_label())
-            }
-            PostProcessingProvider::LocalLlm => format!(
+        if !mode.post_processing_enabled {
+            return format!("Lokales Whisper mit {}", self.local_model.display_label());
+        }
+        match self.active_post_processing_backend {
+            PostProcessingBackend::Local => format!(
                 "Lokales Whisper + {} im Modus '{}'",
-                mode.local_llm.display_label(),
+                self.local_llm.display_label(),
                 mode.name
             ),
-            PostProcessingProvider::Ollama => {
+            PostProcessingBackend::Ollama => {
                 format!("Lokales Whisper + Ollama im Modus '{}'", mode.name)
             }
-            PostProcessingProvider::LmStudio => {
+            PostProcessingBackend::LmStudio => {
                 format!("Lokales Whisper + LM Studio im Modus '{}'", mode.name)
             }
         }
@@ -560,6 +555,7 @@ impl Default for AppSettings {
             local_llm_path: String::new(),
             local_llm_auto_unload_secs: 180,
             active_provider: ProviderKind::default(),
+            active_post_processing_backend: PostProcessingBackend::default(),
             ollama: ExternalProviderSettings::ollama_defaults(),
             lm_studio: ExternalProviderSettings::lm_studio_defaults(),
             modes: vec![ProcessingMode::standard(), ProcessingMode::cleanup()],
@@ -693,14 +689,14 @@ mod tests {
     }
 
     #[test]
-    fn remote_provider_summary_uses_endpoint_and_model() {
+    fn remote_provider_summary_uses_backend_and_mode() {
         let mut settings = AppSettings::default();
+        settings.active_post_processing_backend = PostProcessingBackend::Ollama;
         settings.modes.push(ProcessingMode {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),
-            post_processing_provider: PostProcessingProvider::Ollama,
             prompt: "Arbeite wie ein Entwickler.".to_owned(),
-            local_llm: LlmPreset::default(),
+            post_processing_enabled: true,
         });
         settings.active_mode_id = "dev".to_owned();
 
@@ -740,13 +736,10 @@ mod tests {
     }
 
     #[test]
-    fn cleanup_mode_uses_local_llm_provider() {
+    fn cleanup_mode_is_enabled_by_default() {
         let cleanup = ProcessingMode::cleanup();
         assert_eq!(cleanup.id, "cleanup");
-        assert_eq!(
-            cleanup.post_processing_provider,
-            PostProcessingProvider::LocalLlm
-        );
+        assert!(cleanup.post_processing_enabled);
         assert!(!cleanup.prompt.is_empty());
     }
 
@@ -783,14 +776,15 @@ mod tests {
     }
 
     #[test]
-    fn local_llm_provider_summary_uses_mode_preset() {
+    fn local_llm_summary_uses_global_preset_when_mode_enabled() {
         let mut settings = AppSettings::default();
+        settings.local_llm = LlmPreset::Large;
+        settings.active_post_processing_backend = PostProcessingBackend::Local;
         settings.modes.push(ProcessingMode {
             id: "email".to_owned(),
             name: "Email".to_owned(),
-            post_processing_provider: PostProcessingProvider::LocalLlm,
             prompt: "Formatiere als Email.".to_owned(),
-            local_llm: LlmPreset::Large,
+            post_processing_enabled: true,
         });
         settings.active_mode_id = "email".to_owned();
 
@@ -800,8 +794,11 @@ mod tests {
     }
 
     #[test]
-    fn processing_mode_defaults_local_llm_to_medium() {
-        let mode = ProcessingMode::cleanup();
-        assert_eq!(mode.local_llm, LlmPreset::Medium);
+    fn default_post_processing_backend_is_local() {
+        let settings = AppSettings::default();
+        assert_eq!(
+            settings.active_post_processing_backend,
+            PostProcessingBackend::Local
+        );
     }
 }
