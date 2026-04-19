@@ -81,10 +81,10 @@ impl BridgeRuntime {
 
         model_downloads.refresh_local_state(&settings);
 
-        match llm_model_manager::purge_legacy_qwen_files() {
+        match llm_model_manager::purge_legacy_llm_files() {
             Ok(removed) if !removed.is_empty() => {
                 last_status = format!(
-                    "Alte Qwen-Sprachmodelle entfernt ({} Datei(en)). Gemma 3 wird verwendet.",
+                    "Alte Sprachmodelle entfernt ({} Datei(en)). Gemma 4 wird verwendet.",
                     removed.len()
                 );
             }

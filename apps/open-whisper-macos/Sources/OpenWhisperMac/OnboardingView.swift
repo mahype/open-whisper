@@ -139,7 +139,7 @@ struct OnboardingView: View {
             }
         case 3:
             Section("Sprachmodell fuer Nachbearbeitung") {
-                Text("Waehle ein Gemma-3-Modell, das deine Diktate automatisch aufraeumen oder in einem bestimmten Stil umschreiben kann. Der Download laeuft im Hintergrund. Du kannst das Modell pro Modus aendern oder den Schritt ueberspringen.")
+                Text("Waehle ein Gemma-4-Modell, das deine Diktate automatisch aufraeumen oder in einem bestimmten Stil umschreiben kann. Der Download laeuft im Hintergrund. Du kannst das Modell pro Modus aendern oder den Schritt ueberspringen.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

@@ -411,15 +411,15 @@ fn summary_for_existing_path(path: &Path) -> String {
 
 fn llm_label_for_path(path: &Path) -> &'static str {
     match path.file_name().and_then(|value| value.to_str()) {
-        Some("google_gemma-3-1b-it-Q4_K_M.gguf") => "Gemma 3 1B (klein)",
-        Some("google_gemma-3-4b-it-Q4_K_M.gguf") => "Gemma 3 4B (mittel)",
-        Some("google_gemma-3-12b-it-Q4_K_M.gguf") => "Gemma 3 12B (gross)",
+        Some("google_gemma-4-E2B-it-Q4_K_M.gguf") => "Gemma 4 E2B (klein)",
+        Some("google_gemma-4-E4B-it-Q4_K_M.gguf") => "Gemma 4 E4B (mittel)",
+        Some("google_gemma-4-26B-A4B-it-Q4_K_M.gguf") => "Gemma 4 26B (gross)",
         _ => "lokales Sprachmodell",
     }
 }
 
-pub fn purge_legacy_qwen_files() -> Result<Vec<String>, String> {
-    use open_whisper_core::LEGACY_QWEN_LLM_FILENAMES;
+pub fn purge_legacy_llm_files() -> Result<Vec<String>, String> {
+    use open_whisper_core::LEGACY_LLM_FILENAMES;
 
     let Some(project_dirs) = ProjectDirs::from("dev", "awesome", "open-whisper") else {
         return Ok(Vec::new());
@@ -431,12 +431,12 @@ pub fn purge_legacy_qwen_files() -> Result<Vec<String>, String> {
     }
 
     let mut removed = Vec::new();
-    for filename in LEGACY_QWEN_LLM_FILENAMES {
+    for filename in LEGACY_LLM_FILENAMES {
         let candidate = dir.join(filename);
         if candidate.exists() {
             fs::remove_file(&candidate).map_err(|err| {
                 format!(
-                    "Alte Qwen-Modelldatei {} konnte nicht entfernt werden: {err}",
+                    "Alte Modelldatei {} konnte nicht entfernt werden: {err}",
                     candidate.display()
                 )
             })?;
@@ -487,7 +487,7 @@ mod tests {
         let path = default_llm_model_path(LlmPreset::Medium).unwrap();
         let as_str = path.to_string_lossy();
         assert!(as_str.contains("llm-models"));
-        assert!(as_str.ends_with("google_gemma-3-4b-it-Q4_K_M.gguf"));
+        assert!(as_str.ends_with("google_gemma-4-E4B-it-Q4_K_M.gguf"));
     }
 
     #[test]

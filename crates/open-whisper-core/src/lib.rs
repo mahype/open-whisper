@@ -245,47 +245,47 @@ impl LlmPreset {
 
     pub fn display_label(self) -> &'static str {
         match self {
-            Self::Small => "Gemma 3 1B (klein)",
-            Self::Medium => "Gemma 3 4B (mittel)",
-            Self::Large => "Gemma 3 12B (gross)",
+            Self::Small => "Gemma 4 E2B (klein)",
+            Self::Medium => "Gemma 4 E4B (mittel)",
+            Self::Large => "Gemma 4 26B (gross)",
         }
     }
 
     pub fn default_filename(self) -> &'static str {
         match self {
-            Self::Small => "google_gemma-3-1b-it-Q4_K_M.gguf",
-            Self::Medium => "google_gemma-3-4b-it-Q4_K_M.gguf",
-            Self::Large => "google_gemma-3-12b-it-Q4_K_M.gguf",
+            Self::Small => "google_gemma-4-E2B-it-Q4_K_M.gguf",
+            Self::Medium => "google_gemma-4-E4B-it-Q4_K_M.gguf",
+            Self::Large => "google_gemma-4-26B-A4B-it-Q4_K_M.gguf",
         }
     }
 
     pub fn description(self) -> &'static str {
         match self {
             Self::Small => {
-                "Kleines Sprachmodell (Gemma 3 1B). Schnell und sparsam, laeuft auch auf 8 GB RAM."
+                "Kleines Sprachmodell (Gemma 4 E2B). Schnell und sparsam, laeuft auch auf 8 GB RAM."
             }
             Self::Medium => {
-                "Mittleres Sprachmodell (Gemma 3 4B) als guter Standard fuer 16 GB RAM und mehr."
+                "Mittleres Sprachmodell (Gemma 4 E4B) als guter Standard fuer 16 GB RAM und mehr."
             }
             Self::Large => {
-                "Grosses Sprachmodell (Gemma 3 12B) mit bester Qualitaet, braucht 24 GB RAM oder mehr."
+                "Grosses Sprachmodell (Gemma 4 26B A4B, Mixture-of-Experts) mit bester Qualitaet, braucht 32 GB RAM oder mehr."
             }
         }
     }
 
     pub fn approx_size_label(self) -> &'static str {
         match self {
-            Self::Small => "ca. 0.8 GB",
-            Self::Medium => "ca. 2.5 GB",
-            Self::Large => "ca. 7.3 GB",
+            Self::Small => "ca. 3.5 GB",
+            Self::Medium => "ca. 5.4 GB",
+            Self::Large => "ca. 17 GB",
         }
     }
 
     pub fn approx_ram_mb(self) -> u64 {
         match self {
-            Self::Small => 2_048,
-            Self::Medium => 4_096,
-            Self::Large => 12_288,
+            Self::Small => 4_096,
+            Self::Medium => 8_192,
+            Self::Large => 20_480,
         }
     }
 
@@ -299,30 +299,33 @@ impl LlmPreset {
     pub fn download_url(self) -> &'static str {
         match self {
             Self::Small => {
-                "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf"
+                "https://huggingface.co/bartowski/google_gemma-4-E2B-it-GGUF/resolve/main/google_gemma-4-E2B-it-Q4_K_M.gguf"
             }
             Self::Medium => {
-                "https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/google_gemma-3-4b-it-Q4_K_M.gguf"
+                "https://huggingface.co/bartowski/google_gemma-4-E4B-it-GGUF/resolve/main/google_gemma-4-E4B-it-Q4_K_M.gguf"
             }
             Self::Large => {
-                "https://huggingface.co/bartowski/google_gemma-3-12b-it-GGUF/resolve/main/google_gemma-3-12b-it-Q4_K_M.gguf"
+                "https://huggingface.co/bartowski/google_gemma-4-26B-A4B-it-GGUF/resolve/main/google_gemma-4-26B-A4B-it-Q4_K_M.gguf"
             }
         }
     }
 
     pub fn download_size_bytes(self) -> u64 {
         match self {
-            Self::Small => 806_058_496,
-            Self::Medium => 2_489_758_112,
-            Self::Large => 7_300_575_264,
+            Self::Small => 3_462_677_760,
+            Self::Medium => 5_405_167_904,
+            Self::Large => 17_035_037_632,
         }
     }
 }
 
-pub const LEGACY_QWEN_LLM_FILENAMES: &[&str] = &[
+pub const LEGACY_LLM_FILENAMES: &[&str] = &[
     "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
     "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
     "Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+    "google_gemma-3-1b-it-Q4_K_M.gguf",
+    "google_gemma-3-4b-it-Q4_K_M.gguf",
+    "google_gemma-3-12b-it-Q4_K_M.gguf",
 ];
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -753,25 +756,29 @@ mod tests {
     }
 
     #[test]
-    fn llm_preset_small_download_url_contains_gemma_1b() {
-        assert!(LlmPreset::Small.download_url().contains("gemma-3-1b"));
+    fn llm_preset_small_download_url_contains_gemma_e2b() {
+        assert!(LlmPreset::Small.download_url().contains("gemma-4-E2B"));
     }
 
     #[test]
     fn llm_preset_default_filename_is_gemma() {
         assert_eq!(
             LlmPreset::Medium.default_filename(),
-            "google_gemma-3-4b-it-Q4_K_M.gguf"
+            "google_gemma-4-E4B-it-Q4_K_M.gguf"
         );
     }
 
     #[test]
-    fn legacy_qwen_filenames_are_listed() {
-        assert_eq!(LEGACY_QWEN_LLM_FILENAMES.len(), 3);
+    fn legacy_llm_filenames_cover_previous_releases() {
         assert!(
-            LEGACY_QWEN_LLM_FILENAMES
+            LEGACY_LLM_FILENAMES
                 .iter()
                 .any(|f| f.contains("Qwen2.5-3B"))
+        );
+        assert!(
+            LEGACY_LLM_FILENAMES
+                .iter()
+                .any(|f| f.contains("gemma-3-4b"))
         );
     }
 
@@ -789,7 +796,7 @@ mod tests {
 
         let summary = settings.active_provider_summary();
         assert!(summary.contains("Email"));
-        assert!(summary.contains("Gemma 3 12B"));
+        assert!(summary.contains("Gemma 4 26B"));
     }
 
     #[test]

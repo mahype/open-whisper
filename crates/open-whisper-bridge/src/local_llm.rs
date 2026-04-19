@@ -18,7 +18,7 @@ use open_whisper_core::LlmPreset;
 use crate::llm_model_manager::default_llm_model_path;
 
 const MAX_OUTPUT_TOKENS: i32 = 512;
-const STOP_SEQUENCE: &str = "<end_of_turn>";
+const STOP_SEQUENCE: &str = "<turn|>";
 const PROMPT_BATCH_CAPACITY: usize = 512;
 
 static LLAMA_BACKEND: OnceCell<Arc<LlamaBackend>> = OnceCell::new();
@@ -261,7 +261,7 @@ fn build_gemma_chat_prompt(mode_instruction: &str, transcript: &str) -> String {
         )
     };
 
-    format!("<start_of_turn>user\n{body}<end_of_turn>\n<start_of_turn>model\n")
+    format!("<bos><|turn>user\n{body}<turn|>\n<|turn>model\n")
 }
 
 #[cfg(test)]
@@ -271,11 +271,11 @@ mod tests {
     #[test]
     fn gemma_prompt_labels_instruction_and_text() {
         let prompt = build_gemma_chat_prompt("Schreibe foermlicher.", "hallo welt");
-        assert!(prompt.starts_with("<start_of_turn>user\n"));
+        assert!(prompt.starts_with("<bos><|turn>user\n"));
         assert!(prompt.contains("Anweisung:\nSchreibe foermlicher."));
         assert!(prompt.contains("Text zum Ueberarbeiten:\nhallo welt"));
         assert!(prompt.contains("ohne Erklaerungen"));
-        assert!(prompt.ends_with("<start_of_turn>model\n"));
+        assert!(prompt.ends_with("<|turn>model\n"));
     }
 
     #[test]

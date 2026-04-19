@@ -206,36 +206,36 @@ enum LlmPreset: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .small: return "Gemma 3 1B (klein)"
-        case .medium: return "Gemma 3 4B (mittel)"
-        case .large: return "Gemma 3 12B (gross)"
+        case .small: return "Gemma 4 E2B (klein)"
+        case .medium: return "Gemma 4 E4B (mittel)"
+        case .large: return "Gemma 4 26B (gross)"
         }
     }
 
     var description: String {
         switch self {
         case .small:
-            return "Kleines Sprachmodell (Gemma 3 1B). Schnell und sparsam, laeuft auch auf 8 GB RAM."
+            return "Kleines Sprachmodell (Gemma 4 E2B). Schnell und sparsam, laeuft auch auf 8 GB RAM."
         case .medium:
-            return "Mittleres Sprachmodell (Gemma 3 4B) als guter Standard fuer 16 GB RAM und mehr."
+            return "Mittleres Sprachmodell (Gemma 4 E4B) als guter Standard fuer 16 GB RAM und mehr."
         case .large:
-            return "Grosses Sprachmodell (Gemma 3 12B) mit bester Qualitaet, braucht 24 GB RAM oder mehr."
+            return "Grosses Sprachmodell (Gemma 4 26B A4B, Mixture-of-Experts) mit bester Qualitaet, braucht 32 GB RAM oder mehr."
         }
     }
 
     var approxSizeLabel: String {
         switch self {
-        case .small: return "ca. 0.8 GB"
-        case .medium: return "ca. 2.5 GB"
-        case .large: return "ca. 7.3 GB"
+        case .small: return "ca. 3.5 GB"
+        case .medium: return "ca. 5.4 GB"
+        case .large: return "ca. 17 GB"
         }
     }
 
     var downloadSizeBytes: UInt64 {
         switch self {
-        case .small: return 806_058_496
-        case .medium: return 2_489_758_112
-        case .large: return 7_300_575_264
+        case .small: return 3_462_677_760
+        case .medium: return 5_405_167_904
+        case .large: return 17_035_037_632
         }
     }
 }
