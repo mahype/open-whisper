@@ -59,6 +59,19 @@ pub fn insert_text_into_active_app(text: &str, settings: &AppSettings) -> Result
     Ok("Transkript in die aktive App eingefuegt.".to_owned())
 }
 
+pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
+    if text.trim().is_empty() {
+        return Err("Kein Text zum Kopieren vorhanden.".to_owned());
+    }
+
+    let mut clipboard = Clipboard::new()
+        .map_err(|err| format!("Clipboard konnte nicht geoeffnet werden: {err}"))?;
+    clipboard
+        .set_text(text.to_owned())
+        .map_err(|err| format!("Clipboard konnte nicht beschrieben werden: {err}"))?;
+    Ok(())
+}
+
 #[cfg(target_os = "macos")]
 fn paste_modifier_key() -> Key {
     Key::Meta
