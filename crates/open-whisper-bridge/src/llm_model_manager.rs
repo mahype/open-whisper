@@ -34,7 +34,7 @@ impl LlmModelDownloadManager {
 
     pub fn start_download_for(&mut self, preset: LlmPreset) -> Result<String, String> {
         if self.is_downloading() {
-            return Err("Ein Sprachmodell-Download laeuft bereits.".to_owned());
+            return Err("A language model download is already running.".to_owned());
         }
 
         let target_path = default_llm_model_path(preset)?;
@@ -42,7 +42,7 @@ impl LlmModelDownloadManager {
             self.state = LlmDownloadState::Ready {
                 path: target_path.clone(),
             };
-            return Ok(format!("{} ist bereits vorhanden.", preset.display_label()));
+            return Ok(format!("{} is already present.", preset.display_label()));
         }
 
         let download_url = preset.download_url().to_owned();
@@ -67,7 +67,7 @@ impl LlmModelDownloadManager {
         });
 
         Ok(format!(
-            "Download fuer {} gestartet.",
+            "Download for {} started.",
             preset.display_label()
         ))
     }
@@ -79,7 +79,7 @@ impl LlmModelDownloadManager {
         url: &str,
     ) -> Result<String, String> {
         if self.is_downloading() {
-            return Err("Ein Sprachmodell-Download laeuft bereits.".to_owned());
+            return Err("A language model download is already running.".to_owned());
         }
 
         let target_path = default_custom_llm_path(id)?;
@@ -87,12 +87,12 @@ impl LlmModelDownloadManager {
             self.state = LlmDownloadState::Ready {
                 path: target_path.clone(),
             };
-            return Ok(format!("{} ist bereits vorhanden.", display_name));
+            return Ok(format!("{} is already present.", display_name));
         }
 
         let download_url = url.trim().to_owned();
         if download_url.is_empty() {
-            return Err("URL fuer eigenes Sprachmodell ist leer.".to_owned());
+            return Err("URL for custom language model is empty.".to_owned());
         }
         let download_path = target_path.clone();
         let temp_path = temporary_download_path(&target_path);
@@ -117,31 +117,31 @@ impl LlmModelDownloadManager {
             }
         });
 
-        Ok(format!("Download fuer {} gestartet.", display_name))
+        Ok(format!("Download for {} started.", display_name))
     }
 
     pub fn delete_custom_file(&mut self, id: &str, display_name: &str) -> Result<String, String> {
         if self.is_downloading_custom(id) {
             return Err(
-                "Ein laufender Download kann nicht gleichzeitig geloescht werden.".to_owned(),
+                "A running download can't be deleted at the same time.".to_owned(),
             );
         }
 
         let path = default_custom_llm_path(id)?;
         if !path.exists() {
             return Ok(format!(
-                "{} war lokal bereits nicht vorhanden.",
+                "{} was already not present locally.",
                 display_name
             ));
         }
         fs::remove_file(&path)
-            .map_err(|err| format!("Sprachmodell konnte nicht geloescht werden: {err}"))?;
+            .map_err(|err| format!("Language model could not be deleted: {err}"))?;
 
         if !self.is_downloading() {
             self.state = LlmDownloadState::Missing;
         }
 
-        Ok(format!("{} wurde lokal geloescht.", display_name))
+        Ok(format!("{} was deleted locally.", display_name))
     }
 
     pub fn is_downloading_custom(&self, id: &str) -> bool {
@@ -171,26 +171,26 @@ impl LlmModelDownloadManager {
     pub fn delete_preset(&mut self, preset: LlmPreset) -> Result<String, String> {
         if self.is_downloading_preset(preset) {
             return Err(
-                "Ein laufender Download kann nicht gleichzeitig geloescht werden.".to_owned(),
+                "A running download can't be deleted at the same time.".to_owned(),
             );
         }
 
         let path = default_llm_model_path(preset)?;
         if !path.exists() {
             return Ok(format!(
-                "{} war lokal bereits nicht vorhanden.",
+                "{} was already not present locally.",
                 preset.display_label()
             ));
         }
 
         fs::remove_file(&path)
-            .map_err(|err| format!("Sprachmodell konnte nicht geloescht werden: {err}"))?;
+            .map_err(|err| format!("Language model could not be deleted: {err}"))?;
 
         if !self.is_downloading() {
             self.state = LlmDownloadState::Missing;
         }
 
-        Ok(format!("{} wurde lokal geloescht.", preset.display_label()))
+        Ok(format!("{} was deleted locally.", preset.display_label()))
     }
 
     pub fn is_downloading_preset(&self, preset: LlmPreset) -> bool {
@@ -241,7 +241,7 @@ impl LlmModelDownloadManager {
                         self.download_rx = None;
                         self.state = LlmDownloadState::Ready { path: path.clone() };
                         messages.push(format!(
-                            "Sprachmodell geladen: {} ({})",
+                            "Language model loaded: {} ({})",
                             label,
                             human_readable_size(downloaded_bytes)
                         ));
@@ -259,11 +259,11 @@ impl LlmModelDownloadManager {
                     Err(TryRecvError::Disconnected) => {
                         self.download_rx = None;
                         self.state = LlmDownloadState::Failed {
-                            message: "Sprachmodell-Download-Worker wurde unerwartet beendet."
+                            message: "Language model download worker stopped unexpectedly."
                                 .to_owned(),
                         };
                         messages.push(
-                            "Sprachmodell-Download-Worker wurde unerwartet beendet.".to_owned(),
+                            "Language model download worker stopped unexpectedly.".to_owned(),
                         );
                         break;
                     }
@@ -321,7 +321,7 @@ impl LlmModelDownloadManager {
         match &self.state {
             LlmDownloadState::Idle => summary_for_path(resolve_llm_model_path(settings).ok()),
             LlmDownloadState::Missing => format!(
-                "{} ist noch nicht heruntergeladen.",
+                "{} has not been downloaded yet.",
                 settings.local_llm.display_label()
             ),
             LlmDownloadState::Ready { path } => summary_for_existing_path(path),
@@ -333,24 +333,24 @@ impl LlmModelDownloadManager {
             } => {
                 let progress = match total_bytes {
                     Some(total_bytes) if *total_bytes > 0 => format!(
-                        "{} von {}",
+                        "{} of {}",
                         human_readable_size(*downloaded_bytes),
                         human_readable_size(*total_bytes)
                     ),
-                    _ => format!("{} geladen", human_readable_size(*downloaded_bytes)),
+                    _ => format!("{} downloaded", human_readable_size(*downloaded_bytes)),
                 };
                 let label = match target {
                     LlmDownloadTarget::Preset(preset) => preset.display_label().to_owned(),
                     LlmDownloadTarget::Custom { display_name, .. } => display_name.clone(),
                 };
                 format!(
-                    "Download fuer {} laeuft seit {} ({progress}).",
+                    "Download for {} has been running for {} ({progress}).",
                     label,
                     human_readable_duration(started_at.elapsed())
                 )
             }
             LlmDownloadState::Failed { message } => {
-                format!("Letzter Sprachmodell-Download fehlgeschlagen: {message}")
+                format!("Last language model download failed: {message}")
             }
         }
     }
@@ -407,7 +407,7 @@ pub fn resolve_llm_model_path(settings: &AppSettings) -> Result<PathBuf, String>
 
 pub fn default_llm_model_path(preset: LlmPreset) -> Result<PathBuf, String> {
     let project_dirs = ProjectDirs::from("dev", "awesome", "open-whisper")
-        .ok_or_else(|| "Config-Verzeichnis fuer Sprachmodelle nicht verfuegbar.".to_owned())?;
+        .ok_or_else(|| "Config directory for language models not available.".to_owned())?;
     Ok(project_dirs
         .config_dir()
         .join("llm-models")
@@ -417,10 +417,10 @@ pub fn default_llm_model_path(preset: LlmPreset) -> Result<PathBuf, String> {
 pub fn default_custom_llm_path(id: &str) -> Result<PathBuf, String> {
     let trimmed = id.trim();
     if trimmed.is_empty() {
-        return Err("Eigenes Sprachmodell hat keine ID.".to_owned());
+        return Err("Custom language model has no ID.".to_owned());
     }
     let project_dirs = ProjectDirs::from("dev", "awesome", "open-whisper")
-        .ok_or_else(|| "Config-Verzeichnis fuer Sprachmodelle nicht verfuegbar.".to_owned())?;
+        .ok_or_else(|| "Config directory for language models not available.".to_owned())?;
     Ok(project_dirs
         .config_dir()
         .join("llm-models")
@@ -436,25 +436,25 @@ fn download_model_file(
 ) -> Result<(), String> {
     if let Some(parent) = target_path.parent() {
         fs::create_dir_all(parent).map_err(|err| {
-            format!("Sprachmodell-Verzeichnis konnte nicht erstellt werden: {err}")
+            format!("Language model directory could not be created: {err}")
         })?;
     }
 
     let client = Client::builder()
         .connect_timeout(Duration::from_secs(20))
         .build()
-        .map_err(|err| format!("HTTP-Client fuer Sprachmodell-Download fehlgeschlagen: {err}"))?;
+        .map_err(|err| format!("HTTP client for language model download failed: {err}"))?;
 
     let mut response = client
         .get(url)
         .header("User-Agent", USER_AGENT)
         .send()
         .and_then(|response| response.error_for_status())
-        .map_err(|err| format!("Sprachmodell-Download fehlgeschlagen: {err}"))?;
+        .map_err(|err| format!("Language model download failed: {err}"))?;
 
     let total_bytes = response.content_length();
     let mut file = fs::File::create(temp_path).map_err(|err| {
-        format!("Temporaere Sprachmodell-Datei konnte nicht erstellt werden: {err}")
+        format!("Temporary language model file could not be created: {err}")
     })?;
     let mut buffer = vec![0_u8; DOWNLOAD_BUFFER_SIZE];
     let mut downloaded_bytes = 0_u64;
@@ -463,13 +463,13 @@ fn download_model_file(
     loop {
         let read = response
             .read(&mut buffer)
-            .map_err(|err| format!("Lesefehler waehrend des Downloads: {err}"))?;
+            .map_err(|err| format!("Read error during download: {err}"))?;
         if read == 0 {
             break;
         }
 
         file.write_all(&buffer[..read]).map_err(|err| {
-            format!("Sprachmodell konnte nicht auf die Platte geschrieben werden: {err}")
+            format!("Language model could not be written to disk: {err}")
         })?;
         downloaded_bytes += read as u64;
 
@@ -483,9 +483,9 @@ fn download_model_file(
     }
 
     file.sync_all()
-        .map_err(|err| format!("Sprachmodell-Datei konnte nicht finalisiert werden: {err}"))?;
+        .map_err(|err| format!("Language model file could not be finalized: {err}"))?;
     fs::rename(temp_path, target_path)
-        .map_err(|err| format!("Sprachmodell-Datei konnte nicht aktiviert werden: {err}"))?;
+        .map_err(|err| format!("Language model file could not be activated: {err}"))?;
 
     let _ = tx.send(DownloadEvent::Completed {
         path: target_path.to_path_buf(),
@@ -506,7 +506,7 @@ fn temporary_download_path(target_path: &Path) -> PathBuf {
 fn cleanup_temp_file(path: &Path) -> Result<(), String> {
     if path.exists() {
         fs::remove_file(path)
-            .map_err(|err| format!("Temp-Datei konnte nicht entfernt werden: {err}"))?;
+            .map_err(|err| format!("Temp file could not be removed: {err}"))?;
     }
 
     Ok(())
@@ -515,27 +515,27 @@ fn cleanup_temp_file(path: &Path) -> Result<(), String> {
 fn summary_for_path(path: Option<PathBuf>) -> String {
     match path {
         Some(path) if path.exists() => summary_for_existing_path(&path),
-        Some(_) => "Lokales Sprachmodell ist noch nicht heruntergeladen.".to_owned(),
-        None => "Lokaler Sprachmodell-Pfad ist aktuell nicht aufloesbar.".to_owned(),
+        Some(_) => "Local language model has not been downloaded yet.".to_owned(),
+        None => "Local language model path is not currently resolvable.".to_owned(),
     }
 }
 
 fn summary_for_existing_path(path: &Path) -> String {
     match fs::metadata(path) {
         Ok(metadata) => format!(
-            "Lokales Sprachmodell bereit ({})",
+            "Local language model ready ({})",
             human_readable_size(metadata.len())
         ),
-        Err(_) => "Lokales Sprachmodell bereit.".to_owned(),
+        Err(_) => "Local language model ready.".to_owned(),
     }
 }
 
 fn llm_label_for_path(path: &Path) -> &'static str {
     match path.file_name().and_then(|value| value.to_str()) {
-        Some("google_gemma-4-E2B-it-Q4_K_M.gguf") => "Gemma 4 E2B (klein)",
-        Some("google_gemma-4-E4B-it-Q4_K_M.gguf") => "Gemma 4 E4B (mittel)",
-        Some("google_gemma-4-26B-A4B-it-Q4_K_M.gguf") => "Gemma 4 26B (gross)",
-        _ => "lokales Sprachmodell",
+        Some("google_gemma-4-E2B-it-Q4_K_M.gguf") => "Gemma 4 E2B (small)",
+        Some("google_gemma-4-E4B-it-Q4_K_M.gguf") => "Gemma 4 E4B (medium)",
+        Some("google_gemma-4-26B-A4B-it-Q4_K_M.gguf") => "Gemma 4 26B (large)",
+        _ => "local language model",
     }
 }
 
@@ -557,7 +557,7 @@ pub fn purge_legacy_llm_files() -> Result<Vec<String>, String> {
         if candidate.exists() {
             fs::remove_file(&candidate).map_err(|err| {
                 format!(
-                    "Alte Modelldatei {} konnte nicht entfernt werden: {err}",
+                    "Old model file {} could not be removed: {err}",
                     candidate.display()
                 )
             })?;

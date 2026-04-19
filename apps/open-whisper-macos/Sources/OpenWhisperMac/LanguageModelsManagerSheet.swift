@@ -7,10 +7,10 @@ enum LanguageModelsManagerTab: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
+    func title(locale: Locale) -> String {
         switch self {
-        case .transcription: return "Transkription"
-        case .postProcessing: return "Nachbearbeitung"
+        case .transcription: return L("Transcription", locale: locale)
+        case .postProcessing: return L("Post-processing", locale: locale)
         }
     }
 }
@@ -23,18 +23,19 @@ struct LanguageModelsManagerSheet: View {
     @State private var isShowingUrlDialog: Bool = false
     @State private var urlDialogName: String = ""
     @State private var urlDialogUrl: String = ""
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Sprachmodelle verwalten")
+                Text("Manage language models", bundle: .module)
                     .font(.title3.weight(.semibold))
                 Spacer()
             }
 
             Picker("", selection: $selectedTab) {
                 ForEach(LanguageModelsManagerTab.allCases) { tab in
-                    Text(tab.title).tag(tab)
+                    Text(tab.title(locale: locale)).tag(tab)
                 }
             }
             .pickerStyle(.segmented)
@@ -53,8 +54,10 @@ struct LanguageModelsManagerSheet: View {
 
             HStack {
                 Spacer()
-                Button("Fertig", action: onDone)
-                    .keyboardShortcut(.defaultAction)
+                Button(action: onDone) {
+                    Text("Done", bundle: .module)
+                }
+                .keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)
@@ -66,25 +69,31 @@ struct LanguageModelsManagerSheet: View {
 
     private var urlAddDialog: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Sprachmodell per URL hinzuf\u{FC}gen")
+            Text("Add language model by URL", bundle: .module)
                 .font(.headline)
 
             Form {
-                TextField("Anzeigename", text: $urlDialogName)
-                TextField("Download-URL (.gguf)", text: $urlDialogUrl)
+                TextField(text: $urlDialogName) {
+                    Text("Display name", bundle: .module)
+                }
+                TextField(text: $urlDialogUrl) {
+                    Text("Download URL (.gguf)", bundle: .module)
+                }
             }
             .formStyle(.grouped)
 
-            Text("Die Datei wird nach dem Hinzuf\u{FC}gen \u{FC}ber den 'Herunterladen'-Button geladen. Quellen wie Hugging Face 'resolve/main'-Links werden empfohlen.")
+            Text("After adding, the file is fetched via the 'Download' button. Hugging Face 'resolve/main' links are recommended.", bundle: .module)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
             HStack {
                 Spacer()
-                Button("Abbrechen") {
+                Button {
                     isShowingUrlDialog = false
+                } label: {
+                    Text("Cancel", bundle: .module)
                 }
-                Button("Hinzuf\u{FC}gen") {
+                Button {
                     let trimmedName = urlDialogName.trimmingCharacters(in: .whitespacesAndNewlines)
                     let trimmedUrl = urlDialogUrl.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmedName.isEmpty, !trimmedUrl.isEmpty else { return }
@@ -92,6 +101,8 @@ struct LanguageModelsManagerSheet: View {
                     urlDialogName = ""
                     urlDialogUrl = ""
                     isShowingUrlDialog = false
+                } label: {
+                    Text("Add", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
@@ -107,26 +118,30 @@ struct LanguageModelsManagerSheet: View {
 
     @ViewBuilder
     private var transcriptionContent: some View {
-        Section("Whisper-Presets") {
+        Section {
             ForEach(ModelPreset.allCases) { preset in
                 let status = model.modelStatusList.first(where: { $0.backendModelName == preset.whisperModel })
                 whisperTile(preset: preset, status: status)
             }
+        } header: {
+            Text("Whisper presets", bundle: .module)
         }
     }
 
     @ViewBuilder
     private var postProcessingContent: some View {
-        Section("Lokale Sprachmodelle") {
+        Section {
             ForEach(LlmPreset.allCases) { preset in
                 let status = model.llmStatusList.first(where: { $0.displayLabel == preset.displayName })
                 llmTile(preset: preset, status: status)
             }
+        } header: {
+            Text("Local language models", bundle: .module)
         }
 
-        Section("Eigene Modelle") {
+        Section {
             if model.settings.customLlmModels.isEmpty {
-                Text("Noch keine eigenen Sprachmodelle hinzugef\u{FC}gt.")
+                Text("No custom language models added yet.", bundle: .module)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -136,22 +151,32 @@ struct LanguageModelsManagerSheet: View {
             }
 
             HStack(spacing: 10) {
-                Button("+ Datei ausw\u{E4}hlen") {
+                Button {
                     presentCustomLlmFilePicker()
+                } label: {
+                    Text("+ Choose file…", bundle: .module)
                 }
-                Button("+ Von URL laden") {
+                Button {
                     urlDialogName = ""
                     urlDialogUrl = ""
                     isShowingUrlDialog = true
+                } label: {
+                    Text("+ Load from URL", bundle: .module)
                 }
             }
+        } header: {
+            Text("Custom models", bundle: .module)
         }
 
-        Section("Ollama") {
-            TextField("Endpoint", text: model.binding(for: \.ollama.endpoint))
+        Section {
+            TextField(text: model.binding(for: \.ollama.endpoint)) {
+                Text("Endpoint", bundle: .module)
+            }
             HStack(spacing: 10) {
-                Button("Modelle abrufen") {
+                Button {
                     model.refreshRemoteModels(backend: .ollama)
+                } label: {
+                    Text("Fetch models", bundle: .module)
                 }
                 if let err = model.ollamaModelsError {
                     Text(err)
@@ -161,7 +186,7 @@ struct LanguageModelsManagerSheet: View {
                 }
             }
             if model.ollamaModels.isEmpty && model.ollamaModelsError == nil {
-                Text("Noch keine Modellliste abgerufen. Laufender Ollama-Server ben\u{F6}tigt.")
+                Text("No model list fetched yet. A running Ollama server is required.", bundle: .module)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -169,13 +194,19 @@ struct LanguageModelsManagerSheet: View {
                     remoteModelTile(entry: entry, isActive: isActiveOllama(entry))
                 }
             }
+        } header: {
+            Text("Ollama", bundle: .module)
         }
 
-        Section("LM Studio") {
-            TextField("Endpoint", text: model.binding(for: \.lmStudio.endpoint))
+        Section {
+            TextField(text: model.binding(for: \.lmStudio.endpoint)) {
+                Text("Endpoint", bundle: .module)
+            }
             HStack(spacing: 10) {
-                Button("Modelle abrufen") {
+                Button {
                     model.refreshRemoteModels(backend: .lmStudio)
+                } label: {
+                    Text("Fetch models", bundle: .module)
                 }
                 if let err = model.lmStudioModelsError {
                     Text(err)
@@ -185,7 +216,7 @@ struct LanguageModelsManagerSheet: View {
                 }
             }
             if model.lmStudioModels.isEmpty && model.lmStudioModelsError == nil {
-                Text("Noch keine Modellliste abgerufen. Laufender LM-Studio-Server ben\u{F6}tigt.")
+                Text("No model list fetched yet. A running LM Studio server is required.", bundle: .module)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -193,6 +224,8 @@ struct LanguageModelsManagerSheet: View {
                     remoteModelTile(entry: entry, isActive: isActiveLmStudio(entry))
                 }
             }
+        } header: {
+            Text("LM Studio", bundle: .module)
         }
     }
 
@@ -212,7 +245,7 @@ struct LanguageModelsManagerSheet: View {
                         Text(entry.name)
                             .font(.body.weight(.medium))
                         if isActive {
-                            Text("Aktiv")
+                            Text("Active", bundle: .module)
                                 .font(.caption2.weight(.semibold))
                                 .padding(.vertical, 2)
                                 .padding(.horizontal, 6)
@@ -229,27 +262,35 @@ struct LanguageModelsManagerSheet: View {
 
                 Spacer()
 
-                Button(isActive ? "Aktiv" : "Ausw\u{E4}hlen") {
+                Button {
                     model.postProcessingChoiceBinding.wrappedValue = .localCustom(id: entry.id)
+                } label: {
+                    Text(isActive ? "Active" : "Select", bundle: .module)
                 }
                 .disabled(isActive)
 
                 if needsDownload {
                     if isDownloaded {
-                        Button("Datei l\u{F6}schen") {
+                        Button {
                             model.deleteCustomLlmFile(id: entry.id)
+                        } label: {
+                            Text("Delete file", bundle: .module)
                         }
                         .disabled(isDownloading)
                     } else {
-                        Button(isDownloading ? "Lade..." : "Herunterladen") {
+                        Button {
                             model.startCustomLlmDownload(id: entry.id)
+                        } label: {
+                            Text(isDownloading ? "Loading…" : "Download", bundle: .module)
                         }
                         .disabled(isDownloading)
                     }
                 }
 
-                Button("Entfernen") {
+                Button {
                     model.removeCustomLlm(id: entry.id)
+                } label: {
+                    Text("Remove", bundle: .module)
                 }
             }
 
@@ -267,9 +308,9 @@ struct LanguageModelsManagerSheet: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Hinzuf\u{FC}gen"
-        panel.title = "Eigenes Sprachmodell ausw\u{E4}hlen"
-        panel.message = "GGUF- oder GGML-Modelldatei ausw\u{E4}hlen."
+        panel.prompt = L("Add", locale: locale)
+        panel.title = L("Choose custom language model", locale: locale)
+        panel.message = L("Select a GGUF or GGML model file.", locale: locale)
 
         guard panel.runModal() == .OK, let url = panel.url else {
             return
@@ -297,7 +338,7 @@ struct LanguageModelsManagerSheet: View {
                     Text(entry.name)
                         .font(.body.weight(.medium))
                     if isActive {
-                        Text("Aktiv")
+                        Text("Active", bundle: .module)
                             .font(.caption2.weight(.semibold))
                             .padding(.vertical, 2)
                             .padding(.horizontal, 6)
@@ -313,13 +354,15 @@ struct LanguageModelsManagerSheet: View {
 
             Spacer()
 
-            Button(isActive ? "Aktiv" : "Ausw\u{E4}hlen") {
+            Button {
                 switch entry.backend {
                 case .ollama:
                     model.postProcessingChoiceBinding.wrappedValue = .ollamaModel(entry.name)
                 case .lmStudio:
                     model.postProcessingChoiceBinding.wrappedValue = .lmStudioModel(entry.name)
                 }
+            } label: {
+                Text(isActive ? "Active" : "Select", bundle: .module)
             }
             .disabled(isActive)
         }
@@ -333,7 +376,7 @@ struct LanguageModelsManagerSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(preset.displayName)
                         .font(.body.weight(.medium))
-                    Text(preset.description)
+                    Text(preset.description(locale: locale))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -352,7 +395,7 @@ struct LanguageModelsManagerSheet: View {
             }
 
             HStack(spacing: 10) {
-                Text(status?.summary ?? "Status unbekannt.")
+                Text(status?.summary ?? L("Status unknown.", locale: locale))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -360,13 +403,17 @@ struct LanguageModelsManagerSheet: View {
                 Spacer()
 
                 if status?.isDownloaded == true {
-                    Button("Loeschen") {
+                    Button {
                         model.deleteModel(preset: preset)
+                    } label: {
+                        Text("Delete", bundle: .module)
                     }
                     .disabled(status?.isDownloading == true)
                 } else {
-                    Button(status?.isDownloading == true ? "Lade..." : "Herunterladen") {
+                    Button {
                         model.startModelDownload(preset: preset)
+                    } label: {
+                        Text(status?.isDownloading == true ? "Loading…" : "Download", bundle: .module)
                     }
                     .disabled(status?.isDownloading == true)
                 }
@@ -384,7 +431,7 @@ struct LanguageModelsManagerSheet: View {
                         Text(preset.displayName)
                             .font(.body.weight(.medium))
                         if status?.isLoaded == true {
-                            Text("Geladen")
+                            Text("Loaded", bundle: .module)
                                 .font(.caption2.weight(.semibold))
                                 .padding(.vertical, 2)
                                 .padding(.horizontal, 6)
@@ -392,7 +439,7 @@ struct LanguageModelsManagerSheet: View {
                                 .foregroundStyle(Color.accentColor)
                         }
                     }
-                    Text(preset.description)
+                    Text(preset.description(locale: locale))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -411,7 +458,7 @@ struct LanguageModelsManagerSheet: View {
             }
 
             HStack(spacing: 10) {
-                Text(status?.summary ?? "Status unbekannt.")
+                Text(status?.summary ?? L("Status unknown.", locale: locale))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -419,13 +466,17 @@ struct LanguageModelsManagerSheet: View {
                 Spacer()
 
                 if status?.isDownloaded == true {
-                    Button("Loeschen") {
+                    Button {
                         model.deleteLlmModel(preset: preset)
+                    } label: {
+                        Text("Delete", bundle: .module)
                     }
                     .disabled(status?.isDownloading == true)
                 } else {
-                    Button(status?.isDownloading == true ? "Lade..." : "Herunterladen") {
+                    Button {
                         model.startLlmDownload(preset: preset)
+                    } label: {
+                        Text(status?.isDownloading == true ? "Loading…" : "Download", bundle: .module)
                     }
                     .disabled(status?.isDownloading == true)
                 }
@@ -434,4 +485,3 @@ struct LanguageModelsManagerSheet: View {
         .padding(.vertical, 4)
     }
 }
-

@@ -49,7 +49,10 @@ final class AppModel: ObservableObject {
     }
 
     var hotkeyFieldTitle: String {
-        isCapturingHotkey ? "Jetzt Tastenkombination druecken" : "Globaler Hotkey"
+        let locale = settings.effectiveLocale
+        return isCapturingHotkey
+            ? L("Press your keyboard shortcut now", locale: locale)
+            : L("Global hotkey", locale: locale)
     }
 
     var selectedLanguageCode: String {
@@ -78,44 +81,51 @@ final class AppModel: ObservableObject {
     }
 
     var selectedModelStatusText: String {
+        let locale = settings.effectiveLocale
         if modelStatus.isDownloading {
-            return "Download laeuft"
+            return L("Downloading", locale: locale)
         }
-        return modelStatus.isDownloaded ? "Bereit" : "Noch nicht geladen"
+        return modelStatus.isDownloaded
+            ? L("Ready", locale: locale)
+            : L("Not yet loaded", locale: locale)
     }
 
     var selectedTranscriptionSummaryText: String {
         let preset = settings.localModel
-        return "\(preset.description) \u{2013} \(preset.downloadSizeText) \u{2013} \(selectedModelStatusText)"
+        let locale = settings.effectiveLocale
+        return "\(preset.description(locale: locale)) \u{2013} \(preset.downloadSizeText) \u{2013} \(selectedModelStatusText)"
     }
 
     var postProcessingSummaryText: String {
+        let locale = settings.effectiveLocale
         switch postProcessingChoiceBinding.wrappedValue {
         case .localPreset(let preset):
-            return "\(preset.description) \u{2013} \(preset.approxSizeLabel)"
+            return "\(preset.description(locale: locale)) \u{2013} \(preset.approxSizeLabel)"
         case .localCustom(let id):
-            let name = settings.customLlmModels.first(where: { $0.id == id })?.name ?? "unbekannt"
-            return "Eigenes lokales Modell: \(name)"
+            let name = settings.customLlmModels.first(where: { $0.id == id })?.name
+                ?? L("unknown", locale: locale)
+            return "\(L("Custom local model", locale: locale)): \(name)"
         case .ollamaModel(let name):
             let endpoint = settings.ollama.endpoint
-            let model = name.isEmpty ? "kein Modell" : name
+            let model = name.isEmpty ? L("no model", locale: locale) : name
             return "Ollama \u{2013} \(endpoint) / \(model)"
         case .lmStudioModel(let name):
             let endpoint = settings.lmStudio.endpoint
-            let model = name.isEmpty ? "kein Modell" : name
+            let model = name.isEmpty ? L("no model", locale: locale) : name
             return "LM Studio \u{2013} \(endpoint) / \(model)"
         }
     }
 
     var selectedModelSizeText: String {
+        let locale = settings.effectiveLocale
         if modelStatus.isDownloaded,
            let actual = actualModelFileSize() {
-            return "\(Self.formatByteCount(actual)) (geladen)"
+            return "\(Self.formatByteCount(actual)) (\(L("loaded", locale: locale)))"
         }
         let expected = modelStatus.expectedSizeBytes == 0
             ? settings.localModel.downloadSizeBytes
             : modelStatus.expectedSizeBytes
-        return "ca. \(Self.formatByteCount(expected)) (Download)"
+        return "\(L("approx.", locale: locale)) \(Self.formatByteCount(expected)) (\(L("download", locale: locale)))"
     }
 
     private func actualModelFileSize() -> UInt64? {
@@ -140,7 +150,7 @@ final class AppModel: ObservableObject {
     var hotkeyRiskHint: String? {
         let source = isCapturingHotkey && !hotkeyCapturePreview.isEmpty ? hotkeyCapturePreview : settings.hotkey
         return isSingleKeyHotkey(source)
-            ? "Eine einzelne globale Taste kann mit normaler Texteingabe kollidieren. Kombinationen bleiben sicherer."
+            ? L("A single global key may collide with regular typing. Combinations stay safer.", locale: settings.effectiveLocale)
             : nil
     }
 
@@ -308,7 +318,9 @@ final class AppModel: ObservableObject {
     }
 
     func whisperPresetPickerLabel(_ preset: ModelPreset) -> String {
-        isWhisperPresetDownloaded(preset) ? preset.displayName : "\(preset.displayName) (nicht geladen)"
+        isWhisperPresetDownloaded(preset)
+            ? preset.displayName
+            : "\(preset.displayName) (\(L("not loaded", locale: settings.effectiveLocale)))"
     }
 
     var availablePostProcessingChoices: [PostProcessingChoice] {
@@ -330,20 +342,23 @@ final class AppModel: ObservableObject {
     }
 
     func postProcessingChoiceLabel(_ choice: PostProcessingChoice) -> String {
+        let locale = settings.effectiveLocale
         switch choice {
         case .localCustom(let id):
             if let entry = settings.customLlmModels.first(where: { $0.id == id }) {
-                return "\(entry.name) (eigen, lokal)"
+                return "\(entry.name) (\(L("custom, local", locale: locale)))"
             }
-            return choice.fallbackLabel
+            return choice.fallbackLabel(locale: locale)
         default:
-            return choice.fallbackLabel
+            return choice.fallbackLabel(locale: locale)
         }
     }
 
     func postProcessingChoicePickerLabel(_ choice: PostProcessingChoice) -> String {
         let label = postProcessingChoiceLabel(choice)
-        return isPostProcessingChoiceAvailable(choice) ? label : "\(label) (nicht geladen)"
+        return isPostProcessingChoiceAvailable(choice)
+            ? label
+            : "\(label) (\(L("not loaded", locale: settings.effectiveLocale)))"
     }
 
     var postProcessingChoices: [PostProcessingChoice] {
@@ -652,7 +667,7 @@ final class AppModel: ObservableObject {
     @discardableResult
     func createMode() -> String {
         let existingNames = Set(settings.modes.map(\.name))
-        let baseName = "Neue Nachbearbeitung"
+        let baseName = L("New post-processing", locale: settings.effectiveLocale)
         var suffix = 1
         var candidate = baseName
         while existingNames.contains(candidate) {
@@ -723,7 +738,7 @@ final class AppModel: ObservableObject {
     func clearHotkeyCapture() {
         settings.hotkey = hotkeyBeforeCapture
         hotkeyCapturePreview = ""
-        hotkeyCaptureError = "Open Whisper braucht einen globalen Hotkey. Leere Eingaben sind nicht erlaubt."
+        hotkeyCaptureError = L("Open Whisper needs a global hotkey. Empty input is not allowed.", locale: settings.effectiveLocale)
         isCapturingHotkey = false
     }
 

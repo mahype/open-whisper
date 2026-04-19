@@ -12,22 +12,22 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
+    func title(locale: Locale) -> String {
         switch self {
         case .recording:
-            return "Aufnahme"
+            return L("Recording", locale: locale)
         case .modes:
-            return "Nachbearbeitung"
+            return L("Post-processing", locale: locale)
         case .languageModels:
-            return "Sprachmodelle"
+            return L("Language models", locale: locale)
         case .startup:
-            return "Start & Verhalten"
+            return L("Start & behavior", locale: locale)
         case .updates:
-            return "Updates"
+            return L("Updates", locale: locale)
         case .diagnostics:
-            return "Diagnose"
+            return L("Diagnostics", locale: locale)
         case .help:
-            return "Hilfe"
+            return L("Help", locale: locale)
         }
     }
 
@@ -70,10 +70,17 @@ struct ModeListTile: View {
                 Text(mode.name)
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
-                Text(mode.prompt.isEmpty ? "Kein Prompt hinterlegt" : mode.prompt)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if mode.prompt.isEmpty {
+                    Text("No prompt set", bundle: .module)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else {
+                    Text(mode.prompt)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 8)
@@ -83,7 +90,7 @@ struct ModeListTile: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.borderless)
-            .help("Nachbearbeitung bearbeiten")
+            .help(Text("Edit post-processing", bundle: .module))
 
             Button(action: onDelete) {
                 Image(systemName: "trash")
@@ -91,7 +98,7 @@ struct ModeListTile: View {
             }
             .buttonStyle(.borderless)
             .disabled(!canDelete)
-            .help(canDelete ? "Nachbearbeitung loeschen" : "Mindestens eine Nachbearbeitung muss bestehen bleiben")
+            .help(Text(canDelete ? "Delete post-processing" : "At least one post-processing must remain", bundle: .module))
         }
         .contentShape(Rectangle())
         .onTapGesture { onActivate() }
@@ -117,10 +124,10 @@ struct PostProcessingOffTile: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Aus")
+                Text("Off", bundle: .module)
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
-                Text("Transkription wird unverändert übernommen")
+                Text("Transcription is used as-is.", bundle: .module)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -144,6 +151,7 @@ struct ModelPresetTile: View {
     let preset: ModelPreset
     let isSelected: Bool
     let action: () -> Void
+    @Environment(\.locale) private var locale
 
     var body: some View {
         Button(action: action) {
@@ -155,7 +163,7 @@ struct ModelPresetTile: View {
                     Text(preset.displayName)
                         .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
-                    Text(preset.description)
+                    Text(preset.description(locale: locale))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -163,7 +171,7 @@ struct ModelPresetTile: View {
 
                 Spacer(minLength: 8)
 
-                Text("ca. \(preset.downloadSizeText)")
+                Text("\(L("approx.", locale: locale)) \(preset.downloadSizeText)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -177,21 +185,24 @@ struct ModelPresetTile: View {
 struct ModeEditorSheet: View {
     @ObservedObject var model: AppModel
     let onDone: () -> Void
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Nachbearbeitung bearbeiten")
+                Text("Edit post-processing", bundle: .module)
                     .font(.title3.weight(.semibold))
                 Spacer()
             }
 
             Form {
                 Section {
-                    TextField("Name", text: model.modeBinding(for: \.name))
+                    TextField(text: model.modeBinding(for: \.name)) {
+                        Text("Name", bundle: .module)
+                    }
                 }
 
-                Section("Prompt") {
+                Section {
                     TextEditor(text: model.modeBinding(for: \.prompt))
                         .font(.body)
                         .frame(minHeight: 180)
@@ -206,21 +217,27 @@ struct ModeEditorSheet: View {
                                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                         )
                         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                } header: {
+                    Text("Prompt", bundle: .module)
                 }
 
-                Section("Sprachmodell") {
-                    Picker("Modell", selection: model.modeChoiceBinding()) {
-                        Text("Standard (global)")
+                Section {
+                    Picker(selection: model.modeChoiceBinding()) {
+                        Text("Default (global)", bundle: .module)
                             .tag(Optional<PostProcessingChoice>.none)
                         ForEach(model.availablePostProcessingChoices) { choice in
                             Text(model.postProcessingChoicePickerLabel(choice))
                                 .tag(Optional(choice))
                         }
+                    } label: {
+                        Text("Model", bundle: .module)
                     }
 
                     Text(modelHintText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                } header: {
+                    Text("Language model", bundle: .module)
                 }
             }
             .formStyle(.grouped)
@@ -228,8 +245,10 @@ struct ModeEditorSheet: View {
 
             HStack {
                 Spacer()
-                Button("Fertig", action: onDone)
-                    .keyboardShortcut(.defaultAction)
+                Button(action: onDone) {
+                    Text("Done", bundle: .module)
+                }
+                .keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)
@@ -238,18 +257,25 @@ struct ModeEditorSheet: View {
 
     private var modelHintText: String {
         if let choice = model.modeChoiceBinding().wrappedValue {
-            return "Dieses Profil nutzt: \(model.postProcessingChoiceLabel(choice))."
+            return String(
+                format: L("This profile uses: %@.", locale: locale),
+                model.postProcessingChoiceLabel(choice)
+            )
         }
         let global = model.postProcessingChoiceBinding.wrappedValue
-        return "Nutzt globales Modell: \(model.postProcessingChoiceLabel(global))."
+        return String(
+            format: L("Uses global model: %@.", locale: locale),
+            model.postProcessingChoiceLabel(global)
+        )
     }
 }
 
 struct DiagnosticStatusBadge: View {
     let status: DiagnosticStatus
+    @Environment(\.locale) private var locale
 
     var body: some View {
-        Text(status.label)
+        Text(status.label(locale: locale))
             .font(.caption.weight(.semibold))
             .padding(.vertical, 3)
             .padding(.horizontal, 7)
@@ -297,18 +323,21 @@ struct DiagnosticDisclosureCard: View {
 
 struct StepRail: View {
     let currentStep: Int
+    @Environment(\.locale) private var locale
 
-    private let steps = [
-        "Willkommen",
-        "Audio & Hotkey",
-        "Sprachmodelle",
-        "Start & Verhalten",
-        "Diagnose",
-    ]
+    private var steps: [String] {
+        [
+            L("Welcome", locale: locale),
+            L("Audio & hotkey", locale: locale),
+            L("Language models", locale: locale),
+            L("Start & behavior", locale: locale),
+            L("Diagnostics", locale: locale),
+        ]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Einrichtung")
+            Text("Setup", bundle: .module)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)

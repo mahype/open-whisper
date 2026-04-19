@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingView: View {
     @ObservedObject var model: AppModel
     let onFinish: () -> Void
+    @Environment(\.locale) private var locale
 
     var body: some View {
         HStack(spacing: 0) {
@@ -27,11 +28,11 @@ struct OnboardingView: View {
 
     private var stepTitle: String {
         switch model.onboardingStep {
-        case 0: return "Willkommen"
-        case 1: return "Audio & Hotkey"
-        case 2: return "Sprachmodelle"
-        case 3: return "Start & Verhalten"
-        default: return "Diagnose"
+        case 0: return L("Welcome", locale: locale)
+        case 1: return L("Audio & hotkey", locale: locale)
+        case 2: return L("Language models", locale: locale)
+        case 3: return L("Start & behavior", locale: locale)
+        default: return L("Diagnostics", locale: locale)
         }
     }
 
@@ -39,47 +40,79 @@ struct OnboardingView: View {
     private var currentStep: some View {
         switch model.onboardingStep {
         case 0:
-            Section("Open Whisper") {
-                Text("Tray-first, lokal und fuer den Alltag. Standard ist lokales Whisper; Ollama und LM Studio bleiben optional.")
+            Section {
+                Text("Tray-first, local, and built for everyday use. Default is local Whisper; Ollama and LM Studio stay optional.", bundle: .module)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            } header: {
+                Text("Open Whisper", bundle: .module)
             }
 
-            Section("Aktuelle Auswahl") {
-                LabeledContent("Mikrofon", value: model.settings.inputDeviceName)
-                LabeledContent("Hotkey", value: hotkeyDisplayString(model.settings.hotkey))
-                LabeledContent("Modell", value: model.selectedModelDisplayName)
-                LabeledContent("Systemstart", value: model.settings.startupBehavior.label)
+            Section {
+                LabeledContent {
+                    Text(model.settings.inputDeviceName)
+                } label: {
+                    Text("Microphone", bundle: .module)
+                }
+                LabeledContent {
+                    Text(hotkeyDisplayString(model.settings.hotkey))
+                } label: {
+                    Text("Hotkey", bundle: .module)
+                }
+                LabeledContent {
+                    Text(model.selectedModelDisplayName)
+                } label: {
+                    Text("Model", bundle: .module)
+                }
+                LabeledContent {
+                    Text(model.settings.startupBehavior.label(locale: locale))
+                } label: {
+                    Text("System startup", bundle: .module)
+                }
+            } header: {
+                Text("Current selection", bundle: .module)
             }
         case 1:
-            Section("Audioquelle") {
-                Picker("Mikrofon", selection: model.binding(for: \.inputDeviceName)) {
+            Section {
+                Picker(selection: model.binding(for: \.inputDeviceName)) {
                     ForEach(deviceNames, id: \.self) { device in
                         Text(device).tag(device)
                     }
+                } label: {
+                    Text("Microphone", bundle: .module)
                 }
 
-                Picker("Sprache", selection: model.languageBinding()) {
+                Picker(selection: model.languageBinding()) {
                     ForEach(model.availableLanguageOptions) { option in
-                        Text(option.label).tag(option.code)
+                        Text(option.label(locale: locale)).tag(option.code)
                     }
+                } label: {
+                    Text("Language", bundle: .module)
                 }
 
-                Button("Mikrofone neu laden") {
+                Button {
                     model.refreshDevices()
+                } label: {
+                    Text("Reload microphones", bundle: .module)
                 }
+            } header: {
+                Text("Audio source", bundle: .module)
             }
 
-            Section("Trigger") {
-                Picker("Modus", selection: model.binding(for: \.triggerMode)) {
+            Section {
+                Picker(selection: model.binding(for: \.triggerMode)) {
                     ForEach(TriggerMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
+                        Text(mode.label(locale: locale)).tag(mode)
                     }
+                } label: {
+                    Text("Mode", bundle: .module)
                 }
                 .pickerStyle(.segmented)
+            } header: {
+                Text("Trigger", bundle: .module)
             }
 
-            Section("Globaler Hotkey") {
+            Section {
                 HotkeyRecorderField(
                     title: model.hotkeyFieldTitle,
                     currentHotkey: model.settings.hotkey,
@@ -94,16 +127,20 @@ struct OnboardingView: View {
                     onPreview: { model.updateHotkeyCapturePreview($0) },
                     onInvalid: { model.failHotkeyCapture($0) }
                 )
+            } header: {
+                Text("Global hotkey", bundle: .module)
             }
         case 2:
-            Section("Transkription") {
-                Picker("Whisper-Modell", selection: model.binding(for: \.localModel)) {
+            Section {
+                Picker(selection: model.binding(for: \.localModel)) {
                     ForEach(ModelPreset.allCases) { preset in
                         Text(preset.displayName).tag(preset)
                     }
+                } label: {
+                    Text("Whisper model", bundle: .module)
                 }
 
-                Text("\(model.settings.localModel.description) (\(model.settings.localModel.downloadSizeText))")
+                Text("\(model.settings.localModel.description(locale: locale)) (\(model.settings.localModel.downloadSizeText))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -111,18 +148,26 @@ struct OnboardingView: View {
                     if status.isDownloading, let basisPoints = status.progressBasisPoints {
                         ProgressView(value: Double(basisPoints) / 10_000.0)
                     }
-                    LabeledContent("Status", value: status.summary)
+                    LabeledContent {
+                        Text(status.summary)
+                    } label: {
+                        Text("Status", bundle: .module)
+                    }
                 }
+            } header: {
+                Text("Transcription", bundle: .module)
             }
 
-            Section("Nachbearbeitung") {
-                Picker("Sprachmodell", selection: model.binding(for: \.localLlm)) {
+            Section {
+                Picker(selection: model.binding(for: \.localLlm)) {
                     ForEach(LlmPreset.allCases) { preset in
                         Text(preset.displayName).tag(preset)
                     }
+                } label: {
+                    Text("Language model", bundle: .module)
                 }
 
-                Text("\(model.settings.localLlm.description) (\(model.settings.localLlm.approxSizeLabel))")
+                Text("\(model.settings.localLlm.description(locale: locale)) (\(model.settings.localLlm.approxSizeLabel))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -130,77 +175,115 @@ struct OnboardingView: View {
                     if status.isDownloading, let basisPoints = status.progressBasisPoints {
                         ProgressView(value: Double(basisPoints) / 10_000.0)
                     }
-                    LabeledContent("Status", value: status.summary)
+                    LabeledContent {
+                        Text(status.summary)
+                    } label: {
+                        Text("Status", bundle: .module)
+                    }
                 }
+            } header: {
+                Text("Post-processing", bundle: .module)
             }
 
             Section {
-                Text("Beide Modelle starten den Download im Hintergrund, sobald du auf 'Weiter' klickst. Du kannst sie spaeter in den Einstellungen unter 'Sprachmodelle' aendern oder verwalten.")
+                Text("Both models start downloading in the background when you click 'Next'. You can change or manage them later in Settings under 'Language models'.", bundle: .module)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         case 3:
-            Section("Systemstart") {
-                Picker("Systemstart", selection: model.binding(for: \.startupBehavior)) {
+            Section {
+                Picker(selection: model.binding(for: \.startupBehavior)) {
                     ForEach(StartupBehavior.allCases) { behavior in
-                        Text(behavior.label).tag(behavior)
+                        Text(behavior.label(locale: locale)).tag(behavior)
                     }
+                } label: {
+                    Text("System startup", bundle: .module)
                 }
+            } header: {
+                Text("System startup", bundle: .module)
             }
 
-            Section("Textausgabe") {
-                Toggle("Text automatisch einfuegen", isOn: model.binding(for: \.insertTextAutomatically))
-                Toggle("Clipboard wiederherstellen", isOn: model.binding(for: \.restoreClipboardAfterInsert))
+            Section {
+                Toggle(isOn: model.binding(for: \.insertTextAutomatically)) {
+                    Text("Insert text automatically", bundle: .module)
+                }
+                Toggle(isOn: model.binding(for: \.restoreClipboardAfterInsert)) {
+                    Text("Restore clipboard after inserting", bundle: .module)
+                }
+            } header: {
+                Text("Text output", bundle: .module)
             }
 
-            Section("Diktat-Stopp") {
-                Toggle("Silence-Stop aktivieren", isOn: model.binding(for: \.vadEnabled))
+            Section {
+                Toggle(isOn: model.binding(for: \.vadEnabled)) {
+                    Text("Enable silence stop", bundle: .module)
+                }
+            } header: {
+                Text("Dictation stop", bundle: .module)
             }
         default:
-            Section("Uebersicht") {
+            Section {
                 Text(model.diagnostics.summary)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 10) {
-                    Button("Aktualisieren") { model.refreshDiagnostics() }
-                    Button("System Settings oeffnen") { model.openSystemSettings() }
+                    Button {
+                        model.refreshDiagnostics()
+                    } label: {
+                        Text("Refresh", bundle: .module)
+                    }
+                    Button {
+                        model.openSystemSettings()
+                    } label: {
+                        Text("Open System Settings", bundle: .module)
+                    }
                 }
+            } header: {
+                Text("Overview", bundle: .module)
             }
 
-            Section("Details") {
+            Section {
                 ForEach(model.diagnostics.items) { item in
                     DiagnosticDisclosureCard(item: item)
                         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 }
+            } header: {
+                Text("Details", bundle: .module)
             }
         }
     }
 
     private var footer: some View {
         HStack {
-            Button("Zurueck") {
+            Button {
                 model.onboardingStep = max(0, model.onboardingStep - 1)
+            } label: {
+                Text("Back", bundle: .module)
             }
             .disabled(model.onboardingStep == 0)
 
             Spacer()
 
             if model.onboardingStep == 4 {
-                Button("Abschliessen") {
+                Button {
                     if model.completeOnboarding() {
                         onFinish()
                     }
+                } label: {
+                    Text("Finish", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             } else {
-                Button("Weiter") {
+                Button {
                     let current = model.onboardingStep
                     if current == 2 {
                         triggerModelDownloadsIfNeeded()
                     }
                     model.onboardingStep = min(4, current + 1)
+                } label: {
+                    Text("Next", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

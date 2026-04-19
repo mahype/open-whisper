@@ -64,9 +64,9 @@ struct PendingPostProcessing {
 
 impl BridgeRuntime {
     fn new() -> Self {
-        let mut last_status = "Bereit".to_owned();
+        let mut last_status = "Ready".to_owned();
         let mut settings = settings_store::load().unwrap_or_else(|err| {
-            last_status = format!("Settings konnten nicht geladen werden: {err}");
+            last_status = format!("Settings could not be loaded: {err}");
             AppSettings::default()
         });
         settings.normalize();
@@ -91,7 +91,7 @@ impl BridgeRuntime {
         match llm_model_manager::purge_legacy_llm_files() {
             Ok(removed) if !removed.is_empty() => {
                 last_status = format!(
-                    "Alte Sprachmodelle entfernt ({} Datei(en)). Gemma 4 wird verwendet.",
+                    "Removed old language models ({} file(s)). Gemma 4 is now used.",
                     removed.len()
                 );
             }
@@ -156,7 +156,7 @@ impl BridgeRuntime {
                         self.pending_post_processing = None;
                         self.finish_transcript(
                             processed_text,
-                            &format!("Nachbearbeitung '{mode_name}' abgeschlossen."),
+                            &format!("Post-processing '{mode_name}' complete."),
                         );
                     }
                 }
@@ -166,7 +166,7 @@ impl BridgeRuntime {
                         self.pending_post_processing = None;
                     } else if let Some(pending) = self.pending_post_processing.take() {
                         let fallback_status = format!(
-                            "Nachbearbeitung '{}' ueber {} fehlgeschlagen. Rohtranskript wird verwendet. {err}",
+                            "Post-processing '{}' via {} failed. Using raw transcript. {err}",
                             pending.mode_name, pending.provider_label
                         );
                         self.finish_transcript(pending.raw_transcript, &fallback_status);
@@ -180,13 +180,13 @@ impl BridgeRuntime {
                         self.pending_post_processing = None;
                     } else if let Some(pending) = self.pending_post_processing.take() {
                         let fallback_status = format!(
-                            "Nachbearbeitung '{}' wurde unerwartet beendet. Rohtranskript wird verwendet.",
+                            "Post-processing '{}' stopped unexpectedly. Using raw transcript.",
                             pending.mode_name
                         );
                         self.finish_transcript(pending.raw_transcript, &fallback_status);
                     } else {
                         self.last_status =
-                            "Nachverarbeitungs-Worker wurde unerwartet beendet.".to_owned();
+                            "Post-processing worker stopped unexpectedly.".to_owned();
                     }
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {}
@@ -258,10 +258,10 @@ impl BridgeRuntime {
                             provider_label,
                         });
                         self.last_status = format!(
-                            "Whisper-Transkript bereit. Nachbearbeitung '{mode_name}' laeuft."
+                            "Whisper transcript ready. Post-processing '{mode_name}' running."
                         );
                     } else {
-                        self.finish_transcript(transcript, "Transkript bereit.");
+                        self.finish_transcript(transcript, "Transcript ready.");
                     }
                 }
             }
@@ -348,7 +348,7 @@ impl BridgeRuntime {
         }
 
         settings_store::save(&next_settings)
-            .map_err(|err| format!("Settings konnten nicht gespeichert werden: {err}"))?;
+            .map_err(|err| format!("Settings could not be saved: {err}"))?;
         self.settings = next_settings;
 
         match self.autostart.sync_saved_settings(&self.settings) {
@@ -460,12 +460,12 @@ impl BridgeRuntime {
                     None
                 };
                 let summary = if is_downloading {
-                    format!("Download fuer {} laeuft.", preset.display_label())
+                    format!("Download for {} in progress.", preset.display_label())
                 } else if is_downloaded {
-                    format!("{} bereit.", preset.display_label())
+                    format!("{} ready.", preset.display_label())
                 } else {
                     format!(
-                        "{} ({}) noch nicht geladen.",
+                        "{} ({}) not loaded yet.",
                         preset.display_label(),
                         model_manager::human_readable_size(preset.download_size_bytes()),
                     )
@@ -513,11 +513,11 @@ impl BridgeRuntime {
                     None
                 };
                 let summary = if is_downloading {
-                    format!("Download fuer {} laeuft.", preset.display_label())
+                    format!("Download for {} in progress.", preset.display_label())
                 } else if is_downloaded {
-                    format!("{} bereit.", preset.display_label())
+                    format!("{} ready.", preset.display_label())
                 } else {
-                    format!("{} noch nicht geladen.", preset.display_label())
+                    format!("{} not loaded yet.", preset.display_label())
                 };
 
                 LlmModelStatusDto {
@@ -602,13 +602,13 @@ impl BridgeRuntime {
             .custom_llm_models
             .iter()
             .find(|entry| entry.id == id)
-            .ok_or_else(|| format!("Eigenes Sprachmodell '{id}' nicht gefunden."))?
+            .ok_or_else(|| format!("Custom language model '{id}' not found."))?
             .clone();
         let url = match &entry.source {
             CustomLlmSource::DownloadUrl { url, .. } => url.clone(),
             CustomLlmSource::LocalPath { .. } => {
                 return Err(format!(
-                    "'{}' ist ein lokal ausgewaehltes Modell - kein Download noetig.",
+                    "'{}' is a locally selected model — no download needed.",
                     entry.name
                 ));
             }
@@ -629,7 +629,7 @@ impl BridgeRuntime {
             .find(|entry| entry.id == id)
             .cloned()
         else {
-            return Err(format!("Eigenes Sprachmodell '{id}' nicht gefunden."));
+            return Err(format!("Custom language model '{id}' not found."));
         };
         match &entry.source {
             CustomLlmSource::DownloadUrl { .. } => {
@@ -640,7 +640,7 @@ impl BridgeRuntime {
                 Ok(message)
             }
             CustomLlmSource::LocalPath { .. } => Ok(format!(
-                "'{}' ist eine externe Datei und wird nicht geloescht.",
+                "'{}' is an external file and will not be deleted.",
                 entry.name
             )),
         }
@@ -789,17 +789,17 @@ mod hotkey {
             if let Some(old) = self.registered_hotkey.take() {
                 self.manager
                     .unregister(old)
-                    .map_err(|err| format!("Vorherigen Hotkey konnte ich nicht abmelden: {err}"))?;
+                    .map_err(|err| format!("Previous hotkey could not be unregistered: {err}"))?;
             }
 
             let parsed: HotKey = settings
                 .hotkey
                 .parse()
-                .map_err(|err| format!("Hotkey '{}' ist ungueltig: {err}", settings.hotkey))?;
+                .map_err(|err| format!("Hotkey '{}' is invalid: {err}", settings.hotkey))?;
 
             self.manager.register(parsed).map_err(|err| {
                 format!(
-                    "Hotkey '{}' konnte nicht registriert werden: {err}",
+                    "Hotkey '{}' could not be registered: {err}",
                     settings.hotkey
                 )
             })?;
@@ -940,7 +940,7 @@ fn parse_optional_preset(raw: *const c_char) -> Result<Option<ModelPreset>, Stri
 fn validate_hotkey_text(raw_hotkey: &str) -> Result<String, String> {
     let hotkey = raw_hotkey.trim();
     if hotkey.is_empty() {
-        return Err("Hotkey darf nicht leer sein.".to_owned());
+        return Err("Hotkey must not be empty.".to_owned());
     }
 
     let _: HotKey = hotkey.parse().map_err(|err| {
@@ -966,10 +966,10 @@ fn validate_hotkey_text(raw_hotkey: &str) -> Result<String, String> {
             });
 
         if modifier_only {
-            "Hotkey braucht neben Zusatztasten auch eine echte Taste wie Space, R oder F8."
+            "Hotkey needs a real key like Space, R, or F8 in addition to modifier keys."
                 .to_owned()
         } else {
-            format!("Hotkey '{hotkey}' ist ungueltig: {err}")
+            format!("Hotkey '{hotkey}' is invalid: {err}")
         }
     })?;
 
@@ -1176,13 +1176,13 @@ mod tests {
 
     #[test]
     fn diagnostics_status_is_stable_for_swift() {
-        assert_eq!(DiagnosticStatus::Warning.label(), "Warnung");
+        assert_eq!(DiagnosticStatus::Warning.label(), "Warning");
     }
 
     #[test]
     fn validate_hotkey_rejects_modifier_only_combo() {
         let error = validate_hotkey_text("Ctrl+Shift").unwrap_err();
-        assert!(error.contains("echte Taste"));
+        assert!(error.contains("real key") || error.contains("echte Taste"));
     }
 
     #[test]

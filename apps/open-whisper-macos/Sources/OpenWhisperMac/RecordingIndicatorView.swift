@@ -59,6 +59,7 @@ struct RecordingIndicatorView: View {
     var modelName: String = ""
     var modeName: String? = nil
     @ObservedObject var feed: RecordingLevelFeed
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(spacing: 6) {
@@ -131,9 +132,9 @@ struct RecordingIndicatorView: View {
             waveform
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .transcribing:
-            processingText("Transkribieren\u{2026}")
+            processingText(L("Transcribing…", locale: locale))
         case .postProcessing:
-            processingText("Nachbearbeitung\u{2026}")
+            processingText(L("Post-processing…", locale: locale))
         case let .modelNotReady(label, progress, isDownloading):
             modelNotReadyRow(label: label, progress: progress, isDownloading: isDownloading)
         }
@@ -145,19 +146,19 @@ struct RecordingIndicatorView: View {
             statusDot
                 .padding(.top, 4)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Aufnahme nicht m\u{F6}glich")
+                Text("Recording not possible", bundle: .module)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.primary)
                 if let progress, isDownloading {
                     let percent = Int((progress * 100.0).rounded())
-                    Text("Modell l\u{E4}dt: \(label) (\(percent)%)")
+                    Text(String(format: L("Model loading: %@ (%d%%)", locale: locale), label, percent))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                     ProgressView(value: progress)
                 } else if isDownloading {
-                    Text("Modell l\u{E4}dt: \(label)")
+                    Text(String(format: L("Model loading: %@", locale: locale), label))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -165,7 +166,7 @@ struct RecordingIndicatorView: View {
                     ProgressView()
                         .progressViewStyle(.linear)
                 } else {
-                    Text("Modell \(label) fehlt. Bitte in den Einstellungen laden.")
+                    Text(String(format: L("Model %@ is missing. Please download it in Settings.", locale: locale), label))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)

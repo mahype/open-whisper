@@ -15,8 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var statusItemLine: NSMenuItem!
     private var quitItem: NSMenuItem!
     private var checkForUpdatesItem: NSMenuItem!
+    private var feedbackItem: NSMenuItem!
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private var feedbackWindow: NSWindow?
     private var recordingIndicatorWindow: NSWindow?
     private let recordingLevelFeed = RecordingLevelFeed()
     private let modeMenu = NSMenu()
@@ -25,6 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var escapeLocalMonitor: Any?
     private static let escapeKeyCode: UInt16 = 53
 
+    private var currentLocale: Locale { model.settings.effectiveLocale }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
@@ -32,18 +36,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         statusItem.button?.imagePosition = .imageOnly
         statusItem.button?.toolTip = "Open Whisper"
 
-        dictationItem = NSMenuItem(title: "Diktat starten", action: #selector(toggleDictation), keyEquivalent: "")
-        settingsItem = NSMenuItem(title: "Einstellungen...", action: #selector(showSettings), keyEquivalent: ",")
-        modeSwitchItem = NSMenuItem(title: "Nachbearbeitung", action: nil, keyEquivalent: "")
+        dictationItem = NSMenuItem(title: "", action: #selector(toggleDictation), keyEquivalent: "")
+        settingsItem = NSMenuItem(title: "", action: #selector(showSettings), keyEquivalent: ",")
+        modeSwitchItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         modeSwitchItem.submenu = modeMenu
-        modelSwitchItem = NSMenuItem(title: "Transkriptionsmodell", action: nil, keyEquivalent: "")
+        modelSwitchItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         modelSwitchItem.submenu = modelMenu
-        statusItemLine = NSMenuItem(title: "Status wird geladen...", action: nil, keyEquivalent: "")
+        statusItemLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         statusItemLine.isEnabled = false
-        quitItem = NSMenuItem(title: "Beenden", action: #selector(quitApp), keyEquivalent: "q")
+        quitItem = NSMenuItem(title: "", action: #selector(quitApp), keyEquivalent: "q")
         checkForUpdatesItem = NSMenuItem(
-            title: "Nach Updates suchen...",
+            title: "",
             action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        )
+        feedbackItem = NSMenuItem(
+            title: "",
+            action: #selector(showFeedback),
             keyEquivalent: ""
         )
 
@@ -57,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             modelSwitchItem,
             statusItemLine,
             .separator(),
+            feedbackItem,
             checkForUpdatesItem,
             .separator(),
             quitItem,
@@ -87,7 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     @objc private func showSettings(_ sender: Any?) {
         let window = settingsWindow ?? makeWindow(
-            title: "Open Whisper Einstellungen",
+            title: L("Open Whisper Settings", locale: currentLocale),
             size: NSSize(width: 820, height: 720),
             rootView: SettingsView(
                 model: model,
@@ -111,10 +121,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         model.flushAutoSave()
     }
 
+    @objc private func showFeedback(_ sender: Any?) {
+        let window = feedbackWindow ?? makeWindow(
+            title: L("Send feedback", locale: currentLocale),
+            size: NSSize(width: 460, height: 320),
+            rootView: FeedbackView()
+        )
+        feedbackWindow = window
+        show(window)
+    }
+
     @objc private func showOnboarding(_ sender: Any?) {
         model.reopenOnboarding()
         let window = onboardingWindow ?? makeWindow(
-            title: "Open Whisper Setup",
+            title: L("Open Whisper Setup", locale: currentLocale),
             size: NSSize(width: 760, height: 520),
             rootView: OnboardingView(model: model) { [weak self] in
                 self?.onboardingWindow?.orderOut(nil)
@@ -153,13 +173,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     private func refreshMenuState() {
         let runtime = model.runtime
-        dictationItem.title = runtime.isRecording ? "Diktat stoppen" : "Diktat starten"
+        let locale = currentLocale
+        dictationItem.title = runtime.isRecording
+            ? L("Stop dictation", locale: locale)
+            : L("Start dictation", locale: locale)
+        settingsItem.title = L("Settings…", locale: locale)
+        modeSwitchItem.title = L("Post-processing", locale: locale)
+        modelSwitchItem.title = L("Transcription model", locale: locale)
+        quitItem.title = L("Quit", locale: locale)
+        checkForUpdatesItem.title = L("Check for updates…", locale: locale)
+        feedbackItem.title = L("Send feedback…", locale: locale)
         rebuildModeMenu()
         rebuildModelMenu()
         statusItemLine.title = model.bridgeError ?? runtime.lastStatus
         statusItem.button?.image = statusImage(recording: runtime.isRecording)
         statusItem.button?.toolTip = model.bridgeError ?? runtime.lastStatus
         updateRecordingIndicatorVisibility()
+        refreshWindowTitles()
+    }
+
+    private func refreshWindowTitles() {
+        let locale = currentLocale
+        settingsWindow?.title = L("Open Whisper Settings", locale: locale)
+        onboardingWindow?.title = L("Open Whisper Setup", locale: locale)
+        feedbackWindow?.title = L("Send feedback", locale: locale)
     }
 
     private func updateRecordingIndicatorVisibility() {
@@ -216,22 +253,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func updateIndicatorPhase(window: NSWindow, phase: IndicatorPhase, style: WaveformStyle, color: WaveformColor, modelName: String, modeName: String?) {
-        guard let hosting = window.contentViewController as? NSHostingController<RecordingIndicatorView> else {
+        guard let hosting = window.contentViewController as? NSHostingController<LocalizedRoot<RecordingIndicatorView>> else {
             return
         }
-        if hosting.rootView.phase != phase
-            || hosting.rootView.style != style
-            || hosting.rootView.color != color
-            || hosting.rootView.modelName != modelName
-            || hosting.rootView.modeName != modeName {
-            hosting.rootView = RecordingIndicatorView(
-                phase: phase,
-                style: style,
-                color: color,
-                modelName: modelName,
-                modeName: modeName,
-                feed: recordingLevelFeed
-            )
+        let inner = hosting.rootView.content()
+        if inner.phase != phase
+            || inner.style != style
+            || inner.color != color
+            || inner.modelName != modelName
+            || inner.modeName != modeName {
+            hosting.rootView = LocalizedRoot(model: model) {
+                RecordingIndicatorView(
+                    phase: phase,
+                    style: style,
+                    color: color,
+                    modelName: modelName,
+                    modeName: modeName,
+                    feed: self.recordingLevelFeed
+                )
+            }
         }
     }
 
@@ -254,14 +294,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
 
-        let hosting = NSHostingController(rootView: RecordingIndicatorView(
-            phase: phase,
-            style: style,
-            color: color,
-            modelName: modelName,
-            modeName: modeName,
-            feed: recordingLevelFeed
-        ))
+        let hosting = NSHostingController(
+            rootView: LocalizedRoot(model: model) {
+                RecordingIndicatorView(
+                    phase: phase,
+                    style: style,
+                    color: color,
+                    modelName: modelName,
+                    modeName: modeName,
+                    feed: self.recordingLevelFeed
+                )
+            }
+        )
         hosting.view.frame = NSRect(origin: .zero, size: size)
         panel.contentViewController = hosting
         return panel
@@ -284,7 +328,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let postProcessingEnabled = model.persistedPostProcessingEnabled
 
         let offItem = NSMenuItem(
-            title: "Aus",
+            title: L("Off", locale: currentLocale),
             action: #selector(disablePostProcessing(_:)),
             keyEquivalent: ""
         )
@@ -338,7 +382,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         window.title = title
         window.center()
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: rootView)
+        window.contentViewController = NSHostingController(
+            rootView: LocalizedRoot(model: model) { rootView }
+        )
         return window
     }
 

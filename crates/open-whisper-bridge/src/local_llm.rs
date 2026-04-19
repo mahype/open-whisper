@@ -37,7 +37,7 @@ fn backend() -> Result<Arc<LlamaBackend>, String> {
     LLAMA_BACKEND
         .get_or_try_init(|| {
             LlamaBackend::init().map(Arc::new).map_err(|err| {
-                format!("llama.cpp-Backend konnte nicht initialisiert werden: {err}")
+                format!("llama.cpp backend could not be initialized: {err}")
             })
         })
         .cloned()
@@ -106,7 +106,7 @@ impl LocalLlmRuntime {
         let target_path = default_llm_model_path(preset)?;
         if !target_path.exists() {
             return Err(format!(
-                "Lokales Sprachmodell ({}) ist noch nicht heruntergeladen.",
+                "Local language model ({}) has not been downloaded yet.",
                 preset.display_label()
             ));
         }
@@ -131,7 +131,7 @@ impl LocalLlmRuntime {
     ) -> Result<String, String> {
         if !path.exists() {
             return Err(format!(
-                "Eigenes Sprachmodell '{}' wurde unter {} nicht gefunden.",
+                "Custom language model '{}' was not found at {}.",
                 display_name,
                 path.display()
             ));
@@ -171,22 +171,22 @@ impl LocalLlmRuntime {
         let mut ctx = loaded
             .model
             .new_context(&backend, ctx_params)
-            .map_err(|err| format!("LLM-Kontext konnte nicht erstellt werden: {err}"))?;
+            .map_err(|err| format!("LLM context could not be created: {err}"))?;
 
         let prompt = build_gemma_chat_prompt(system_prompt, user_text);
         let tokens = loaded
             .model
             .str_to_token(&prompt, AddBos::Always)
-            .map_err(|err| format!("LLM-Tokenisierung fehlgeschlagen: {err}"))?;
+            .map_err(|err| format!("LLM tokenization failed: {err}"))?;
 
         if tokens.is_empty() {
-            return Err("LLM-Prompt ergab keine Tokens.".to_owned());
+            return Err("LLM prompt produced no tokens.".to_owned());
         }
 
         let n_input = tokens.len() as i32;
         if n_input + MAX_OUTPUT_TOKENS >= n_ctx_value as i32 {
             return Err(format!(
-                "Eingabe ist zu lang fuer das Sprachmodell-Kontextfenster ({} Tokens, max {}).",
+                "Input is too long for the language model context window ({} tokens, max {}).",
                 n_input,
                 n_ctx_value as i32 - MAX_OUTPUT_TOKENS
             ));
@@ -197,11 +197,11 @@ impl LocalLlmRuntime {
             let is_last = i == tokens.len() - 1;
             batch
                 .add(*token, i as i32, &[0], is_last)
-                .map_err(|err| format!("LLM-Batch konnte nicht gefuellt werden: {err}"))?;
+                .map_err(|err| format!("LLM batch could not be populated: {err}"))?;
         }
 
         ctx.decode(&mut batch)
-            .map_err(|err| format!("LLM-Decode des Prompts fehlgeschlagen: {err}"))?;
+            .map_err(|err| format!("LLM decode of the prompt failed: {err}"))?;
 
         let mut sampler = LlamaSampler::chain_simple([LlamaSampler::greedy()]);
 
@@ -212,7 +212,7 @@ impl LocalLlmRuntime {
 
         while n_cur < n_max {
             if cancelled.load(Ordering::Relaxed) {
-                return Err("Nachbearbeitung abgebrochen.".to_owned());
+                return Err("Post-processing cancelled.".to_owned());
             }
 
             let token = sampler.sample(&ctx, batch.n_tokens() - 1);
@@ -225,7 +225,7 @@ impl LocalLlmRuntime {
             let piece = loaded
                 .model
                 .token_to_piece(token, &mut decoder, false, None)
-                .map_err(|err| format!("LLM-Detokenisierung fehlgeschlagen: {err}"))?;
+                .map_err(|err| format!("LLM detokenization failed: {err}"))?;
 
             output.push_str(&piece);
 
@@ -237,16 +237,16 @@ impl LocalLlmRuntime {
             batch.clear();
             batch
                 .add(token, n_cur, &[0], true)
-                .map_err(|err| format!("LLM-Batch-Update fehlgeschlagen: {err}"))?;
+                .map_err(|err| format!("LLM batch update failed: {err}"))?;
             n_cur += 1;
 
             ctx.decode(&mut batch)
-                .map_err(|err| format!("LLM-Decode fehlgeschlagen: {err}"))?;
+                .map_err(|err| format!("LLM decode failed: {err}"))?;
         }
 
         let trimmed = output.trim().to_owned();
         if trimmed.is_empty() {
-            return Err("Das Sprachmodell lieferte keinen Text zurueck.".to_owned());
+            return Err("The language model returned no text.".to_owned());
         }
 
         Ok(trimmed)
@@ -267,7 +267,7 @@ impl LocalLlmRuntime {
         let backend = backend()?;
         let params = LlamaModelParams::default().with_n_gpu_layers(1_000);
         let model = LlamaModel::load_from_file(&backend, target_path, &params)
-            .map_err(|err| format!("Sprachmodell konnte nicht geladen werden: {err}"))?;
+            .map_err(|err| format!("Language model could not be loaded: {err}"))?;
 
         self.loaded = Some(LoadedModel {
             key: target_key,
@@ -299,7 +299,7 @@ pub fn generate_with_shared_runtime(
 ) -> Result<String, String> {
     let mut runtime = shared_runtime()
         .lock()
-        .map_err(|_| "Lokales Sprachmodell-Runtime-Mutex wurde vergiftet.".to_owned())?;
+        .map_err(|_| "Local language model runtime mutex was poisoned.".to_owned())?;
     runtime.generate(preset, system_prompt, user_text, cancelled)
 }
 
@@ -313,7 +313,7 @@ pub fn generate_with_custom_path(
 ) -> Result<String, String> {
     let mut runtime = shared_runtime()
         .lock()
-        .map_err(|_| "Lokales Sprachmodell-Runtime-Mutex wurde vergiftet.".to_owned())?;
+        .map_err(|_| "Local language model runtime mutex was poisoned.".to_owned())?;
     runtime.generate_custom(id, display_name, path, system_prompt, user_text, cancelled)
 }
 

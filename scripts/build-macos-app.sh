@@ -118,6 +118,18 @@ if [[ -f apps/open-whisper-macos/Resources/AppIcon.icns ]]; then
     cp apps/open-whisper-macos/Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 fi
 
+# --- Copy InfoPlist localizations into main bundle ---------------------------
+# These are looked up by macOS for permission dialogs (NSMicrophoneUsageDescription,
+# etc.) and must live at Contents/Resources/{lang}.lproj/InfoPlist.strings —
+# SPM's module bundle cannot satisfy that lookup path.
+for lproj_dir in apps/open-whisper-macos/Resources/Localizations/*.lproj; do
+    if [[ -d "$lproj_dir" ]]; then
+        lang_name="$(basename "$lproj_dir")"
+        mkdir -p "$app/Contents/Resources/$lang_name"
+        cp -R "$lproj_dir"/* "$app/Contents/Resources/$lang_name/"
+    fi
+done
+
 # --- Embed Sparkle.framework ------------------------------------------------
 # The Swift executable links against Sparkle with an @rpath load command; the
 # framework is not copied automatically by `swift build` into an app bundle.

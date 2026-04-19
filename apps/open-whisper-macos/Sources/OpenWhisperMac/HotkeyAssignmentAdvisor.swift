@@ -13,7 +13,7 @@ enum HotkeyAssignmentAdvisor {
 
         if isReservedBySystem(assignment) {
             throw HotkeyAssignmentAdvisorError(
-                message: "Die Tastenkombination ist bereits als macOS-Systemshortcut reserviert. Aendere sie in den Systemeinstellungen unter Tastatur > Tastaturkurzbefehle oder waehle eine andere Kombination."
+                message: L("This shortcut is already reserved by macOS. Change it in System Settings under Keyboard › Keyboard Shortcuts, or pick a different combination.", locale: .current)
             )
         }
 
@@ -27,19 +27,19 @@ enum HotkeyAssignmentAdvisor {
             .filter { !$0.isEmpty }
 
         guard let keyToken = tokens.last else {
-            throw HotkeyAssignmentAdvisorError(message: "Hotkey darf nicht leer sein.")
+            throw HotkeyAssignmentAdvisorError(message: L("Hotkey must not be empty.", locale: .current))
         }
 
         var modifiers: NSEvent.ModifierFlags = []
         for token in tokens.dropLast() {
             guard let modifier = modifierFlag(forToken: token) else {
-                throw HotkeyAssignmentAdvisorError(message: unsupportedHotkeyMessage)
+                throw HotkeyAssignmentAdvisorError(message: unsupportedHotkeyMessage(locale: .current))
             }
             modifiers.formUnion(modifier)
         }
 
         guard let keyCode = keyCode(forToken: keyToken) else {
-            throw HotkeyAssignmentAdvisorError(message: unsupportedHotkeyMessage)
+            throw HotkeyAssignmentAdvisorError(message: unsupportedHotkeyMessage(locale: .current))
         }
 
         return HotkeyCandidate(
@@ -123,7 +123,10 @@ enum HotkeyAssignmentAdvisor {
             let unregisterStatus = UnregisterEventHotKey(hotKeyRef)
             guard unregisterStatus == noErr else {
                 throw HotkeyAssignmentAdvisorError(
-                    message: "Die Tastenkombination konnte getestet werden, liess sich danach aber nicht sauber wieder freigeben (OSStatus \(unregisterStatus)). Bitte versuche es erneut."
+                    message: String(
+                        format: L("The shortcut could be tested but couldn't be released cleanly afterwards (OSStatus %d). Please try again.", locale: .current),
+                        Int(unregisterStatus)
+                    )
                 )
             }
         }
@@ -134,18 +137,21 @@ enum HotkeyAssignmentAdvisor {
         modifiers: NSEvent.ModifierFlags
     ) -> String {
         if status == eventHotKeyExistsErr {
-            return "Die Tastenkombination wird in Open Whisper bereits verwendet. Falls sie gerade aktiv ist, lasse sie unveraendert oder waehle eine neue Kombination."
+            return L("This shortcut is already used by Open Whisper. If it is currently active, leave it unchanged or pick a new combination.", locale: .current)
         }
 
         if status == eventInternalErr {
             if modifiers == [.option] || modifiers == [.option, .shift] {
-                return "macOS lehnt diese reine Option-Kombination aktuell intern ab. Fuege zusaetzlich Ctrl oder Cmd hinzu oder waehle eine andere Tastenkombination."
+                return L("macOS currently rejects this option-only combination internally. Add Ctrl or Cmd, or choose a different shortcut.", locale: .current)
             }
 
-            return "macOS hat die Registrierung dieser Tastenkombination intern abgelehnt. Das betrifft meist reservierte oder systemseitig gesperrte Shortcuts."
+            return L("macOS rejected the registration of this shortcut internally. This usually affects reserved or system-blocked shortcuts.", locale: .current)
         }
 
-        return "macOS konnte diese Tastenkombination aktuell nicht registrieren (OSStatus \(status)). Sie ist vermutlich reserviert oder wird bereits exklusiv verwendet."
+        return String(
+            format: L("macOS couldn't register this shortcut right now (OSStatus %d). It is probably reserved or already exclusively in use.", locale: .current),
+            Int(status)
+        )
     }
 
     private static func hotkeySignature(_ hotkey: String) -> String {

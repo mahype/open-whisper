@@ -10,11 +10,12 @@ struct SettingsView: View {
     @State private var isManagingLanguageModels: Bool = false
     @State private var managerTab: LanguageModelsManagerTab = .transcription
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @Environment(\.locale) private var locale
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(SettingsSection.allCases, selection: $selectedSection) { section in
-                Label(section.title, systemImage: section.symbolName)
+                Label(section.title(locale: locale), systemImage: section.symbolName)
                     .tag(section)
             }
             .listStyle(.sidebar)
@@ -26,7 +27,7 @@ struct SettingsView: View {
                 detailContent(for: detailSection)
             }
             .formStyle(.grouped)
-            .navigationTitle(detailSection.title)
+            .navigationTitle(detailSection.title(locale: locale))
             .safeAreaInset(edge: .bottom) {
                 bottomBar
             }
@@ -74,34 +75,46 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var recordingContent: some View {
-        Section("Audioquelle") {
-            Picker("Mikrofon", selection: model.binding(for: \.inputDeviceName)) {
+        Section {
+            Picker(selection: model.binding(for: \.inputDeviceName)) {
                 ForEach(deviceNames, id: \.self) { device in
                     Text(device).tag(device)
                 }
+            } label: {
+                Text("Microphone", bundle: .module)
             }
 
-            Picker("Sprache", selection: model.languageBinding()) {
+            Picker(selection: model.languageBinding()) {
                 ForEach(model.availableLanguageOptions) { option in
-                    Text(option.label).tag(option.code)
+                    Text(option.label(locale: locale)).tag(option.code)
                 }
+            } label: {
+                Text("Language", bundle: .module)
             }
 
-            Button("Geraete aktualisieren") {
+            Button {
                 model.refreshDevices()
+            } label: {
+                Text("Refresh devices", bundle: .module)
             }
+        } header: {
+            Text("Audio source", bundle: .module)
         }
 
-        Section("Trigger") {
-            Picker("Modus", selection: model.binding(for: \.triggerMode)) {
+        Section {
+            Picker(selection: model.binding(for: \.triggerMode)) {
                 ForEach(TriggerMode.allCases) { mode in
-                    Text(mode.label).tag(mode)
+                    Text(mode.label(locale: locale)).tag(mode)
                 }
+            } label: {
+                Text("Mode", bundle: .module)
             }
             .pickerStyle(.segmented)
+        } header: {
+            Text("Trigger", bundle: .module)
         }
 
-        Section("Globaler Hotkey") {
+        Section {
             HotkeyRecorderField(
                 title: model.hotkeyFieldTitle,
                 currentHotkey: model.settings.hotkey,
@@ -116,40 +129,53 @@ struct SettingsView: View {
                 onPreview: { model.updateHotkeyCapturePreview($0) },
                 onInvalid: { model.failHotkeyCapture($0) }
             )
+        } header: {
+            Text("Global hotkey", bundle: .module)
         }
 
-        Section("Textausgabe") {
-            Toggle("Text automatisch einfuegen", isOn: model.binding(for: \.insertTextAutomatically))
-            Toggle("Clipboard wiederherstellen", isOn: model.binding(for: \.restoreClipboardAfterInsert))
+        Section {
+            Toggle(isOn: model.binding(for: \.insertTextAutomatically)) {
+                Text("Insert text automatically", bundle: .module)
+            }
+            Toggle(isOn: model.binding(for: \.restoreClipboardAfterInsert)) {
+                Text("Restore clipboard after inserting", bundle: .module)
+            }
+        } header: {
+            Text("Text output", bundle: .module)
         }
 
-        Section("Aufnahme-Anzeige") {
-            Toggle(
-                "Wellenform-Fenster waehrend Aufnahme anzeigen",
-                isOn: model.binding(for: \.showRecordingIndicator)
-            )
+        Section {
+            Toggle(isOn: model.binding(for: \.showRecordingIndicator)) {
+                Text("Show waveform window while recording", bundle: .module)
+            }
 
-            Picker("Stil", selection: model.binding(for: \.waveformStyle)) {
+            Picker(selection: model.binding(for: \.waveformStyle)) {
                 ForEach(WaveformStyle.allCases) { style in
-                    Text(style.label).tag(style)
+                    Text(style.label(locale: locale)).tag(style)
                 }
+            } label: {
+                Text("Style", bundle: .module)
             }
             .disabled(!model.settings.showRecordingIndicator)
 
-            Picker("Farbe", selection: model.binding(for: \.waveformColor)) {
+            Picker(selection: model.binding(for: \.waveformColor)) {
                 ForEach(WaveformColor.allCases) { color in
-                    Text(color.label)
+                    Text(color.label(locale: locale))
                         .foregroundStyle(color.swiftUIColor)
                         .tag(color)
                 }
+            } label: {
+                Text("Color", bundle: .module)
             }
             .disabled(!model.settings.showRecordingIndicator)
+        } header: {
+            Text("Recording indicator", bundle: .module)
         }
     }
 
     @ViewBuilder
     private var modesContent: some View {
-        Section("Nachbearbeitung") {
+        Section {
             PostProcessingOffTile(
                 isActive: !model.settings.postProcessingEnabled,
                 onActivate: { model.disablePostProcessing() }
@@ -172,23 +198,29 @@ struct SettingsView: View {
             }
 
             HStack(spacing: 10) {
-                Button("Neue Nachbearbeitung") {
+                Button {
                     let newID = model.createMode()
                     model.beginEditingMode(newID)
                     isEditingMode = true
+                } label: {
+                    Text("New post-processing", bundle: .module)
                 }
                 Spacer()
             }
+        } header: {
+            Text("Post-processing", bundle: .module)
         }
     }
 
     @ViewBuilder
     private var languageModelsContent: some View {
-        Section("Transkription") {
-            Picker("Modell", selection: model.binding(for: \.localModel)) {
+        Section {
+            Picker(selection: model.binding(for: \.localModel)) {
                 ForEach(model.availableModelPresets) { preset in
                     Text(model.whisperPresetPickerLabel(preset)).tag(preset)
                 }
+            } label: {
+                Text("Model", bundle: .module)
             }
 
             Text(model.selectedTranscriptionSummaryText)
@@ -200,17 +232,23 @@ struct SettingsView: View {
                 ProgressView(value: progress)
             }
 
-            Button("Sprachmodelle verwalten...") {
+            Button {
                 managerTab = .transcription
                 isManagingLanguageModels = true
+            } label: {
+                Text("Manage language models…", bundle: .module)
             }
+        } header: {
+            Text("Transcription", bundle: .module)
         }
 
-        Section("Nachbearbeitung") {
-            Picker("Modell", selection: model.postProcessingChoiceBinding) {
+        Section {
+            Picker(selection: model.postProcessingChoiceBinding) {
                 ForEach(model.availablePostProcessingChoices) { choice in
                     Text(model.postProcessingChoicePickerLabel(choice)).tag(choice)
                 }
+            } label: {
+                Text("Model", bundle: .module)
             }
 
             Text(model.postProcessingSummaryText)
@@ -218,27 +256,56 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button("Sprachmodelle verwalten...") {
+            Button {
                 managerTab = .postProcessing
                 isManagingLanguageModels = true
+            } label: {
+                Text("Manage language models…", bundle: .module)
             }
+        } header: {
+            Text("Post-processing", bundle: .module)
         }
     }
 
     @ViewBuilder
     private var startupContent: some View {
-        Section("Systemstart") {
-            Picker("Verhalten", selection: model.binding(for: \.startupBehavior)) {
+        Section {
+            Picker(selection: model.binding(for: \.startupBehavior)) {
                 ForEach(StartupBehavior.allCases) { behavior in
-                    Text(behavior.label).tag(behavior)
+                    Text(behavior.label(locale: locale)).tag(behavior)
                 }
+            } label: {
+                Text("Behavior", bundle: .module)
             }
+        } header: {
+            Text("System startup", bundle: .module)
         }
 
-        Section("Diktat-Stopp") {
-            Toggle("Voice Activity Detection", isOn: model.binding(for: \.vadEnabled))
+        Section {
+            Picker(selection: model.binding(for: \.uiLanguage)) {
+                ForEach(UiLanguage.allCases) { option in
+                    Text(option.displayLabel).tag(option)
+                }
+            } label: {
+                Text("App language", bundle: .module)
+            }
+        } header: {
+            Text("Language", bundle: .module)
+        } footer: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("“System” follows your macOS language setting.", bundle: .module)
+                Text("Changes take effect after restarting Open Whisper.", bundle: .module)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
 
-            LabeledContent("Silence-Stop") {
+        Section {
+            Toggle(isOn: model.binding(for: \.vadEnabled)) {
+                Text("Voice Activity Detection", bundle: .module)
+            }
+
+            LabeledContent {
                 HStack(spacing: 10) {
                     Slider(
                         value: Binding(
@@ -257,57 +324,103 @@ struct SettingsView: View {
                         .monospacedDigit()
                         .frame(width: 70, alignment: .trailing)
                 }
+            } label: {
+                Text("Silence stop", bundle: .module)
             }
+        } header: {
+            Text("Dictation stop", bundle: .module)
         }
 
-        Section("Aktuell registriert") {
-            LabeledContent("Systemstart", value: model.runtime.startupSummary)
-            LabeledContent("Hotkey", value: model.runtime.hotkeyText)
-            LabeledContent("Nachbearbeitung", value: model.activeModeName)
+        Section {
+            LabeledContent {
+                Text(model.runtime.startupSummary)
+            } label: {
+                Text("System startup", bundle: .module)
+            }
+            LabeledContent {
+                Text(model.runtime.hotkeyText)
+            } label: {
+                Text("Hotkey", bundle: .module)
+            }
+            LabeledContent {
+                Text(model.activeModeName)
+            } label: {
+                Text("Post-processing", bundle: .module)
+            }
+        } header: {
+            Text("Currently registered", bundle: .module)
         }
     }
 
     @ViewBuilder
     private var diagnosticsContent: some View {
-        Section("Uebersicht") {
+        Section {
             Text(model.diagnostics.summary)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 10) {
-                Button("Aktualisieren") { model.refreshDiagnostics() }
-                Button("System Settings oeffnen") { model.openSystemSettings() }
+                Button {
+                    model.refreshDiagnostics()
+                } label: {
+                    Text("Refresh", bundle: .module)
+                }
+                Button {
+                    model.openSystemSettings()
+                } label: {
+                    Text("Open System Settings", bundle: .module)
+                }
             }
+        } header: {
+            Text("Overview", bundle: .module)
         }
 
-        Section("Details") {
+        Section {
             ForEach(model.diagnostics.items) { item in
                 DiagnosticDisclosureCard(item: item)
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             }
+        } header: {
+            Text("Details", bundle: .module)
         }
     }
 
     @ViewBuilder
     private var helpContent: some View {
-        Section("Über Open Whisper") {
-            LabeledContent("Version", value: appVersionString)
-            LabeledContent("Bundle", value: bundleIdentifierString)
+        Section {
+            LabeledContent {
+                Text(appVersionString)
+            } label: {
+                Text("Version", bundle: .module)
+            }
+            LabeledContent {
+                Text(bundleIdentifierString)
+            } label: {
+                Text("Bundle", bundle: .module)
+            }
 
-            Button("Versionshinweise auf GitHub öffnen") {
+            Button {
                 openReleaseNotes()
+            } label: {
+                Text("Open release notes on GitHub", bundle: .module)
             }
             .disabled(!canOpenReleaseNotes)
+        } header: {
+            Text("About Open Whisper", bundle: .module)
         }
 
-        Section("Setup") {
-            Text("Du kannst den Einrichtungs-Assistenten jederzeit erneut starten, um Mikrofon, Hotkey und Sprachmodelle neu zu konfigurieren.")
+        Section {
+            Text("You can restart the setup assistant anytime to reconfigure microphone, hotkey, and language models.", bundle: .module)
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            Button("Onboarding erneut starten") {
+            Button {
                 onReopenOnboarding()
+            } label: {
+                Text("Restart onboarding", bundle: .module)
             }
+        } header: {
+            Text("Setup", bundle: .module)
         }
     }
 
@@ -320,8 +433,6 @@ struct SettingsView: View {
     }
 
     private var canOpenReleaseNotes: Bool {
-        // Dev builds (run via `swift run`) keep the default "0.0.0" from Info.plist;
-        // no matching GitHub release exists for those.
         appVersionString != "—" && appVersionString != "0.0.0"
     }
 
@@ -347,8 +458,10 @@ struct SettingsView: View {
 
             Spacer()
 
-            Button(model.runtime.isRecording ? "Stoppen" : "Diktat starten") {
+            Button {
                 model.toggleDictation()
+            } label: {
+                Text(model.runtime.isRecording ? "Stop" : "Start dictation", bundle: .module)
             }
         }
         .padding(.horizontal, 20)
@@ -366,15 +479,15 @@ struct SettingsView: View {
 
     private var runtimeLabel: String {
         if model.runtime.isRecording {
-            return "Aufnahme aktiv"
+            return L("Recording active", locale: locale)
         }
         if model.runtime.isPostProcessing {
-            return "Nachverarbeitung laeuft"
+            return L("Post-processing in progress", locale: locale)
         }
         if model.runtime.isTranscribing {
-            return "Transkription laeuft"
+            return L("Transcription in progress", locale: locale)
         }
-        return model.runtime.lastStatus.isEmpty ? "Bereit" : model.runtime.lastStatus
+        return model.runtime.lastStatus.isEmpty ? L("Ready", locale: locale) : model.runtime.lastStatus
     }
 
     private var runtimeAccent: Color {

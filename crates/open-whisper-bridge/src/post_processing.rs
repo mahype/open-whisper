@@ -26,7 +26,7 @@ pub fn process_text(
     }
 
     if cancelled.load(Ordering::Relaxed) {
-        return Err("Nachbearbeitung abgebrochen.".to_owned());
+        return Err("Post-processing cancelled.".to_owned());
     }
 
     let mode = settings.active_mode();
@@ -45,7 +45,7 @@ pub fn process_text(
                 .iter()
                 .find(|entry| entry.id == id)
                 .ok_or_else(|| {
-                    format!("Eigenes Sprachmodell '{id}' ist in den Einstellungen nicht bekannt.")
+                    format!("Custom language model '{id}' is not known in settings.")
                 })?;
             match &custom.source {
                 CustomLlmSource::LocalPath { path } => local_llm::generate_with_custom_path(
@@ -60,7 +60,7 @@ pub fn process_text(
                     let path = llm_model_manager::default_custom_llm_path(&custom.id)?;
                     if !path.exists() {
                         return Err(format!(
-                            "Eigenes Sprachmodell '{}' wurde noch nicht heruntergeladen.",
+                            "Custom language model '{}' has not been downloaded yet.",
                             custom.name
                         ));
                     }
@@ -100,12 +100,12 @@ pub fn process_text(
     };
 
     if cancelled.load(Ordering::Relaxed) {
-        return Err("Nachbearbeitung abgebrochen.".to_owned());
+        return Err("Post-processing cancelled.".to_owned());
     }
 
     let trimmed = text.trim();
     if trimmed.is_empty() {
-        return Err("Die Nachverarbeitung lieferte keinen Text zurueck.".to_owned());
+        return Err("Post-processing returned no text.".to_owned());
     }
 
     Ok(trimmed.to_owned())
@@ -116,17 +116,17 @@ fn build_http_client() -> Result<Client, String> {
         .timeout(REQUEST_TIMEOUT)
         .build()
         .map_err(|err| {
-            format!("HTTP-Client fuer Nachverarbeitung konnte nicht erstellt werden: {err}")
+            format!("HTTP client for post-processing could not be created: {err}")
         })
 }
 
 fn build_system_prompt(mode_prompt: &str) -> String {
-    let base = "Du bearbeitest diktierten Text nach einer konfigurierten Rolle. Gib ausschliesslich den finalen Text ohne Erklaerungen oder Meta-Kommentare zurueck.";
+    let base = "You edit dictated text according to a configured role. Return only the final text — no explanations or meta comments.";
     let trimmed = mode_prompt.trim();
     if trimmed.is_empty() {
         base.to_owned()
     } else {
-        format!("{base}\n\nRollen-Kontext:\n{trimmed}")
+        format!("{base}\n\nRole context:\n{trimmed}")
     }
 }
 
@@ -156,15 +156,15 @@ fn request_ollama(
             ]
         }))
         .send()
-        .map_err(|err| format!("Ollama-Nachverarbeitung konnte nicht gestartet werden: {err}"))?;
+        .map_err(|err| format!("Ollama post-processing could not be started: {err}"))?;
 
     let status = response.status();
     let value: Value = response
         .json()
-        .map_err(|err| format!("Ollama-Antwort konnte nicht gelesen werden: {err}"))?;
+        .map_err(|err| format!("Ollama response could not be read: {err}"))?;
     if !status.is_success() {
         return Err(format!(
-            "Ollama lieferte HTTP {} bei der Nachverarbeitung.",
+            "Ollama returned HTTP {} during post-processing.",
             status
         ));
     }
@@ -180,7 +180,7 @@ fn request_ollama(
                 .and_then(Value::as_str)
                 .map(str::to_owned)
         })
-        .ok_or_else(|| "Ollama-Antwort enthielt keinen verarbeiteten Text.".to_owned())
+        .ok_or_else(|| "Ollama response contained no processed text.".to_owned())
 }
 
 fn request_lm_studio(
@@ -210,16 +210,16 @@ fn request_lm_studio(
         }))
         .send()
         .map_err(|err| {
-            format!("LM-Studio-Nachverarbeitung konnte nicht gestartet werden: {err}")
+            format!("LM Studio post-processing could not be started: {err}")
         })?;
 
     let status = response.status();
     let value: Value = response
         .json()
-        .map_err(|err| format!("LM-Studio-Antwort konnte nicht gelesen werden: {err}"))?;
+        .map_err(|err| format!("LM Studio response could not be read: {err}"))?;
     if !status.is_success() {
         return Err(format!(
-            "LM Studio lieferte HTTP {} bei der Nachverarbeitung.",
+            "LM Studio returned HTTP {} during post-processing.",
             status
         ));
     }
@@ -232,7 +232,7 @@ fn request_lm_studio(
         .and_then(|message| message.get("content"))
         .and_then(Value::as_str)
         .map(str::to_owned)
-        .ok_or_else(|| "LM-Studio-Antwort enthielt keinen verarbeiteten Text.".to_owned())
+        .ok_or_else(|| "LM Studio response contained no processed text.".to_owned())
 }
 
 fn join_base_url(endpoint: &str, suffix: &str) -> String {
@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn empty_prompt_gets_safe_default_instruction() {
         let prompt = build_system_prompt("");
-        assert!(prompt.contains("Gib ausschliesslich den finalen Text"));
+        assert!(prompt.contains("Return only the final text"));
     }
 
     #[test]

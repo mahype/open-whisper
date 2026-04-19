@@ -13,17 +13,17 @@ pub fn collect(
 
     if available_devices.is_empty() {
         items.push(item(
-            "Mikrofon",
+            "Microphone",
             DiagnosticStatus::Error,
-            "Es wurde kein Eingabegeraet erkannt.",
-            "Pruefe Mikrofonfreigabe und ob mindestens ein Eingabegeraet angeschlossen ist.",
+            "No input device was detected.",
+            "Check microphone permissions and that at least one input device is connected.",
         ));
     } else {
         items.push(item(
-            "Mikrofon",
+            "Microphone",
             DiagnosticStatus::Ok,
-            &format!("{} Eingabegeraet(e) erkannt.", available_devices.len()),
-            "Keine Aktion noetig.",
+            &format!("{} input device(s) detected.", available_devices.len()),
+            "No action needed.",
         ));
     }
 
@@ -33,75 +33,75 @@ pub fn collect(
             .any(|device| device == &settings.input_device_name);
     if selected_device_ok {
         items.push(item(
-            "Eingabegeraet",
+            "Input device",
             DiagnosticStatus::Ok,
             &format!(
-                "Das ausgewaehlte Geraet '{}' ist verfuegbar.",
+                "The selected device '{}' is available.",
                 settings.input_device_name
             ),
-            "Keine Aktion noetig.",
+            "No action needed.",
         ));
     } else {
         items.push(item(
-            "Eingabegeraet",
+            "Input device",
             DiagnosticStatus::Warning,
             &format!(
-                "Das ausgewaehlte Geraet '{}' ist aktuell nicht verfuegbar.",
+                "The selected device '{}' is not currently available.",
                 settings.input_device_name
             ),
-            "Waehle im Onboarding oder in den Einstellungen ein anderes Mikrofon aus.",
+            "Pick a different microphone in Onboarding or Settings.",
         ));
     }
 
     match model_manager::resolve_model_path(settings) {
         Ok(path) if path.exists() => items.push(item(
-            "Lokales Modell",
+            "Local model",
             DiagnosticStatus::Ok,
             &model_ready_message(settings),
-            "Das lokale Diktat ist einsatzbereit.",
+            "Local dictation is ready to use.",
         )),
         Ok(_) => items.push(item(
-            "Lokales Modell",
+            "Local model",
             DiagnosticStatus::Warning,
             &format!(
-                "{} ist noch nicht heruntergeladen.",
+                "{} has not been downloaded yet.",
                 settings.local_model.display_label()
             ),
-            "Lade das ausgewaehlte Modell vor dem ersten Diktat herunter.",
+            "Download the selected model before your first dictation.",
         )),
         Err(err) => items.push(item(
-            "Lokales Modell",
+            "Local model",
             DiagnosticStatus::Error,
             &err,
-            "Pruefe den Modellpfad oder waehle eines der integrierten Presets neu aus.",
+            "Check the model path or pick one of the built-in presets again.",
         )),
     }
 
     if let Some(hotkey) = hotkey {
         if hotkey.is_registered() {
             items.push(item(
-                "Globaler Hotkey",
+                "Global hotkey",
                 DiagnosticStatus::Ok,
-                &format!("Hotkey '{}' ist registriert.", settings.hotkey),
-                "Keine Aktion noetig.",
+                &format!("Hotkey '{}' is registered.", settings.hotkey),
+                "No action needed.",
             ));
         } else {
             items.push(item(
-                "Globaler Hotkey",
+                "Global hotkey",
                 DiagnosticStatus::Warning,
                 &format!(
-                    "Hotkey '{}' ist noch nicht aktiv.",
+                    "Hotkey '{}' is not active yet.",
                     settings.hotkey
                 ),
-                "Pruefe die Hotkey-Kombination und erteile auf macOS bei Bedarf Accessibility- oder Input-Monitoring-Rechte.",
+                "Check the hotkey combination and, on macOS, grant Accessibility or Input Monitoring permission if needed.",
             ));
         }
     } else {
         items.push(item(
-            "Globaler Hotkey",
+            "Global hotkey",
             DiagnosticStatus::Error,
-            "Die Hotkey-Integration konnte nicht initialisiert werden.",
-            "Starte die App neu und pruefe, ob die Kombination bereits von einer anderen App belegt ist.",
+            "The hotkey integration could not be initialized.",
+            "Restart the app and check whether the combination is already in use by another app.",
         ));
     }
 
@@ -109,36 +109,36 @@ pub fn collect(
         "Autostart",
         DiagnosticStatus::Info,
         autostart_summary,
-        "Passe das Verhalten im Onboarding oder in den Einstellungen an.",
+        "Adjust the behavior in Onboarding or Settings.",
     ));
 
     #[cfg(target_os = "macos")]
     {
         items.push(item(
-            "macOS Datenschutz",
+            "macOS privacy",
             DiagnosticStatus::Info,
-            "Fuer Mikrofon, globalen Hotkey und das Einfuegen in andere Apps kann macOS Datenschutz-Rechte verlangen.",
-            "Oeffne bei Problemen System Settings > Privacy & Security und pruefe Microphone, Accessibility und Input Monitoring.",
+            "macOS may require privacy permissions for the microphone, global hotkey, and pasting into other apps.",
+            "If you run into issues, open System Settings > Privacy & Security and check Microphone, Accessibility, and Input Monitoring.",
         ));
     }
 
     #[cfg(target_os = "linux")]
     {
         items.push(item(
-            "Linux Sitzung",
+            "Linux session",
             DiagnosticStatus::Info,
-            "Globale Hotkeys und simuliertes Paste sind unter X11 meist robuster als unter Wayland.",
-            "Falls der Hotkey oder das Einfuegen nicht funktioniert, teste eine X11-Sitzung oder desktop-spezifische Rechte.",
+            "Global hotkeys and simulated paste are usually more robust under X11 than under Wayland.",
+            "If the hotkey or paste does not work, try an X11 session or desktop-specific permissions.",
         ));
     }
 
     #[cfg(target_os = "windows")]
     {
         items.push(item(
-            "Windows Fokus",
+            "Windows focus",
             DiagnosticStatus::Info,
-            "Einige Apps blockieren simulierte Eingaben, solange UAC-Dialoge oder Sicherheitssoftware aktiv sind.",
-            "Teste das Einfuegen in eine normale Text-App und pruefe ggf. Fokus oder Sicherheitssoftware.",
+            "Some apps block simulated input while UAC dialogs or security software are active.",
+            "Test pasting in a plain text app and check focus or security software if needed.",
         ));
     }
 
@@ -152,9 +152,9 @@ pub fn collect(
         .count();
 
     let summary = match (error_count, warning_count) {
-        (0, 0) => "Diagnose: keine offenen Probleme erkannt.".to_owned(),
-        (0, warnings) => format!("Diagnose: {warnings} Warnung(en), keine Fehler."),
-        (errors, warnings) => format!("Diagnose: {errors} Fehler, {warnings} Warnung(en)."),
+        (0, 0) => "Diagnostics: no open issues detected.".to_owned(),
+        (0, warnings) => format!("Diagnostics: {warnings} warning(s), no errors."),
+        (errors, warnings) => format!("Diagnostics: {errors} error(s), {warnings} warning(s)."),
     };
 
     DiagnosticsDto { summary, items }
@@ -176,7 +176,7 @@ fn item(
 
 fn model_ready_message(settings: &AppSettings) -> String {
     format!(
-        "{} ist lokal verfuegbar.",
+        "{} is available locally.",
         settings.local_model.display_label()
     )
 }
@@ -190,8 +190,8 @@ mod tests {
     fn diagnostics_summary_reports_errors_and_warnings() {
         let settings = AppSettings::default();
         let dictation = DictationController::new();
-        let report = collect(&settings, &dictation, None, "Autostart unklar");
+        let report = collect(&settings, &dictation, None, "Autostart unknown");
 
-        assert!(report.summary.contains("Fehler"));
+        assert!(report.summary.contains("error"));
     }
 }

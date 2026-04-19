@@ -7,14 +7,14 @@ enum StartupBehavior: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
         case .askOnFirstLaunch:
-            return "Beim ersten Start fragen"
+            return L("Ask on first launch", locale: locale)
         case .launchAtLogin:
-            return "Mit dem System starten"
+            return L("Launch at login", locale: locale)
         case .manualLaunch:
-            return "Nur manuell starten"
+            return L("Launch manually only", locale: locale)
         }
     }
 }
@@ -25,7 +25,7 @@ enum TriggerMode: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
         case .pushToTalk:
             return "Push-to-talk"
@@ -42,14 +42,14 @@ enum WaveformStyle: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
         case .centeredBars:
-            return "Zentrierte Balken"
+            return L("Centered bars", locale: locale)
         case .line:
-            return "Linie"
+            return L("Line", locale: locale)
         case .envelope:
-            return "Welle"
+            return L("Envelope", locale: locale)
         }
     }
 }
@@ -79,16 +79,16 @@ enum WaveformColor: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
-        case .accent: return "Systemfarbe"
-        case .blue: return "Blau"
-        case .green: return "Gruen"
-        case .teal: return "Tuerkis"
-        case .orange: return "Orange"
-        case .red: return "Rot"
-        case .pink: return "Pink"
-        case .purple: return "Violett"
+        case .accent: return L("System accent", locale: locale)
+        case .blue: return L("Blue", locale: locale)
+        case .green: return L("Green", locale: locale)
+        case .teal: return L("Teal", locale: locale)
+        case .orange: return L("Orange", locale: locale)
+        case .red: return L("Red", locale: locale)
+        case .pink: return L("Pink", locale: locale)
+        case .purple: return L("Purple", locale: locale)
         }
     }
 }
@@ -117,22 +117,22 @@ enum ModelPreset: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
         case .tiny:
-            return "Mini"
+            return L("Tiny", locale: locale)
         case .light:
-            return "Klein"
+            return L("Small", locale: locale)
         case .standard:
-            return "Mittel"
+            return L("Medium", locale: locale)
         case .largeV3TurboQ5_0:
-            return "Turbo"
+            return L("Turbo", locale: locale)
         case .quality:
-            return "Gross"
+            return L("Large", locale: locale)
         case .largeV3Turbo:
-            return "Turbo+"
+            return L("Turbo+", locale: locale)
         case .largeV3:
-            return "Maximal"
+            return L("Maximum", locale: locale)
         }
     }
 
@@ -193,22 +193,22 @@ enum ModelPreset: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var description: String {
+    func description(locale: Locale) -> String {
         switch self {
         case .tiny:
-            return "Winziges Modell fuer extrem schwache Rechner und sehr kurze Reaktionszeit."
+            return L("Tiny model for very weak machines with minimal latency.", locale: locale)
         case .light:
-            return "Kleines lokales Modell fuer schnelle Reaktion auf schwachen Rechnern."
+            return L("Small local model for quick response on weaker machines.", locale: locale)
         case .standard:
-            return "Guter Standard fuer Alltag und Genauigkeit."
+            return L("Solid default for daily use and accuracy.", locale: locale)
         case .largeV3TurboQ5_0:
-            return "Quantisierte Turbo-Variante: Large-v3-Qualitaet bei kompakter Groesse."
+            return L("Quantized Turbo variant: large-v3 quality at a compact size.", locale: locale)
         case .quality:
-            return "Groesseres Modell mit hoeherer Genauigkeit und mehr CPU-/RAM-Bedarf."
+            return L("Larger model with higher accuracy and more CPU/RAM demand.", locale: locale)
         case .largeV3Turbo:
-            return "Schnelles Large-v3-Turbo mit hoher Genauigkeit, gute Balance fuer aktuelle Macs."
+            return L("Fast Large-v3 Turbo with high accuracy — great balance for recent Macs.", locale: locale)
         case .largeV3:
-            return "Maximale Genauigkeit. Grosser Download und hoher RAM-Bedarf."
+            return L("Maximum accuracy. Large download and high RAM demand.", locale: locale)
         }
     }
 
@@ -248,30 +248,30 @@ enum LlmPreset: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
-        case .small: return "Klein"
-        case .medium: return "Mittel"
-        case .large: return "Gross"
+        case .small: return L("Small", locale: locale)
+        case .medium: return L("Medium", locale: locale)
+        case .large: return L("Large", locale: locale)
         }
     }
 
     var displayName: String {
         switch self {
-        case .small: return "Gemma 4 E2B (3,5 GB)"
-        case .medium: return "Gemma 4 E4B (5,4 GB)"
+        case .small: return "Gemma 4 E2B (3.5 GB)"
+        case .medium: return "Gemma 4 E4B (5.4 GB)"
         case .large: return "Gemma 4 26B (17 GB)"
         }
     }
 
-    var description: String {
+    func description(locale: Locale) -> String {
         switch self {
         case .small:
-            return "Kleines Sprachmodell (Gemma 4 E2B). Schnell und sparsam, laeuft auch auf 8 GB RAM."
+            return L("Small language model (Gemma 4 E2B). Fast and lean, runs on 8 GB of RAM.", locale: locale)
         case .medium:
-            return "Mittleres Sprachmodell (Gemma 4 E4B) als guter Standard fuer 16 GB RAM und mehr."
+            return L("Mid-size language model (Gemma 4 E4B) — solid default for 16 GB of RAM or more.", locale: locale)
         case .large:
-            return "Grosses Sprachmodell (Gemma 4 26B A4B, Mixture-of-Experts) mit bester Qualitaet, braucht 32 GB RAM oder mehr."
+            return L("Large language model (Gemma 4 26B A4B, Mixture-of-Experts) with best quality — needs 32 GB of RAM or more.", locale: locale)
         }
     }
 
@@ -299,7 +299,7 @@ enum ProviderKind: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
         case .localWhisper:
             return "Local Whisper"
@@ -318,10 +318,10 @@ enum PostProcessingBackend: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
         case .local:
-            return "Lokales Modell"
+            return L("Local model", locale: locale)
         case .ollama:
             return "Ollama"
         case .lmStudio:
@@ -336,7 +336,7 @@ enum RemoteModelBackend: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
         case .ollama: return "Ollama"
         case .lmStudio: return "LM Studio"
@@ -358,16 +358,16 @@ enum DiagnosticStatus: String, Codable {
     case warning
     case error
 
-    var label: String {
+    func label(locale: Locale) -> String {
         switch self {
         case .ok:
             return "OK"
         case .info:
-            return "Hinweis"
+            return L("Note", locale: locale)
         case .warning:
-            return "Warnung"
+            return L("Warning", locale: locale)
         case .error:
-            return "Fehler"
+            return L("Error", locale: locale)
         }
     }
 }
@@ -455,16 +455,20 @@ enum PostProcessingChoice: Codable, Hashable, Identifiable {
         }
     }
 
-    var fallbackLabel: String {
+    func fallbackLabel(locale: Locale) -> String {
         switch self {
         case .localPreset(let preset):
-            return "\(preset.displayName) (lokal)"
+            return "\(preset.displayName) (\(L("local", locale: locale)))"
         case .localCustom:
-            return "Eigenes Sprachmodell (lokal)"
+            return L("Custom language model (local)", locale: locale)
         case .ollamaModel(let name):
-            return name.isEmpty ? "Ollama (kein Modell)" : "Ollama · \(name)"
+            return name.isEmpty
+                ? "Ollama (\(L("no model", locale: locale)))"
+                : "Ollama · \(name)"
         case .lmStudioModel(let name):
-            return name.isEmpty ? "LM Studio (kein Modell)" : "LM Studio · \(name)"
+            return name.isEmpty
+                ? "LM Studio (\(L("no model", locale: locale)))"
+                : "LM Studio · \(name)"
         }
     }
 
@@ -543,29 +547,36 @@ struct ProcessingMode: Codable, Identifiable, Hashable {
 
     static let cleanup = ProcessingMode(
         id: "cleanup",
-        name: "Aufraeumen",
-        prompt: "Korrigiere Satzzeichen, Grossschreibung und offensichtliche Erkennungsfehler im diktierten Text, ohne den Inhalt zu veraendern. Gib nur den bereinigten Text zurueck."
+        name: "Cleanup",
+        prompt: "Fix punctuation, capitalization, and obvious recognition errors in the dictated text without changing its content. Return only the cleaned-up text."
     )
 }
 
 struct TranscriptionLanguageOption: Identifiable, Hashable {
     let code: String
-    let label: String
 
     var id: String { code }
 
-    static let automatic = TranscriptionLanguageOption(code: "auto", label: "Automatisch")
+    func label(locale: Locale) -> String {
+        if code == "auto" {
+            return L("Automatic", locale: locale)
+        }
+        return locale.localizedString(forLanguageCode: code)?.capitalized(with: locale)
+            ?? code.uppercased()
+    }
+
+    static let automatic = TranscriptionLanguageOption(code: "auto")
 
     static let common: [TranscriptionLanguageOption] = [
         .automatic,
-        TranscriptionLanguageOption(code: "de", label: "Deutsch"),
-        TranscriptionLanguageOption(code: "en", label: "Englisch"),
-        TranscriptionLanguageOption(code: "fr", label: "Franzoesisch"),
-        TranscriptionLanguageOption(code: "es", label: "Spanisch"),
-        TranscriptionLanguageOption(code: "it", label: "Italienisch"),
-        TranscriptionLanguageOption(code: "nl", label: "Niederlaendisch"),
-        TranscriptionLanguageOption(code: "pt", label: "Portugiesisch"),
-        TranscriptionLanguageOption(code: "tr", label: "Tuerkisch"),
+        TranscriptionLanguageOption(code: "de"),
+        TranscriptionLanguageOption(code: "en"),
+        TranscriptionLanguageOption(code: "fr"),
+        TranscriptionLanguageOption(code: "es"),
+        TranscriptionLanguageOption(code: "it"),
+        TranscriptionLanguageOption(code: "nl"),
+        TranscriptionLanguageOption(code: "pt"),
+        TranscriptionLanguageOption(code: "tr"),
     ]
 
     static func option(for storedValue: String) -> TranscriptionLanguageOption? {
@@ -607,6 +618,7 @@ struct AppSettings: Codable, Equatable {
     var postProcessingEnabled: Bool
     var modes: [ProcessingMode]
     var activeModeId: String
+    var uiLanguage: UiLanguage
 
     static let `default` = AppSettings(
         onboardingCompleted: false,
@@ -637,8 +649,17 @@ struct AppSettings: Codable, Equatable {
         lmStudio: ExternalProviderSettings(endpoint: "http://127.0.0.1:1234", modelName: "openai/whisper-small"),
         postProcessingEnabled: false,
         modes: [.cleanup],
-        activeModeId: "cleanup"
+        activeModeId: "cleanup",
+        uiLanguage: .system
     )
+}
+
+enum UiLanguage: String, Codable, CaseIterable, Identifiable {
+    case system
+    case en
+    case de
+
+    var id: String { rawValue }
 }
 
 struct DeviceDTO: Codable, Identifiable {

@@ -70,7 +70,7 @@ impl DictationController {
             Ok(devices) => {
                 self.available_input_devices = devices;
                 if self.available_input_devices.is_empty() {
-                    messages.push("Kein Eingabegeraet gefunden.".to_owned());
+                    messages.push("No input device found.".to_owned());
                     return messages;
                 }
 
@@ -86,13 +86,13 @@ impl DictationController {
                         .or_else(|| self.available_input_devices.first().cloned())
                         .unwrap_or_else(|| system_default_label().to_owned());
                     messages.push(format!(
-                        "Eingabegeraet auf '{}' gesetzt.",
+                        "Input device set to '{}'.",
                         settings.input_device_name
                     ));
                 }
             }
             Err(err) => messages.push(format!(
-                "Eingabegeraete konnten nicht geladen werden: {err}"
+                "Input devices could not be loaded: {err}"
             )),
         }
 
@@ -109,14 +109,14 @@ impl DictationController {
 
     pub fn summary(&self) -> String {
         let recording = if self.recording.is_some() {
-            "Aufnahme aktiv"
+            "Recording active"
         } else {
-            "Aufnahme inaktiv"
+            "Recording inactive"
         };
         let transcription = if self.transcription_rx.is_some() {
-            "Transkription laeuft"
+            "Transcription in progress"
         } else {
-            "keine laufende Transkription"
+            "no ongoing transcription"
         };
         format!("{recording}, {transcription}")
     }
@@ -153,7 +153,7 @@ impl DictationController {
                         Err(err) => vec![DictationOutcome::Status(err)],
                     }
                 } else {
-                    match self.stop_recording_and_transcribe(settings, "Taste losgelassen") {
+                    match self.stop_recording_and_transcribe(settings, "key released") {
                         Ok(outcomes) => outcomes,
                         Err(err) => vec![DictationOutcome::Status(err)],
                     }
@@ -165,7 +165,7 @@ impl DictationController {
                 }
 
                 if self.is_recording() {
-                    match self.stop_recording_and_transcribe(settings, "Toggle gestoppt") {
+                    match self.stop_recording_and_transcribe(settings, "toggle stopped") {
                         Ok(outcomes) => outcomes,
                         Err(err) => vec![DictationOutcome::Status(err)],
                     }
@@ -181,14 +181,14 @@ impl DictationController {
 
     pub fn start_recording(&mut self, settings: &AppSettings) -> Result<String, String> {
         if self.recording.is_some() {
-            return Ok("Aufnahme laeuft bereits.".to_owned());
+            return Ok("Recording already in progress.".to_owned());
         }
 
         let model_path = default_model_path(settings.local_model)?;
         if !model_path.exists() {
             self.mark_blocked_now();
             return Err(format!(
-                "Aufnahme blockiert: {} ist noch nicht heruntergeladen.",
+                "Recording blocked: {} has not been downloaded yet.",
                 settings.local_model.display_label()
             ));
         }
@@ -199,12 +199,12 @@ impl DictationController {
         play_recording_cue(RecordingCue::Start);
 
         Ok(format!(
-            "Aufnahme gestartet ueber '{}'{}.",
+            "Recording started via '{}'{}.",
             settings.input_device_name,
             if settings.vad_enabled {
-                ", Silence-Stop aktiv"
+                ", silence stop active"
             } else {
-                ", manueller Stopp aktiv"
+                ", manual stop active"
             }
         ))
     }
@@ -222,7 +222,7 @@ impl DictationController {
         play_recording_cue(RecordingCue::Stop);
         if audio.samples.is_empty() || audio.duration < Duration::from_millis(200) {
             return Ok(vec![DictationOutcome::Status(
-                "Aufnahme war zu kurz oder leer.".to_owned(),
+                "Recording was too short or empty.".to_owned(),
             )]);
         }
 
@@ -240,7 +240,7 @@ impl DictationController {
         self.transcription_rx = Some(rx);
 
         Ok(vec![DictationOutcome::Status(format!(
-            "Aufnahme beendet ({reason}). Lokale Transkription laeuft."
+            "Recording stopped ({reason}). Local transcription in progress."
         ))])
     }
 
@@ -266,7 +266,7 @@ impl DictationController {
             .and_then(ActiveRecording::poll_event);
         match pending_recording_event {
             Some(RecordingEvent::SilenceDetected) => {
-                match self.stop_recording_and_transcribe(settings, "Stille erkannt") {
+                match self.stop_recording_and_transcribe(settings, "silence detected") {
                     Ok(new_outcomes) => outcomes.extend(new_outcomes),
                     Err(err) => outcomes.push(DictationOutcome::Status(err)),
                 }
@@ -283,7 +283,7 @@ impl DictationController {
                 Ok(Ok(transcript)) => {
                     self.transcription_rx = None;
                     outcomes.push(DictationOutcome::Status(
-                        "Lokale Transkription abgeschlossen.".to_owned(),
+                        "Local transcription complete.".to_owned(),
                     ));
                     outcomes.push(DictationOutcome::TranscriptReady(transcript));
                 }
@@ -294,7 +294,7 @@ impl DictationController {
                 Err(TryRecvError::Disconnected) => {
                     self.transcription_rx = None;
                     outcomes.push(DictationOutcome::Status(
-                        "Transkriptions-Worker wurde unerwartet beendet.".to_owned(),
+                        "Transcription worker stopped unexpectedly.".to_owned(),
                     ));
                 }
                 Err(TryRecvError::Empty) => {}
@@ -318,7 +318,7 @@ impl DictationController {
 
         if !model_path.exists() {
             return Err(format!(
-                "{} ist noch nicht heruntergeladen. Lade es zuerst in den Einstellungen herunter.",
+                "{} has not been downloaded yet. Download it in Settings first.",
                 settings.local_model.display_label()
             ));
         }
@@ -328,7 +328,7 @@ impl DictationController {
             &model_path_string,
             WhisperContextParameters::default(),
         )
-        .map_err(|err| format!("Whisper-Modell konnte nicht geladen werden: {err}"))?;
+        .map_err(|err| format!("Whisper model could not be loaded: {err}"))?;
 
         let context = Arc::new(context);
         self.model_cache = Some(ModelCache {
@@ -357,7 +357,7 @@ impl ActiveRecording {
         let device = select_input_device(&settings.input_device_name)?;
         let config = device
             .default_input_config()
-            .map_err(|err| format!("Input-Konfiguration konnte nicht geladen werden: {err}"))?;
+            .map_err(|err| format!("Input configuration could not be loaded: {err}"))?;
 
         let sample_rate = config.sample_rate();
         let channels = config.channels() as usize;
@@ -372,7 +372,7 @@ impl ActiveRecording {
         let stream = build_input_stream(&device, &config, channels, shared.clone(), event_tx)?;
         stream
             .play()
-            .map_err(|err| format!("Audioaufnahme konnte nicht gestartet werden: {err}"))?;
+            .map_err(|err| format!("Audio recording could not be started: {err}"))?;
 
         Ok(Self {
             _stream: stream,
@@ -398,7 +398,7 @@ impl ActiveRecording {
         let mut guard = self
             .shared
             .lock()
-            .map_err(|_| "Aufnahmebuffer konnte nicht gelesen werden.".to_owned())?;
+            .map_err(|_| "Recording buffer could not be read.".to_owned())?;
         Ok(guard.finish(duration))
     }
 }
@@ -632,7 +632,7 @@ fn build_input_stream(
             )
             .map_err(|err| err.to_string()),
         other => Err(format!(
-            "Sampleformat '{other}' wird aktuell nicht unterstuetzt."
+            "Sample format '{other}' is not currently supported."
         )),
     }
 }
@@ -689,12 +689,12 @@ fn transcribe_with_whisper(
 ) -> Result<String, String> {
     let mono_16khz = resample_to_16khz(&audio.samples, audio.sample_rate);
     if mono_16khz.is_empty() {
-        return Err("Keine Audiodaten fuer Whisper vorhanden.".to_owned());
+        return Err("No audio data available for Whisper.".to_owned());
     }
 
     let mut state = context
         .create_state()
-        .map_err(|err| format!("Whisper-State konnte nicht erzeugt werden: {err}"))?;
+        .map_err(|err| format!("Whisper state could not be created: {err}"))?;
 
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 0 });
     params.set_n_threads(thread_count());
@@ -709,7 +709,7 @@ fn transcribe_with_whisper(
 
     state
         .full(params, &mono_16khz)
-        .map_err(|err| format!("Whisper-Transkription fehlgeschlagen: {err}"))?;
+        .map_err(|err| format!("Whisper transcription failed: {err}"))?;
 
     let transcript = state
         .as_iter()
@@ -720,7 +720,7 @@ fn transcribe_with_whisper(
 
     if transcript.is_empty() {
         return Err(format!(
-            "Whisper hat keinen Text erkannt. Modell: {}, Sprache: {}.",
+            "Whisper recognized no text. Model: {}, language: {}.",
             settings.local_model.default_filename(),
             language.unwrap_or("auto")
         ));
@@ -795,7 +795,7 @@ fn select_input_device(selected_name: &str) -> Result<Device, String> {
     if selected_name == system_default_label() {
         return host
             .default_input_device()
-            .ok_or_else(|| "Kein Standard-Eingabegeraet verfuegbar.".to_owned());
+            .ok_or_else(|| "No default input device available.".to_owned());
     }
 
     if let Some(default_device) = host.default_input_device()
@@ -819,7 +819,7 @@ fn select_input_device(selected_name: &str) -> Result<Device, String> {
 
     matching
         .take()
-        .ok_or_else(|| format!("Eingabegeraet '{}' wurde nicht gefunden.", selected_name))
+        .ok_or_else(|| format!("Input device '{}' was not found.", selected_name))
 }
 
 fn default_input_device_name() -> Option<String> {
@@ -861,7 +861,7 @@ fn play_recording_cue_blocking(cue: RecordingCue) -> Result<(), String> {
 
     let config = device
         .default_output_config()
-        .map_err(|err| format!("Output-Konfiguration konnte nicht geladen werden: {err}"))?;
+        .map_err(|err| format!("Output configuration could not be loaded: {err}"))?;
     let stream_config = config.config();
     let sample_rate = stream_config.sample_rate;
     let channels = stream_config.channels as usize;
@@ -910,14 +910,14 @@ fn play_recording_cue_blocking(cue: RecordingCue) -> Result<(), String> {
         }
         other => {
             return Err(format!(
-                "Sampleformat '{other}' fuer Ausgabesignal wird aktuell nicht unterstuetzt."
+                "Sample format '{other}' for output signal is not currently supported."
             ));
         }
     };
 
     stream
         .play()
-        .map_err(|err| format!("Ausgabesignal konnte nicht gestartet werden: {err}"))?;
+        .map_err(|err| format!("Output signal could not be started: {err}"))?;
     thread::sleep(playback_duration);
     Ok(())
 }

@@ -1,0 +1,963 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "“System” follows your macOS language setting." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : { "state" : "translated", "value" : "„System“ folgt der macOS-Spracheinstellung." }
+        }
+      }
+    },
+    "+ Choose file…" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "+ Datei auswählen…" } }
+      }
+    },
+    "+ Load from URL" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "+ Von URL laden" } }
+      }
+    },
+    "A single global key may collide with regular typing. Combinations stay safer." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Eine einzelne globale Taste kann mit normaler Texteingabe kollidieren. Kombinationen bleiben sicherer." } }
+      }
+    },
+    "About Open Whisper" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Über Open Whisper" } }
+      }
+    },
+    "Active" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aktiv" } }
+      }
+    },
+    "Add" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Hinzufügen" } }
+      }
+    },
+    "Add language model by URL" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Sprachmodell per URL hinzufügen" } }
+      }
+    },
+    "After adding, the file is fetched via the 'Download' button. Hugging Face 'resolve/main' links are recommended." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Die Datei wird nach dem Hinzufügen über den 'Herunterladen'-Button geladen. Quellen wie Hugging Face 'resolve/main'-Links werden empfohlen." } }
+      }
+    },
+    "App language" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "App-Sprache" } }
+      }
+    },
+    "approx." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "ca." } }
+      }
+    },
+    "Ask on first launch" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Beim ersten Start fragen" } }
+      }
+    },
+    "At least one post-processing must remain" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Mindestens eine Nachbearbeitung muss bestehen bleiben" } }
+      }
+    },
+    "Audio & hotkey" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Audio & Hotkey" } }
+      }
+    },
+    "Audio source" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Audioquelle" } }
+      }
+    },
+    "Automatic" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Automatisch" } }
+      }
+    },
+    "Automatic updates" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Automatische Updates" } }
+      }
+    },
+    "Automatically check for updates" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Automatisch nach Updates suchen" } }
+      }
+    },
+    "Back" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Zurück" } }
+      }
+    },
+    "Behavior" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Verhalten" } }
+      }
+    },
+    "Blue" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Blau" } }
+      }
+    },
+    "Both models start downloading in the background when you click 'Next'. You can change or manage them later in Settings under 'Language models'." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Beide Modelle starten den Download im Hintergrund, sobald du auf 'Weiter' klickst. Du kannst sie später in den Einstellungen unter 'Sprachmodelle' ändern oder verwalten." } }
+      }
+    },
+    "Bundle" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Bundle" } }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Abbrechen" } }
+      }
+    },
+    "Centered bars" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Zentrierte Balken" } }
+      }
+    },
+    "Check for updates now" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Jetzt nach Updates suchen" } }
+      }
+    },
+    "Check for updates…" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Nach Updates suchen…" } }
+      }
+    },
+    "Choose custom language model" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Eigenes Sprachmodell auswählen" } }
+      }
+    },
+    "Clear" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Löschen" } }
+      }
+    },
+    "Color" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Farbe" } }
+      }
+    },
+    "Current selection" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aktuelle Auswahl" } }
+      }
+    },
+    "Currently registered" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aktuell registriert" } }
+      }
+    },
+    "custom, local" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "eigen, lokal" } }
+      }
+    },
+    "Custom language model (local)" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Eigenes Sprachmodell (lokal)" } }
+      }
+    },
+    "Custom local model" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Eigenes lokales Modell" } }
+      }
+    },
+    "Custom models" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Eigene Modelle" } }
+      }
+    },
+    "Default (global)" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Standard (global)" } }
+      }
+    },
+    "Delete" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Löschen" } }
+      }
+    },
+    "Delete file" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Datei löschen" } }
+      }
+    },
+    "Delete post-processing" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Nachbearbeitung löschen" } }
+      }
+    },
+    "Details" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Details" } }
+      }
+    },
+    "Diagnostics" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Diagnose" } }
+      }
+    },
+    "Dictation stop" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Diktat-Stopp" } }
+      }
+    },
+    "Display name" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Anzeigename" } }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Fertig" } }
+      }
+    },
+    "download" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Download" } }
+      }
+    },
+    "Download" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Herunterladen" } }
+      }
+    },
+    "Download URL (.gguf)" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Download-URL (.gguf)" } }
+      }
+    },
+    "Downloading" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Download läuft" } }
+      }
+    },
+    "Edit post-processing" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Nachbearbeitung bearbeiten" } }
+      }
+    },
+    "Enable silence stop" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Silence-Stop aktivieren" } }
+      }
+    },
+    "Endpoint" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Endpoint" } }
+      }
+    },
+    "Envelope" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Welle" } }
+      }
+    },
+    "Error" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Fehler" } }
+      }
+    },
+    "Fast Large-v3 Turbo with high accuracy — great balance for recent Macs." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Schnelles Large-v3-Turbo mit hoher Genauigkeit, gute Balance für aktuelle Macs." } }
+      }
+    },
+    "Fetch models" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Modelle abrufen" } }
+      }
+    },
+    "Finish" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Abschließen" } }
+      }
+    },
+    "Global hotkey" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Globaler Hotkey" } }
+      }
+    },
+    "Green" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Grün" } }
+      }
+    },
+    "Help" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Hilfe" } }
+      }
+    },
+    "Hotkey" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Hotkey" } }
+      }
+    },
+    "Hotkey must not be empty." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Hotkey darf nicht leer sein." } }
+      }
+    },
+    "Insert text automatically" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Text automatisch einfügen" } }
+      }
+    },
+    "Language" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Sprache" } }
+      }
+    },
+    "Language model" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Sprachmodell" } }
+      }
+    },
+    "Language models" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Sprachmodelle" } }
+      }
+    },
+    "Large" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Groß" } }
+      }
+    },
+    "Large language model (Gemma 4 26B A4B, Mixture-of-Experts) with best quality — needs 32 GB of RAM or more." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Großes Sprachmodell (Gemma 4 26B A4B, Mixture-of-Experts) mit bester Qualität, braucht 32 GB RAM oder mehr." } }
+      }
+    },
+    "Larger model with higher accuracy and more CPU/RAM demand." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Größeres Modell mit höherer Genauigkeit und mehr CPU-/RAM-Bedarf." } }
+      }
+    },
+    "Launch at login" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Mit dem System starten" } }
+      }
+    },
+    "Launch manually only" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Nur manuell starten" } }
+      }
+    },
+    "Line" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Linie" } }
+      }
+    },
+    "loaded" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "geladen" } }
+      }
+    },
+    "Loaded" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Geladen" } }
+      }
+    },
+    "Loading…" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Lädt…" } }
+      }
+    },
+    "local" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "lokal" } }
+      }
+    },
+    "Local language models" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Lokale Sprachmodelle" } }
+      }
+    },
+    "Local model" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Lokales Modell" } }
+      }
+    },
+    "macOS couldn't register this shortcut right now (OSStatus %d). It is probably reserved or already exclusively in use." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "macOS konnte diese Tastenkombination aktuell nicht registrieren (OSStatus %d). Sie ist vermutlich reserviert oder wird bereits exklusiv verwendet." } }
+      }
+    },
+    "macOS currently rejects this option-only combination internally. Add Ctrl or Cmd, or choose a different shortcut." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "macOS lehnt diese reine Option-Kombination aktuell intern ab. Füge zusätzlich Ctrl oder Cmd hinzu oder wähle eine andere Tastenkombination." } }
+      }
+    },
+    "macOS rejected the registration of this shortcut internally. This usually affects reserved or system-blocked shortcuts." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "macOS hat die Registrierung dieser Tastenkombination intern abgelehnt. Das betrifft meist reservierte oder systemseitig gesperrte Shortcuts." } }
+      }
+    },
+    "Manage language models" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Sprachmodelle verwalten" } }
+      }
+    },
+    "Manage language models…" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Sprachmodelle verwalten…" } }
+      }
+    },
+    "Maximum" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Maximal" } }
+      }
+    },
+    "Maximum accuracy. Large download and high RAM demand." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Maximale Genauigkeit. Großer Download und hoher RAM-Bedarf." } }
+      }
+    },
+    "Medium" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Mittel" } }
+      }
+    },
+    "Microphone" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Mikrofon" } }
+      }
+    },
+    "Mid-size language model (Gemma 4 E4B) — solid default for 16 GB of RAM or more." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Mittleres Sprachmodell (Gemma 4 E4B) als guter Standard für 16 GB RAM und mehr." } }
+      }
+    },
+    "Mode" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Modus" } }
+      }
+    },
+    "Model" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Modell" } }
+      }
+    },
+    "Model %@ is missing. Please download it in Settings." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Modell %@ fehlt. Bitte in den Einstellungen laden." } }
+      }
+    },
+    "Model loading: %@" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Modell lädt: %@" } }
+      }
+    },
+    "Model loading: %@ (%d%%)" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Modell lädt: %@ (%d%%)" } }
+      }
+    },
+    "Name" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Name" } }
+      }
+    },
+    "New post-processing" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Neue Nachbearbeitung" } }
+      }
+    },
+    "Next" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Weiter" } }
+      }
+    },
+    "no model" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "kein Modell" } }
+      }
+    },
+    "No custom language models added yet." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Noch keine eigenen Sprachmodelle hinzugefügt." } }
+      }
+    },
+    "No hotkey set" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Noch kein Hotkey gesetzt" } }
+      }
+    },
+    "No model list fetched yet. A running LM Studio server is required." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Noch keine Modellliste abgerufen. Laufender LM-Studio-Server benötigt." } }
+      }
+    },
+    "No model list fetched yet. A running Ollama server is required." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Noch keine Modellliste abgerufen. Laufender Ollama-Server benötigt." } }
+      }
+    },
+    "No prompt set" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Kein Prompt hinterlegt" } }
+      }
+    },
+    "not loaded" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "nicht geladen" } }
+      }
+    },
+    "Not yet loaded" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Noch nicht geladen" } }
+      }
+    },
+    "Note" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Hinweis" } }
+      }
+    },
+    "Off" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aus" } }
+      }
+    },
+    "Open on GitHub" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Auf GitHub öffnen" } }
+      }
+    },
+    "Open release notes on GitHub" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Versionshinweise auf GitHub öffnen" } }
+      }
+    },
+    "Open System Settings" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Systemeinstellungen öffnen" } }
+      }
+    },
+    "Open Whisper" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Open Whisper" } }
+      }
+    },
+    "Open Whisper checks for new versions at launch and then every 24 hours. Updates download in the background and install the next time you restart." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Open Whisper prüft beim Start und danach alle 24 Stunden auf neue Versionen. Updates werden im Hintergrund heruntergeladen und installiert, sobald du neu startest." } }
+      }
+    },
+    "Open Whisper needs a global hotkey. Empty input is not allowed." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Open Whisper braucht einen globalen Hotkey. Leere Eingaben sind nicht erlaubt." } }
+      }
+    },
+    "Open Whisper Settings" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Open Whisper Einstellungen" } }
+      }
+    },
+    "Open Whisper Setup" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Open Whisper Setup" } }
+      }
+    },
+    "Orange" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Orange" } }
+      }
+    },
+    "Overview" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Übersicht" } }
+      }
+    },
+    "Pink" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Pink" } }
+      }
+    },
+    "Post-processing" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Nachbearbeitung" } }
+      }
+    },
+    "Post-processing in progress" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Nachbearbeitung läuft" } }
+      }
+    },
+    "Post-processing…" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Nachbearbeitung…" } }
+      }
+    },
+    "Press your keyboard shortcut now" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Jetzt Tastenkombination drücken" } }
+      }
+    },
+    "Prompt" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Prompt" } }
+      }
+    },
+    "Purple" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Violett" } }
+      }
+    },
+    "Quantized Turbo variant: large-v3 quality at a compact size." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Quantisierte Turbo-Variante: Large-v3-Qualität bei kompakter Größe." } }
+      }
+    },
+    "Quit" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Beenden" } }
+      }
+    },
+    "Ready" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Bereit" } }
+      }
+    },
+    "Record" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aufnehmen" } }
+      }
+    },
+    "Recording" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aufnahme" } }
+      }
+    },
+    "Recording active" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aufnahme aktiv" } }
+      }
+    },
+    "Recording indicator" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aufnahme-Anzeige" } }
+      }
+    },
+    "Recording not possible" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aufnahme nicht möglich" } }
+      }
+    },
+    "Red" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Rot" } }
+      }
+    },
+    "Refresh" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Aktualisieren" } }
+      }
+    },
+    "Refresh devices" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Geräte aktualisieren" } }
+      }
+    },
+    "Reload microphones" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Mikrofone neu laden" } }
+      }
+    },
+    "Remove" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Entfernen" } }
+      }
+    },
+    "Report bugs or submit feature requests." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Bugs melden oder Funktionswünsche einreichen." } }
+      }
+    },
+    "Restart onboarding" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Onboarding erneut starten" } }
+      }
+    },
+    "Restore clipboard after inserting" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Clipboard wiederherstellen" } }
+      }
+    },
+    "Select" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Auswählen" } }
+      }
+    },
+    "Select a GGUF or GGML model file." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "GGUF- oder GGML-Modelldatei auswählen." } }
+      }
+    },
+    "Send feedback" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Feedback geben" } }
+      }
+    },
+    "Send feedback…" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Feedback geben…" } }
+      }
+    },
+    "Settings…" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Einstellungen…" } }
+      }
+    },
+    "Setup" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Einrichtung" } }
+      }
+    },
+    "Show waveform window while recording" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Wellenform-Fenster während Aufnahme anzeigen" } }
+      }
+    },
+    "Silence stop" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Silence-Stopp" } }
+      }
+    },
+    "Small" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Klein" } }
+      }
+    },
+    "Small language model (Gemma 4 E2B). Fast and lean, runs on 8 GB of RAM." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Kleines Sprachmodell (Gemma 4 E2B). Schnell und sparsam, läuft auch auf 8 GB RAM." } }
+      }
+    },
+    "Small local model for quick response on weaker machines." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Kleines lokales Modell für schnelle Reaktion auf schwachen Rechnern." } }
+      }
+    },
+    "Solid default for daily use and accuracy." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Guter Standard für Alltag und Genauigkeit." } }
+      }
+    },
+    "Start & behavior" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Start & Verhalten" } }
+      }
+    },
+    "Start dictation" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Diktat starten" } }
+      }
+    },
+    "Status" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Status" } }
+      }
+    },
+    "Status unknown." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Status unbekannt." } }
+      }
+    },
+    "Stop" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Stoppen" } }
+      }
+    },
+    "Stop dictation" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Diktat stoppen" } }
+      }
+    },
+    "Style" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Stil" } }
+      }
+    },
+    "System" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "System" } }
+      }
+    },
+    "System accent" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Systemfarbe" } }
+      }
+    },
+    "System startup" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Systemstart" } }
+      }
+    },
+    "Teal" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Türkis" } }
+      }
+    },
+    "Text output" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Textausgabe" } }
+      }
+    },
+    "Thanks for helping make Open Whisper better. Pick a channel:" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Vielen Dank, dass du Open Whisper besser machen möchtest. Wähle einen Kanal:" } }
+      }
+    },
+    "The shortcut could be tested but couldn't be released cleanly afterwards (OSStatus %d). Please try again." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Die Tastenkombination konnte getestet werden, ließ sich danach aber nicht sauber wieder freigeben (OSStatus %d). Bitte versuche es erneut." } }
+      }
+    },
+    "This key is not currently supported as a global hotkey in the native macOS app." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Diese Taste wird in der nativen macOS-App derzeit nicht als globaler Hotkey unterstützt." } }
+      }
+    },
+    "This profile uses: %@." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Dieses Profil nutzt: %@." } }
+      }
+    },
+    "This shortcut is already reserved by macOS. Change it in System Settings under Keyboard › Keyboard Shortcuts, or pick a different combination." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Die Tastenkombination ist bereits als macOS-Systemshortcut reserviert. Ändere sie in den Systemeinstellungen unter Tastatur > Tastaturkurzbefehle oder wähle eine andere Kombination." } }
+      }
+    },
+    "This shortcut is already used by Open Whisper. If it is currently active, leave it unchanged or pick a new combination." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Die Tastenkombination wird in Open Whisper bereits verwendet. Falls sie gerade aktiv ist, lasse sie unverändert oder wähle eine neue Kombination." } }
+      }
+    },
+    "Tiny" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Mini" } }
+      }
+    },
+    "Tiny model for very weak machines with minimal latency." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Winziges Modell für extrem schwache Rechner und sehr kurze Reaktionszeit." } }
+      }
+    },
+    "Transcribing…" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Transkribieren…" } }
+      }
+    },
+    "Transcription" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Transkription" } }
+      }
+    },
+    "Transcription in progress" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Transkription läuft" } }
+      }
+    },
+    "Transcription is used as-is." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Transkription wird unverändert übernommen." } }
+      }
+    },
+    "Transcription model" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Transkriptionsmodell" } }
+      }
+    },
+    "Tray-first, local, and built for everyday use. Default is local Whisper; Ollama and LM Studio stay optional." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Tray-first, lokal und für den Alltag. Standard ist lokales Whisper; Ollama und LM Studio bleiben optional." } }
+      }
+    },
+    "Trigger" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Trigger" } }
+      }
+    },
+    "Turbo" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Turbo" } }
+      }
+    },
+    "Turbo+" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Turbo+" } }
+      }
+    },
+    "unknown" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "unbekannt" } }
+      }
+    },
+    "Updates" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Updates" } }
+      }
+    },
+    "Updates are only available in the installed .app (dev build)." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Updates sind nur in der installierten .app verfügbar (Dev-Build)." } }
+      }
+    },
+    "Uses global model: %@." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Nutzt globales Modell: %@." } }
+      }
+    },
+    "Version" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Version" } }
+      }
+    },
+    "Voice Activity Detection" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Voice Activity Detection" } }
+      }
+    },
+    "Warning" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Warnung" } }
+      }
+    },
+    "Welcome" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Willkommen" } }
+      }
+    },
+    "Whisper model" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Whisper-Modell" } }
+      }
+    },
+    "Whisper presets" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Whisper-Presets" } }
+      }
+    },
+    "You can restart the setup assistant anytime to reconfigure microphone, hotkey, and language models." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Du kannst den Einrichtungs-Assistenten jederzeit erneut starten, um Mikrofon, Hotkey und Sprachmodelle neu zu konfigurieren." } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

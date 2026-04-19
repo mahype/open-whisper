@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "OpenWhisperMac",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v14),
     ],
@@ -24,6 +25,9 @@ let package = Package(
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             path: "Sources/OpenWhisperMac",
+            resources: [
+                .process("Resources"),
+            ],
             linkerSettings: [
                 .unsafeFlags(["-L", "../../target/debug", "-lopen_whisper_bridge"]),
                 .linkedLibrary("c++"),

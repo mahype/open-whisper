@@ -14,6 +14,7 @@ struct HotkeyRecorderField: View {
     let onClear: () -> Void
     let onPreview: (String) -> Void
     let onInvalid: (String) -> Void
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -51,11 +52,17 @@ struct HotkeyRecorderField: View {
                 .frame(maxWidth: .infinity, minHeight: 30)
 
                 if isCapturing {
-                    Button("Abbrechen", action: onCancel)
-                    Button("Loeschen", action: onClear)
+                    Button(action: onCancel) {
+                        Text("Cancel", bundle: .module)
+                    }
+                    Button(action: onClear) {
+                        Text("Clear", bundle: .module)
+                    }
                 } else {
-                    Button("Aufnehmen", action: onStartCapture)
-                        .buttonStyle(.borderedProminent)
+                    Button(action: onStartCapture) {
+                        Text("Record", bundle: .module)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
             }
 
@@ -87,7 +94,9 @@ struct HotkeyRecorderField: View {
     }
 
     private var placeholderText: String {
-        isCapturing ? "Jetzt Tastenkombination druecken" : "Noch kein Hotkey gesetzt"
+        isCapturing
+            ? L("Press your keyboard shortcut now", locale: locale)
+            : L("No hotkey set", locale: locale)
     }
 }
 
@@ -156,7 +165,7 @@ private final class HotkeyCaptureView: NSView {
 
         let modifierTokens = hotkeyModifierTokens(from: modifiers)
         guard let keyToken = hotkeyKeyToken(for: event) else {
-            onInvalid?(unsupportedHotkeyMessage)
+            onInvalid?(unsupportedHotkeyMessage(locale: .current))
             return
         }
 
@@ -182,7 +191,10 @@ struct HotkeyNamedKeySpec {
 }
 
 let hotkeyRelevantModifierMask: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
-let unsupportedHotkeyMessage = "Diese Taste wird in der nativen macOS-App derzeit nicht als globaler Hotkey unterstuetzt."
+
+func unsupportedHotkeyMessage(locale: Locale) -> String {
+    L("This key is not currently supported as a global hotkey in the native macOS app.", locale: locale)
+}
 
 let hotkeyNamedKeySpecs: [HotkeyNamedKeySpec] = [
     HotkeyNamedKeySpec(token: "Enter", keyCodes: [36, 76], aliases: ["Return"]),

@@ -18,13 +18,13 @@ impl AutostartManager {
                 let enabled = launcher.is_enabled().ok();
                 Self {
                     launcher: Some(launcher),
-                    status: "Systemstart noch nicht synchronisiert.".to_owned(),
+                    status: "Startup status not synchronized yet.".to_owned(),
                     enabled,
                 }
             }
             Err(err) => Self {
                 launcher: None,
-                status: format!("Systemstart nicht verfuegbar: {err}"),
+                status: format!("Startup not available: {err}"),
                 enabled: None,
             },
         }
@@ -41,62 +41,62 @@ impl AutostartManager {
         match settings.startup_behavior {
             StartupBehavior::AskOnFirstLaunch => {
                 let enabled = launcher.is_enabled().map_err(|err| {
-                    format!("Systemstart-Status konnte nicht gelesen werden: {err}")
+                    format!("Startup status could not be read: {err}")
                 })?;
                 self.enabled = Some(enabled);
                 self.status = if enabled {
-                    "Systemstart ist aktiv. 'Beim ersten Start fragen' laesst den OS-Status unveraendert.".to_owned()
+                    "Launch at login is active. 'Ask on first launch' leaves the OS state unchanged.".to_owned()
                 } else {
-                    "Systemstart ist inaktiv. 'Beim ersten Start fragen' laesst den OS-Status unveraendert.".to_owned()
+                    "Launch at login is inactive. 'Ask on first launch' leaves the OS state unchanged.".to_owned()
                 };
                 Ok(None)
             }
             StartupBehavior::LaunchAtLogin => {
                 if !launcher.is_enabled().map_err(|err| {
-                    format!("Systemstart-Status konnte nicht gelesen werden: {err}")
+                    format!("Startup status could not be read: {err}")
                 })? {
                     launcher.enable().map_err(|err| {
-                        format!("Systemstart konnte nicht aktiviert werden: {err}")
+                        format!("Launch at login could not be enabled: {err}")
                     })?;
                 }
 
                 let enabled = launcher
                     .is_enabled()
-                    .map_err(|err| format!("Systemstart konnte nicht bestaetigt werden: {err}"))?;
+                    .map_err(|err| format!("Launch at login could not be confirmed: {err}"))?;
                 self.enabled = Some(enabled);
                 self.status = if enabled {
-                    "Systemstart ist aktiv und startet die App verborgen.".to_owned()
+                    "Launch at login is active and starts the app hidden.".to_owned()
                 } else {
-                    "Systemstart sollte aktiv sein, konnte aber nicht bestaetigt werden.".to_owned()
+                    "Launch at login should be active but could not be confirmed.".to_owned()
                 };
                 Ok(Some(if enabled {
-                    "Systemstart aktiviert.".to_owned()
+                    "Launch at login enabled.".to_owned()
                 } else {
-                    "Systemstart konnte nicht bestaetigt werden.".to_owned()
+                    "Launch at login could not be confirmed.".to_owned()
                 }))
             }
             StartupBehavior::ManualLaunch => {
                 if launcher.is_enabled().map_err(|err| {
-                    format!("Systemstart-Status konnte nicht gelesen werden: {err}")
+                    format!("Startup status could not be read: {err}")
                 })? {
                     launcher.disable().map_err(|err| {
-                        format!("Systemstart konnte nicht deaktiviert werden: {err}")
+                        format!("Launch at login could not be disabled: {err}")
                     })?;
                 }
 
                 let enabled = launcher
                     .is_enabled()
-                    .map_err(|err| format!("Systemstart konnte nicht bestaetigt werden: {err}"))?;
+                    .map_err(|err| format!("Launch at login could not be confirmed: {err}"))?;
                 self.enabled = Some(enabled);
                 self.status = if enabled {
-                    "Systemstart sollte deaktiviert sein, ist aber noch aktiv.".to_owned()
+                    "Launch at login should be disabled but is still active.".to_owned()
                 } else {
-                    "Systemstart ist deaktiviert.".to_owned()
+                    "Launch at login is disabled.".to_owned()
                 };
                 Ok(Some(if enabled {
-                    "Systemstart ist noch aktiv.".to_owned()
+                    "Launch at login is still active.".to_owned()
                 } else {
-                    "Systemstart deaktiviert.".to_owned()
+                    "Launch at login disabled.".to_owned()
                 }))
             }
         }
@@ -114,7 +114,7 @@ fn build_launcher() -> Result<auto_launch::AutoLaunch, String> {
     let executable_path = current_executable_path()?;
     let app_path = executable_path
         .to_str()
-        .ok_or_else(|| "Pfad zur aktuellen App ist nicht UTF-8.".to_owned())?;
+        .ok_or_else(|| "Path to current app is not UTF-8.".to_owned())?;
 
     let mut builder = AutoLaunchBuilder::new();
     builder
@@ -144,9 +144,9 @@ fn build_launcher() -> Result<auto_launch::AutoLaunch, String> {
 }
 
 fn current_executable_path() -> Result<PathBuf, String> {
-    let path = env::current_exe().map_err(|err| format!("Pfad zur App nicht verfuegbar: {err}"))?;
+    let path = env::current_exe().map_err(|err| format!("Path to app not available: {err}"))?;
     if !path.is_absolute() {
-        return Err("Pfad zur App ist nicht absolut.".to_owned());
+        return Err("Path to app is not absolute.".to_owned());
     }
 
     Ok(path)

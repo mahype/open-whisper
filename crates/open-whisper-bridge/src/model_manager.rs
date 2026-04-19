@@ -34,7 +34,7 @@ impl ModelDownloadManager {
 
     pub fn start_download_for(&mut self, preset: ModelPreset) -> Result<String, String> {
         if self.is_downloading() {
-            return Err("Ein Modelldownload laeuft bereits.".to_owned());
+            return Err("A model download is already running.".to_owned());
         }
 
         let target_path = default_model_path(preset)?;
@@ -42,7 +42,7 @@ impl ModelDownloadManager {
             self.state = ModelDownloadState::Ready {
                 path: target_path.clone(),
             };
-            return Ok(format!("{} ist bereits vorhanden.", preset.display_label()));
+            return Ok(format!("{} is already present.", preset.display_label()));
         }
 
         let download_url = preset.download_url().to_owned();
@@ -67,7 +67,7 @@ impl ModelDownloadManager {
         });
 
         Ok(format!(
-            "Download fuer {} gestartet.",
+            "Download for {} started.",
             preset.display_label()
         ))
     }
@@ -79,26 +79,26 @@ impl ModelDownloadManager {
     pub fn delete_preset(&mut self, preset: ModelPreset) -> Result<String, String> {
         if self.is_downloading_preset(preset) {
             return Err(
-                "Ein laufender Download kann nicht gleichzeitig geloescht werden.".to_owned(),
+                "A running download can't be deleted at the same time.".to_owned(),
             );
         }
 
         let path = default_model_path(preset)?;
         if !path.exists() {
             return Ok(format!(
-                "{} war lokal bereits nicht vorhanden.",
+                "{} was already not present locally.",
                 preset.display_label()
             ));
         }
 
         fs::remove_file(&path)
-            .map_err(|err| format!("Modell konnte nicht geloescht werden: {err}"))?;
+            .map_err(|err| format!("Model could not be deleted: {err}"))?;
 
         if !self.is_downloading() {
             self.state = ModelDownloadState::Missing;
         }
 
-        Ok(format!("{} wurde lokal geloescht.", preset.display_label()))
+        Ok(format!("{} was deleted locally.", preset.display_label()))
     }
 
     pub fn poll(&mut self) -> Vec<String> {
@@ -129,7 +129,7 @@ impl ModelDownloadManager {
                         self.download_rx = None;
                         self.state = ModelDownloadState::Ready { path: path.clone() };
                         messages.push(format!(
-                            "Download abgeschlossen: {} ({})",
+                            "Download complete: {} ({})",
                             label,
                             human_readable_size(downloaded_bytes)
                         ));
@@ -147,9 +147,9 @@ impl ModelDownloadManager {
                     Err(TryRecvError::Disconnected) => {
                         self.download_rx = None;
                         self.state = ModelDownloadState::Failed {
-                            message: "Download-Worker wurde unerwartet beendet.".to_owned(),
+                            message: "Download worker stopped unexpectedly.".to_owned(),
                         };
-                        messages.push("Download-Worker wurde unerwartet beendet.".to_owned());
+                        messages.push("Download worker stopped unexpectedly.".to_owned());
                         break;
                     }
                 }
@@ -210,7 +210,7 @@ impl ModelDownloadManager {
             ModelDownloadState::Idle => summary_for_path(resolve_model_path(settings).ok()),
             ModelDownloadState::Missing => {
                 format!(
-                    "{} ist noch nicht heruntergeladen.",
+                    "{} has not been downloaded yet.",
                     settings.local_model.display_label()
                 )
             }
@@ -223,20 +223,20 @@ impl ModelDownloadManager {
             } => {
                 let progress = match total_bytes {
                     Some(total_bytes) if *total_bytes > 0 => format!(
-                        "{} von {}",
+                        "{} of {}",
                         human_readable_size(*downloaded_bytes),
                         human_readable_size(*total_bytes)
                     ),
-                    _ => format!("{} geladen", human_readable_size(*downloaded_bytes)),
+                    _ => format!("{} downloaded", human_readable_size(*downloaded_bytes)),
                 };
                 format!(
-                    "Download fuer {} laeuft seit {} ({progress}).",
+                    "Download for {} has been running for {} ({progress}).",
                     preset.display_label(),
                     human_readable_duration(started_at.elapsed())
                 )
             }
             ModelDownloadState::Failed { message } => {
-                format!("Letzter Modelldownload fehlgeschlagen: {message}")
+                format!("Last model download failed: {message}")
             }
         }
     }
@@ -281,7 +281,7 @@ pub fn resolve_model_path(settings: &AppSettings) -> Result<PathBuf, String> {
 
 pub fn default_model_path(preset: ModelPreset) -> Result<PathBuf, String> {
     let project_dirs = ProjectDirs::from("dev", "awesome", "open-whisper")
-        .ok_or_else(|| "Config-Verzeichnis fuer Modelle nicht verfuegbar.".to_owned())?;
+        .ok_or_else(|| "Config directory for models not available.".to_owned())?;
     Ok(project_dirs
         .config_dir()
         .join("models")
@@ -296,24 +296,24 @@ fn download_model_file(
 ) -> Result<(), String> {
     if let Some(parent) = target_path.parent() {
         fs::create_dir_all(parent)
-            .map_err(|err| format!("Modellverzeichnis konnte nicht erstellt werden: {err}"))?;
+            .map_err(|err| format!("Model directory could not be created: {err}"))?;
     }
 
     let client = Client::builder()
         .connect_timeout(Duration::from_secs(20))
         .build()
-        .map_err(|err| format!("HTTP-Client fuer Modelldownload fehlgeschlagen: {err}"))?;
+        .map_err(|err| format!("HTTP client for model download failed: {err}"))?;
 
     let mut response = client
         .get(url)
         .header("User-Agent", USER_AGENT)
         .send()
         .and_then(|response| response.error_for_status())
-        .map_err(|err| format!("Modelldownload fehlgeschlagen: {err}"))?;
+        .map_err(|err| format!("Model download failed: {err}"))?;
 
     let total_bytes = response.content_length();
     let mut file = fs::File::create(temp_path)
-        .map_err(|err| format!("Temporaere Modelldatei konnte nicht erstellt werden: {err}"))?;
+        .map_err(|err| format!("Temporary model file could not be created: {err}"))?;
     let mut buffer = [0_u8; DOWNLOAD_BUFFER_SIZE];
     let mut downloaded_bytes = 0_u64;
     let mut last_progress = Instant::now() - DOWNLOAD_PROGRESS_INTERVAL;
@@ -321,13 +321,13 @@ fn download_model_file(
     loop {
         let read = response
             .read(&mut buffer)
-            .map_err(|err| format!("Lesefehler waehrend des Downloads: {err}"))?;
+            .map_err(|err| format!("Read error during download: {err}"))?;
         if read == 0 {
             break;
         }
 
         file.write_all(&buffer[..read]).map_err(|err| {
-            format!("Modell konnte nicht auf die Platte geschrieben werden: {err}")
+            format!("Model could not be written to disk: {err}")
         })?;
         downloaded_bytes += read as u64;
 
@@ -341,9 +341,9 @@ fn download_model_file(
     }
 
     file.sync_all()
-        .map_err(|err| format!("Modelldatei konnte nicht finalisiert werden: {err}"))?;
+        .map_err(|err| format!("Model file could not be finalized: {err}"))?;
     fs::rename(temp_path, target_path)
-        .map_err(|err| format!("Modelldatei konnte nicht aktiviert werden: {err}"))?;
+        .map_err(|err| format!("Model file could not be activated: {err}"))?;
 
     let _ = tx.send(DownloadEvent::Completed {
         path: target_path.to_path_buf(),
@@ -364,7 +364,7 @@ fn temporary_download_path(target_path: &Path) -> PathBuf {
 fn cleanup_temp_file(path: &Path) -> Result<(), String> {
     if path.exists() {
         fs::remove_file(path)
-            .map_err(|err| format!("Temp-Datei konnte nicht entfernt werden: {err}"))?;
+            .map_err(|err| format!("Temp file could not be removed: {err}"))?;
     }
 
     Ok(())
@@ -373,18 +373,18 @@ fn cleanup_temp_file(path: &Path) -> Result<(), String> {
 fn summary_for_path(path: Option<PathBuf>) -> String {
     match path {
         Some(path) if path.exists() => summary_for_existing_path(&path),
-        Some(_) => "Lokales Modell ist noch nicht heruntergeladen.".to_owned(),
-        None => "Lokaler Modellpfad ist aktuell nicht aufloesbar.".to_owned(),
+        Some(_) => "Local model has not been downloaded yet.".to_owned(),
+        None => "Local model path is not currently resolvable.".to_owned(),
     }
 }
 
 fn summary_for_existing_path(path: &Path) -> String {
     match fs::metadata(path) {
         Ok(metadata) => format!(
-            "Lokales Modell bereit ({})",
+            "Local model ready ({})",
             human_readable_size(metadata.len())
         ),
-        Err(_) => "Lokales Modell bereit.".to_owned(),
+        Err(_) => "Local model ready.".to_owned(),
     }
 }
 
@@ -393,11 +393,11 @@ fn model_label_for_path(path: &Path) -> &'static str {
         Some("ggml-tiny.bin") => "Whisper Tiny",
         Some("ggml-base.bin") => "Whisper Base",
         Some("ggml-small.bin") => "Whisper Small",
-        Some("ggml-large-v3-turbo-q5_0.bin") => "Whisper Large v3 Turbo (kompakt)",
+        Some("ggml-large-v3-turbo-q5_0.bin") => "Whisper Large v3 Turbo (compact)",
         Some("ggml-medium.bin") => "Whisper Medium",
         Some("ggml-large-v3-turbo.bin") => "Whisper Large v3 Turbo",
         Some("ggml-large-v3.bin") => "Whisper Large v3",
-        _ => "lokales Modell",
+        _ => "local model",
     }
 }
 

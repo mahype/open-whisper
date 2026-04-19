@@ -19,9 +19,9 @@ impl StartupBehavior {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::AskOnFirstLaunch => "Beim ersten Start fragen",
-            Self::LaunchAtLogin => "Mit dem System starten",
-            Self::ManualLaunch => "Nur manuell starten",
+            Self::AskOnFirstLaunch => "Ask on first launch",
+            Self::LaunchAtLogin => "Launch at login",
+            Self::ManualLaunch => "Launch manually only",
         }
     }
 }
@@ -60,9 +60,9 @@ impl WaveformStyle {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::CenteredBars => "Zentrierte Balken",
-            Self::Line => "Linie",
-            Self::Envelope => "Welle",
+            Self::CenteredBars => "Centered bars",
+            Self::Line => "Line",
+            Self::Envelope => "Envelope",
         }
     }
 }
@@ -110,14 +110,14 @@ impl WaveformColor {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Accent => "Systemfarbe",
-            Self::Blue => "Blau",
-            Self::Green => "Gruen",
-            Self::Teal => "Tuerkis",
+            Self::Accent => "System accent",
+            Self::Blue => "Blue",
+            Self::Green => "Green",
+            Self::Teal => "Teal",
             Self::Orange => "Orange",
-            Self::Red => "Rot",
+            Self::Red => "Red",
             Self::Pink => "Pink",
-            Self::Purple => "Violett",
+            Self::Purple => "Purple",
         }
     }
 }
@@ -169,13 +169,13 @@ impl ModelPreset {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Tiny => "Mini",
-            Self::Light => "Klein",
-            Self::Standard => "Mittel",
+            Self::Tiny => "Tiny",
+            Self::Light => "Small",
+            Self::Standard => "Medium",
             Self::LargeV3TurboQ5_0 => "Turbo",
-            Self::Quality => "Gross",
+            Self::Quality => "Large",
             Self::LargeV3Turbo => "Turbo+",
-            Self::LargeV3 => "Maximal",
+            Self::LargeV3 => "Maximum",
         }
     }
 
@@ -184,10 +184,10 @@ impl ModelPreset {
             Self::Tiny => "Whisper Tiny (78 MB)",
             Self::Light => "Whisper Base (148 MB)",
             Self::Standard => "Whisper Small (488 MB)",
-            Self::Quality => "Whisper Medium (1,5 GB)",
+            Self::Quality => "Whisper Medium (1.5 GB)",
             Self::LargeV3TurboQ5_0 => "Whisper Large v3 Turbo Q5_0 (574 MB)",
-            Self::LargeV3Turbo => "Whisper Large v3 Turbo (1,6 GB)",
-            Self::LargeV3 => "Whisper Large v3 (3,1 GB)",
+            Self::LargeV3Turbo => "Whisper Large v3 Turbo (1.6 GB)",
+            Self::LargeV3 => "Whisper Large v3 (3.1 GB)",
         }
     }
 
@@ -218,22 +218,22 @@ impl ModelPreset {
     pub fn description(self) -> &'static str {
         match self {
             Self::Tiny => {
-                "Winziges Modell fuer extrem schwache Rechner und sehr kurze Reaktionszeit."
+                "Tiny model for very weak machines with minimal latency."
             }
-            Self::Light => "Kleines lokales Modell fuer schwache Rechner und schnelle Reaktion.",
+            Self::Light => "Small local model for weaker machines with quick response.",
             Self::Standard => {
-                "Mittleres lokales Modell als guter Standard fuer Alltag und Genauigkeit."
+                "Mid-size local model — solid default for daily use and accuracy."
             }
             Self::LargeV3TurboQ5_0 => {
-                "Quantisierte Turbo-Variante: Large-v3-Qualitaet bei kompakter Groesse."
+                "Quantized Turbo variant: large-v3 quality at a compact size."
             }
             Self::Quality => {
-                "Grosses lokales Modell mit hoeherer Genauigkeit, aber mehr CPU/RAM-Bedarf."
+                "Large local model with higher accuracy — needs more CPU/RAM."
             }
             Self::LargeV3Turbo => {
-                "Schnelles Large-v3-Turbo mit hoher Genauigkeit, gute Balance fuer aktuelle Macs."
+                "Fast Large-v3 Turbo with high accuracy — great balance for recent Macs."
             }
-            Self::LargeV3 => "Maximale Genauigkeit. Grosser Download und hoher RAM-Bedarf.",
+            Self::LargeV3 => "Maximum accuracy. Large download and high RAM demand.",
         }
     }
 
@@ -289,16 +289,16 @@ impl LlmPreset {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Small => "Klein",
-            Self::Medium => "Mittel",
-            Self::Large => "Gross",
+            Self::Small => "Small",
+            Self::Medium => "Medium",
+            Self::Large => "Large",
         }
     }
 
     pub fn display_label(self) -> &'static str {
         match self {
-            Self::Small => "Gemma 4 E2B (3,5 GB)",
-            Self::Medium => "Gemma 4 E4B (5,4 GB)",
+            Self::Small => "Gemma 4 E2B (3.5 GB)",
+            Self::Medium => "Gemma 4 E4B (5.4 GB)",
             Self::Large => "Gemma 4 26B (17 GB)",
         }
     }
@@ -314,22 +314,22 @@ impl LlmPreset {
     pub fn description(self) -> &'static str {
         match self {
             Self::Small => {
-                "Kleines Sprachmodell (Gemma 4 E2B). Schnell und sparsam, laeuft auch auf 8 GB RAM."
+                "Small language model (Gemma 4 E2B). Fast and lean, runs on 8 GB of RAM."
             }
             Self::Medium => {
-                "Mittleres Sprachmodell (Gemma 4 E4B) als guter Standard fuer 16 GB RAM und mehr."
+                "Mid-size language model (Gemma 4 E4B) — solid default for 16 GB of RAM or more."
             }
             Self::Large => {
-                "Grosses Sprachmodell (Gemma 4 26B A4B, Mixture-of-Experts) mit bester Qualitaet, braucht 32 GB RAM oder mehr."
+                "Large language model (Gemma 4 26B A4B, Mixture-of-Experts) with best quality — needs 32 GB of RAM or more."
             }
         }
     }
 
     pub fn approx_size_label(self) -> &'static str {
         match self {
-            Self::Small => "ca. 3.5 GB",
-            Self::Medium => "ca. 5.4 GB",
-            Self::Large => "ca. 17 GB",
+            Self::Small => "approx. 3.5 GB",
+            Self::Medium => "approx. 5.4 GB",
+            Self::Large => "approx. 17 GB",
         }
     }
 
@@ -415,7 +415,7 @@ impl PostProcessingBackend {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Local => "Lokales Modell",
+            Self::Local => "Local model",
             Self::Ollama => "Ollama",
             Self::LmStudio => "LM Studio",
         }
@@ -481,8 +481,8 @@ impl ProcessingMode {
     pub fn cleanup() -> Self {
         Self {
             id: "cleanup".to_owned(),
-            name: "Aufraeumen".to_owned(),
-            prompt: "Korrigiere Satzzeichen, Grossschreibung und offensichtliche Erkennungsfehler im diktierten Text, ohne den Inhalt zu veraendern. Gib nur den bereinigten Text zurueck.".to_owned(),
+            name: "Cleanup".to_owned(),
+            prompt: "Fix punctuation, capitalization, and obvious recognition errors in the dictated text without changing its content. Return only the cleaned-up text.".to_owned(),
             post_processing_choice: None,
         }
     }
@@ -526,6 +526,16 @@ pub struct AppSettings {
     pub post_processing_enabled: bool,
     pub modes: Vec<ProcessingMode>,
     pub active_mode_id: String,
+    pub ui_language: UiLanguage,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum UiLanguage {
+    #[default]
+    System,
+    En,
+    De,
 }
 
 impl AppSettings {
@@ -555,7 +565,7 @@ impl AppSettings {
 
         for mode in &mut self.modes {
             if mode.name.trim().is_empty() {
-                mode.name = "Neue Nachbearbeitung".to_owned();
+                mode.name = "New post-processing".to_owned();
             }
         }
     }
@@ -615,7 +625,7 @@ impl AppSettings {
 
     pub fn active_provider_summary(&self) -> String {
         if !self.post_processing_enabled {
-            return format!("Lokales Whisper mit {}", self.local_model.display_label());
+            return format!("Local Whisper with {}", self.local_model.display_label());
         }
         let mode = self.active_mode();
         match self.active_post_processing_backend {
@@ -624,13 +634,13 @@ impl AppSettings {
                     .active_custom_llm()
                     .map(|entry| entry.name.clone())
                     .unwrap_or_else(|| self.local_llm.display_label().to_owned());
-                format!("Lokales Whisper + {} ({})", label, mode.name)
+                format!("Local Whisper + {} ({})", label, mode.name)
             }
             PostProcessingBackend::Ollama => {
-                format!("Lokales Whisper + Ollama ({})", mode.name)
+                format!("Local Whisper + Ollama ({})", mode.name)
             }
             PostProcessingBackend::LmStudio => {
-                format!("Lokales Whisper + LM Studio ({})", mode.name)
+                format!("Local Whisper + LM Studio ({})", mode.name)
             }
         }
     }
@@ -668,6 +678,7 @@ impl Default for AppSettings {
             post_processing_enabled: false,
             modes: vec![ProcessingMode::cleanup()],
             active_mode_id: "cleanup".to_owned(),
+            ui_language: UiLanguage::default(),
         }
     }
 }
@@ -729,9 +740,9 @@ impl DiagnosticStatus {
     pub fn label(self) -> &'static str {
         match self {
             Self::Ok => "OK",
-            Self::Info => "Hinweis",
-            Self::Warning => "Warnung",
-            Self::Error => "Fehler",
+            Self::Info => "Note",
+            Self::Warning => "Warning",
+            Self::Error => "Error",
         }
     }
 }
@@ -814,7 +825,7 @@ mod tests {
         assert_eq!(settings.trigger_mode, TriggerMode::Toggle);
         assert!(!settings.vad_enabled);
         assert!(!settings.post_processing_enabled);
-        assert_eq!(settings.active_mode_name(), "Aufraeumen");
+        assert_eq!(settings.active_mode_name(), "Cleanup");
     }
 
     #[test]
@@ -833,8 +844,8 @@ mod tests {
     }
 
     #[test]
-    fn quality_label_maps_to_gross() {
-        assert_eq!(ModelPreset::Quality.label(), "Gross");
+    fn quality_label_maps_to_large() {
+        assert_eq!(ModelPreset::Quality.label(), "Large");
     }
 
     #[test]
@@ -858,7 +869,7 @@ mod tests {
 
     #[test]
     fn diagnostics_status_has_stable_label() {
-        assert_eq!(DiagnosticStatus::Warning.label(), "Warnung");
+        assert_eq!(DiagnosticStatus::Warning.label(), "Warning");
     }
 
     #[test]

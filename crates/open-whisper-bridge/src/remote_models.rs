@@ -61,7 +61,7 @@ pub fn list_remote_models(
         .timeout(REQUEST_TIMEOUT)
         .user_agent(USER_AGENT)
         .build()
-        .map_err(|err| format!("HTTP-Client konnte nicht erstellt werden: {err}"))?;
+        .map_err(|err| format!("HTTP client could not be created: {err}"))?;
 
     match backend {
         RemoteModelBackend::Ollama => fetch_ollama(&client, endpoint),
@@ -74,14 +74,14 @@ fn fetch_ollama(client: &Client, endpoint: &str) -> Result<Vec<RemoteModelDto>, 
     let response = client
         .get(&url)
         .send()
-        .map_err(|err| format!("Ollama-Endpoint {} nicht erreichbar: {err}", endpoint))?;
+        .map_err(|err| format!("Ollama endpoint {} not reachable: {err}", endpoint))?;
     let status = response.status();
     if !status.is_success() {
-        return Err(format!("Ollama lieferte HTTP {} bei {}.", status, url));
+        return Err(format!("Ollama returned HTTP {} at {}.", status, url));
     }
     let payload: OllamaTagsResponse = response
         .json()
-        .map_err(|err| format!("Ollama-Antwort konnte nicht gelesen werden: {err}"))?;
+        .map_err(|err| format!("Ollama response could not be read: {err}"))?;
 
     Ok(payload
         .models
@@ -106,7 +106,7 @@ fn fetch_ollama(client: &Client, endpoint: &str) -> Result<Vec<RemoteModelDto>, 
                 parts.push(human_bytes(bytes));
             }
             let summary = if parts.is_empty() {
-                "Ollama-Modell".to_owned()
+                "Ollama model".to_owned()
             } else {
                 parts.join(" · ")
             };
@@ -124,14 +124,14 @@ fn fetch_lm_studio(client: &Client, endpoint: &str) -> Result<Vec<RemoteModelDto
     let response = client
         .get(&url)
         .send()
-        .map_err(|err| format!("LM-Studio-Endpoint {} nicht erreichbar: {err}", endpoint))?;
+        .map_err(|err| format!("LM Studio endpoint {} not reachable: {err}", endpoint))?;
     let status = response.status();
     if !status.is_success() {
-        return Err(format!("LM Studio lieferte HTTP {} bei {}.", status, url));
+        return Err(format!("LM Studio returned HTTP {} at {}.", status, url));
     }
     let payload: LmStudioModelsResponse = response
         .json()
-        .map_err(|err| format!("LM-Studio-Antwort konnte nicht gelesen werden: {err}"))?;
+        .map_err(|err| format!("LM Studio response could not be read: {err}"))?;
 
     Ok(payload
         .data
@@ -151,7 +151,7 @@ fn fetch_lm_studio(client: &Client, endpoint: &str) -> Result<Vec<RemoteModelDto
                 }
             }
             let summary = if parts.is_empty() {
-                "LM-Studio-Modell".to_owned()
+                "LM Studio model".to_owned()
             } else {
                 parts.join(" · ")
             };
