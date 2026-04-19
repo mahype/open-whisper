@@ -138,6 +138,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private func updateRecordingIndicatorVisibility() {
         let runtime = model.runtime
         let phase: IndicatorPhase? = {
+            if runtime.dictationBlockedByMissingModel {
+                let progress = runtime.blockedModelProgressBasisPoints.map { Double($0) / 10_000.0 }
+                return .modelNotReady(
+                    label: runtime.blockedModelLabel,
+                    progress: progress,
+                    isDownloading: runtime.blockedModelIsDownloading
+                )
+            }
             if runtime.isRecording { return .recording }
             if runtime.isTranscribing { return .transcribing }
             if runtime.isPostProcessing { return .postProcessing }
@@ -172,7 +180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func makeRecordingIndicatorWindow(phase: IndicatorPhase, style: WaveformStyle, color: WaveformColor, modeName: String) -> NSWindow {
-        let size = NSSize(width: 240, height: 78)
+        let size = NSSize(width: 260, height: 86)
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],

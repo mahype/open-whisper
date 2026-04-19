@@ -713,6 +713,10 @@ pub struct RuntimeStatusDto {
     pub provider_summary: String,
     pub active_mode_name: String,
     pub onboarding_completed: bool,
+    pub dictation_blocked_by_missing_model: bool,
+    pub blocked_model_label: String,
+    pub blocked_model_is_downloading: bool,
+    pub blocked_model_progress_basis_points: Option<u16>,
 }
 
 #[cfg(test)]

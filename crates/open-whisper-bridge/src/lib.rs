@@ -621,6 +621,35 @@ impl BridgeRuntime {
 
     fn runtime_status(&mut self) -> RuntimeStatusDto {
         self.poll();
+
+        let blocked_ttl = std::time::Duration::from_secs(6);
+        let now = std::time::Instant::now();
+
+        let mut is_blocked = self.dictation.is_blocked(now, blocked_ttl);
+        if is_blocked {
+            let preset = self.settings.local_model;
+            if model_manager::default_model_path(preset)
+                .map(|path| path.exists())
+                .unwrap_or(false)
+            {
+                self.dictation.clear_blocked();
+                is_blocked = false;
+            }
+        }
+
+        let (blocked_label, blocked_is_downloading, blocked_progress) = if is_blocked {
+            let preset = self.settings.local_model;
+            let is_downloading = self.model_downloads.is_downloading_preset(preset);
+            let progress = if is_downloading {
+                self.model_downloads.progress_basis_points()
+            } else {
+                None
+            };
+            (preset.display_label().to_owned(), is_downloading, progress)
+        } else {
+            (String::new(), false, None)
+        };
+
         RuntimeStatusDto {
             is_recording: self.dictation.is_recording(),
             is_transcribing: self.dictation.is_transcribing(),
@@ -641,6 +670,10 @@ impl BridgeRuntime {
             provider_summary: self.settings.active_provider_summary(),
             active_mode_name: self.settings.active_mode_name().to_owned(),
             onboarding_completed: self.settings.onboarding_completed,
+            dictation_blocked_by_missing_model: is_blocked,
+            blocked_model_label: blocked_label,
+            blocked_model_is_downloading: blocked_is_downloading,
+            blocked_model_progress_basis_points: blocked_progress,
         }
     }
 }

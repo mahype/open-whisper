@@ -33,6 +33,7 @@ pub struct DictationController {
     recording: Option<ActiveRecording>,
     transcription_rx: Option<Receiver<Result<String, String>>>,
     model_cache: Option<ModelCache>,
+    dictation_blocked_at: Option<Instant>,
 }
 
 impl DictationController {
@@ -42,6 +43,22 @@ impl DictationController {
             recording: None,
             transcription_rx: None,
             model_cache: None,
+            dictation_blocked_at: None,
+        }
+    }
+
+    pub fn mark_blocked_now(&mut self) {
+        self.dictation_blocked_at = Some(Instant::now());
+    }
+
+    pub fn clear_blocked(&mut self) {
+        self.dictation_blocked_at = None;
+    }
+
+    pub fn is_blocked(&self, now: Instant, ttl: Duration) -> bool {
+        match self.dictation_blocked_at {
+            Some(at) => now.saturating_duration_since(at) < ttl,
+            None => false,
         }
     }
 
@@ -166,8 +183,18 @@ impl DictationController {
             return Ok("Aufnahme laeuft bereits.".to_owned());
         }
 
+        let model_path = default_model_path(settings.local_model)?;
+        if !model_path.exists() {
+            self.mark_blocked_now();
+            return Err(format!(
+                "Aufnahme blockiert: {} ist noch nicht heruntergeladen.",
+                settings.local_model.display_label()
+            ));
+        }
+
         let recording = ActiveRecording::start(settings)?;
         self.recording = Some(recording);
+        self.clear_blocked();
         play_recording_cue(RecordingCue::Start);
 
         Ok(format!(

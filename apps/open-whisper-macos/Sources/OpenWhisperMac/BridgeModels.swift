@@ -587,6 +587,10 @@ struct RuntimeStatusDTO: Codable {
     var providerSummary: String
     var activeModeName: String
     var onboardingCompleted: Bool
+    var dictationBlockedByMissingModel: Bool
+    var blockedModelLabel: String
+    var blockedModelIsDownloading: Bool
+    var blockedModelProgressBasisPoints: UInt16?
 
     static let empty = RuntimeStatusDTO(
         isRecording: false,
@@ -600,6 +604,10 @@ struct RuntimeStatusDTO: Codable {
         startupSummary: "Systemstart noch nicht synchronisiert.",
         providerSummary: "Local Whisper",
         activeModeName: "Standard",
-        onboardingCompleted: false
+        onboardingCompleted: false,
+        dictationBlockedByMissingModel: false,
+        blockedModelLabel: "",
+        blockedModelIsDownloading: false,
+        blockedModelProgressBasisPoints: nil
     )
 }

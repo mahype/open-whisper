@@ -4,6 +4,7 @@ enum IndicatorPhase: Equatable {
     case recording
     case transcribing
     case postProcessing
+    case modelNotReady(label: String, progress: Double?, isDownloading: Bool)
 }
 
 @MainActor
@@ -66,13 +67,13 @@ struct RecordingIndicatorView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if !modeName.isEmpty && phase != .transcribing {
+            if shouldShowModeLabel {
                 modeLabel
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .frame(width: 240, height: 78)
+        .frame(width: 260, height: 86)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -95,6 +96,15 @@ struct RecordingIndicatorView: View {
         case .recording: return .red
         case .transcribing: return .secondary
         case .postProcessing: return .purple
+        case .modelNotReady: return .orange
+        }
+    }
+
+    private var shouldShowModeLabel: Bool {
+        guard !modeName.isEmpty else { return false }
+        switch phase {
+        case .recording, .postProcessing: return true
+        case .transcribing, .modelNotReady: return false
         }
     }
 
@@ -108,7 +118,41 @@ struct RecordingIndicatorView: View {
             processingRow(text: "Transkribiere...")
         case .postProcessing:
             processingRow(text: "Nachbearbeitung...")
+        case let .modelNotReady(label, progress, isDownloading):
+            modelNotReadyRow(label: label, progress: progress, isDownloading: isDownloading)
         }
+    }
+
+    @ViewBuilder
+    private func modelNotReadyRow(label: String, progress: Double?, isDownloading: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Aufnahme nicht m\u{F6}glich")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.primary)
+            if let progress, isDownloading {
+                let percent = Int((progress * 100.0).rounded())
+                Text("Modell l\u{E4}dt: \(label) (\(percent)%)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                ProgressView(value: progress)
+            } else if isDownloading {
+                Text("Modell l\u{E4}dt: \(label)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                ProgressView()
+                    .progressViewStyle(.linear)
+            } else {
+                Text("Modell \(label) fehlt. Bitte in den Einstellungen laden.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var modeLabel: some View {
