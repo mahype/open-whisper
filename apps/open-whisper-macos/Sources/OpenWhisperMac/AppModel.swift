@@ -114,14 +114,6 @@ final class AppModel: ObservableObject {
         return formatter.string(fromByteCount: Int64(bytes))
     }
 
-    var trayModelLabel: String {
-        let name = modelStatus.presetLabel.isEmpty ? selectedModelDisplayName : modelStatus.presetLabel
-        if modelStatus.isDownloading {
-            return "Modell: \(name) (Download laeuft)"
-        }
-        return "Modell: \(name)"
-    }
-
     var hotkeyRiskHint: String? {
         let source = isCapturingHotkey && !hotkeyCapturePreview.isEmpty ? hotkeyCapturePreview : settings.hotkey
         return isSingleKeyHotkey(source)
@@ -143,12 +135,6 @@ final class AppModel: ObservableObject {
 
     var activeModeName: String {
         runtime.activeModeName.isEmpty ? activeMode.name : runtime.activeModeName
-    }
-
-    var trayModeLabel: String {
-        settings.postProcessingEnabled
-            ? "Nachbearbeitung: \(activeModeName)"
-            : "Nachbearbeitung: Aus"
     }
 
     var canDeleteSelectedMode: Bool {

@@ -9,10 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private let statusMenu = NSMenu()
     private var dictationItem: NSMenuItem!
     private var settingsItem: NSMenuItem!
-    private var onboardingItem: NSMenuItem!
-    private var modeSummaryItem: NSMenuItem!
     private var modeSwitchItem: NSMenuItem!
-    private var modelItem: NSMenuItem!
     private var modelSwitchItem: NSMenuItem!
     private var statusItemLine: NSMenuItem!
     private var quitItem: NSMenuItem!
@@ -35,14 +32,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
         dictationItem = NSMenuItem(title: "Diktat starten", action: #selector(toggleDictation), keyEquivalent: "")
         settingsItem = NSMenuItem(title: "Einstellungen...", action: #selector(showSettings), keyEquivalent: ",")
-        onboardingItem = NSMenuItem(title: "Onboarding erneut oeffnen", action: #selector(showOnboarding), keyEquivalent: "")
-        modeSummaryItem = NSMenuItem(title: "Nachbearbeitung wird geladen...", action: nil, keyEquivalent: "")
-        modeSummaryItem.isEnabled = false
-        modeSwitchItem = NSMenuItem(title: "Nachbearbeitung wechseln", action: nil, keyEquivalent: "")
+        modeSwitchItem = NSMenuItem(title: "Nachbearbeitung", action: nil, keyEquivalent: "")
         modeSwitchItem.submenu = modeMenu
-        modelItem = NSMenuItem(title: "Modellstatus wird geladen...", action: nil, keyEquivalent: "")
-        modelItem.isEnabled = false
-        modelSwitchItem = NSMenuItem(title: "Transkriptionsmodell wechseln", action: nil, keyEquivalent: "")
+        modelSwitchItem = NSMenuItem(title: "Transkriptionsmodell", action: nil, keyEquivalent: "")
         modelSwitchItem.submenu = modelMenu
         statusItemLine = NSMenuItem(title: "Status wird geladen...", action: nil, keyEquivalent: "")
         statusItemLine.isEnabled = false
@@ -53,12 +45,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             dictationItem,
             .separator(),
             settingsItem,
-            onboardingItem,
             .separator(),
-            modeSummaryItem,
             modeSwitchItem,
-            .separator(),
-            modelItem,
             modelSwitchItem,
             statusItemLine,
             .separator(),
@@ -147,9 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private func refreshMenuState() {
         let runtime = model.runtime
         dictationItem.title = runtime.isRecording ? "Diktat stoppen" : "Diktat starten"
-        modeSummaryItem.title = model.trayModeLabel
         rebuildModeMenu()
-        modelItem.title = model.trayModelLabel
         rebuildModelMenu()
         statusItemLine.title = model.bridgeError ?? runtime.lastStatus
         statusItem.button?.image = statusImage(recording: runtime.isRecording)
