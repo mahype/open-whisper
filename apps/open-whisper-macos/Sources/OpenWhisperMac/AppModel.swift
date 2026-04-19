@@ -586,6 +586,17 @@ final class AppModel: ObservableObject {
         flushAutoSave()
     }
 
+    func activateMode(_ modeID: String) {
+        settings.activeModeId = modeID
+        settings.postProcessingEnabled = true
+        flushAutoSave()
+    }
+
+    func disablePostProcessing() {
+        settings.postProcessingEnabled = false
+        flushAutoSave()
+    }
+
     func persistActiveModeImmediately(_ modeID: String) {
         do {
             var freshSettings = try bridge.loadSettings()

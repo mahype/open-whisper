@@ -54,7 +54,6 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 struct ModeListTile: View {
     let mode: ProcessingMode
     let isActive: Bool
-    let isEnabled: Bool
     let canDelete: Bool
     let onActivate: () -> Void
     let onEdit: () -> Void
@@ -95,7 +94,41 @@ struct ModeListTile: View {
             .help(canDelete ? "Nachbearbeitung loeschen" : "Mindestens eine Nachbearbeitung muss bestehen bleiben")
         }
         .contentShape(Rectangle())
-        .opacity(isEnabled ? 1.0 : 0.45)
+        .onTapGesture { onActivate() }
+        .onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+    }
+}
+
+struct PostProcessingOffTile: View {
+    let isActive: Bool
+    let onActivate: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: isActive ? "largecircle.fill.circle" : "circle")
+                .font(.body)
+                .foregroundStyle(isActive ? Color.accentColor : Color.secondary.opacity(0.7))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Aus")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                Text("Transkription wird unverändert übernommen")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+        }
+        .contentShape(Rectangle())
         .onTapGesture { onActivate() }
         .onHover { hovering in
             if hovering {

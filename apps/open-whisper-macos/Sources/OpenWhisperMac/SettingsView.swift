@@ -150,15 +150,18 @@ struct SettingsView: View {
     @ViewBuilder
     private var modesContent: some View {
         Section("Nachbearbeitung") {
-            Toggle("Nachbearbeitung aktivieren", isOn: model.binding(for: \.postProcessingEnabled))
+            PostProcessingOffTile(
+                isActive: !model.settings.postProcessingEnabled,
+                onActivate: { model.disablePostProcessing() }
+            )
+            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
 
             ForEach(model.availableModes) { mode in
                 ModeListTile(
                     mode: mode,
                     isActive: model.settings.postProcessingEnabled && model.settings.activeModeId == mode.id,
-                    isEnabled: model.settings.postProcessingEnabled,
                     canDelete: model.canDeleteModes,
-                    onActivate: { model.setActiveMode(mode.id) },
+                    onActivate: { model.activateMode(mode.id) },
                     onEdit: {
                         model.beginEditingMode(mode.id)
                         isEditingMode = true
