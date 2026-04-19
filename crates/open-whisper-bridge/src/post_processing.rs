@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 
-use open_whisper_core::{AppSettings, PostProcessingBackend};
+use open_whisper_core::{AppSettings, CustomLlmSource, PostProcessingBackend};
 use reqwest::blocking::Client;
 use serde_json::{Value, json};
 
@@ -17,11 +17,33 @@ pub fn process_text(settings: &AppSettings, raw_transcript: &str) -> Result<Stri
     }
 
     let text = match settings.active_post_processing_backend {
-        PostProcessingBackend::Local => local_llm::generate_with_shared_runtime(
-            settings.local_llm,
-            &mode.prompt,
-            raw_transcript,
-        )?,
+        PostProcessingBackend::Local => {
+            if let Some(custom) = settings.active_custom_llm() {
+                match &custom.source {
+                    CustomLlmSource::LocalPath { path } => {
+                        local_llm::generate_with_custom_path(
+                            &custom.id,
+                            &custom.name,
+                            Path::new(path),
+                            &mode.prompt,
+                            raw_transcript,
+                        )?
+                    }
+                    CustomLlmSource::DownloadUrl { .. } => {
+                        return Err(format!(
+                            "Eigenes Sprachmodell '{}' wurde ueber URL hinzugefuegt, aber noch nicht heruntergeladen.",
+                            custom.name
+                        ));
+                    }
+                }
+            } else {
+                local_llm::generate_with_shared_runtime(
+                    settings.local_llm,
+                    &mode.prompt,
+                    raw_transcript,
+                )?
+            }
+        }
         PostProcessingBackend::Ollama => {
             let client = build_http_client()?;
             let system_prompt = build_system_prompt(&mode.prompt);

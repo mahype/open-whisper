@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 enum PostProcessingChoice: Hashable, Identifiable {
     case localPreset(LlmPreset)
+    case localCustom(id: String, name: String)
     case ollamaModel(String)
     case lmStudioModel(String)
 
@@ -9,6 +11,8 @@ enum PostProcessingChoice: Hashable, Identifiable {
         switch self {
         case .localPreset(let preset):
             return "local.\(preset.rawValue)"
+        case .localCustom(let id, _):
+            return "custom.\(id)"
         case .ollamaModel(let name):
             return "ollama.\(name)"
         case .lmStudioModel(let name):
@@ -20,6 +24,8 @@ enum PostProcessingChoice: Hashable, Identifiable {
         switch self {
         case .localPreset(let preset):
             return "\(preset.displayName) (lokal)"
+        case .localCustom(_, let name):
+            return "\(name) (eigen, lokal)"
         case .ollamaModel(let name):
             return name.isEmpty ? "Ollama (kein Modell)" : "Ollama · \(name)"
         case .lmStudioModel(let name):
@@ -115,6 +121,22 @@ struct LanguageModelsManagerSheet: View {
             }
         }
 
+        Section("Eigene Modelle") {
+            if model.settings.customLlmModels.isEmpty {
+                Text("Noch keine eigenen Sprachmodelle hinzugef\u{FC}gt. Lokale GGUF-Dateien k\u{F6}nnen \u{FC}ber den Button unten ausgew\u{E4}hlt werden.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(model.settings.customLlmModels) { entry in
+                    customLlmTile(entry: entry)
+                }
+            }
+
+            Button("+ Eigenes Modell hinzuf\u{FC}gen") {
+                presentCustomLlmFilePicker()
+            }
+        }
+
         Section("Ollama") {
             TextField("Endpoint", text: model.binding(for: \.ollama.endpoint))
             HStack(spacing: 10) {
@@ -162,6 +184,65 @@ struct LanguageModelsManagerSheet: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func customLlmTile(entry: CustomLlmModel) -> some View {
+        let isActive = model.settings.activePostProcessingBackend == .local
+            && model.settings.activeCustomLlmId == entry.id
+
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(entry.name)
+                        .font(.body.weight(.medium))
+                    if isActive {
+                        Text("Aktiv")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.vertical, 2)
+                            .padding(.horizontal, 6)
+                            .background(Color.accentColor.opacity(0.14), in: Capsule())
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+                Text(entry.source.summaryText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer()
+
+            Button(isActive ? "Aktiv" : "Ausw\u{E4}hlen") {
+                model.postProcessingChoiceBinding.wrappedValue = .localCustom(id: entry.id, name: entry.name)
+            }
+            .disabled(isActive)
+
+            Button("L\u{F6}schen") {
+                model.removeCustomLlm(id: entry.id)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func presentCustomLlmFilePicker() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = []
+        panel.allowsOtherFileTypes = true
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Hinzuf\u{FC}gen"
+        panel.title = "Eigenes Sprachmodell ausw\u{E4}hlen"
+        panel.message = "GGUF- oder GGML-Modelldatei ausw\u{E4}hlen."
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        let name = url.deletingPathExtension().lastPathComponent
+        model.addCustomLocalLlm(name: name, path: url.path)
     }
 
     private func isActiveOllama(_ entry: RemoteModelDTO) -> Bool {

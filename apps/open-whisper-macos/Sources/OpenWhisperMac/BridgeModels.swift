@@ -325,6 +325,65 @@ struct ExternalProviderSettings: Codable, Equatable {
     var modelName: String
 }
 
+enum CustomLlmSource: Codable, Equatable, Hashable {
+    case localPath(path: String)
+    case downloadUrl(url: String, filename: String)
+
+    private enum CodingKeys: String, CodingKey {
+        case kind
+        case path
+        case url
+        case filename
+    }
+
+    private enum Kind: String, Codable {
+        case localPath = "local_path"
+        case downloadUrl = "download_url"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try container.decode(Kind.self, forKey: .kind)
+        switch kind {
+        case .localPath:
+            let path = try container.decode(String.self, forKey: .path)
+            self = .localPath(path: path)
+        case .downloadUrl:
+            let url = try container.decode(String.self, forKey: .url)
+            let filename = try container.decode(String.self, forKey: .filename)
+            self = .downloadUrl(url: url, filename: filename)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .localPath(let path):
+            try container.encode(Kind.localPath, forKey: .kind)
+            try container.encode(path, forKey: .path)
+        case .downloadUrl(let url, let filename):
+            try container.encode(Kind.downloadUrl, forKey: .kind)
+            try container.encode(url, forKey: .url)
+            try container.encode(filename, forKey: .filename)
+        }
+    }
+
+    var summaryText: String {
+        switch self {
+        case .localPath(let path):
+            return path
+        case .downloadUrl(let url, _):
+            return url
+        }
+    }
+}
+
+struct CustomLlmModel: Codable, Identifiable, Hashable, Equatable {
+    var id: String
+    var name: String
+    var source: CustomLlmSource
+}
+
 struct ProcessingMode: Codable, Identifiable, Hashable {
     var id: String
     var name: String
@@ -397,6 +456,8 @@ struct AppSettings: Codable, Equatable {
     var localLlmAutoUnloadSecs: UInt32
     var activeProvider: ProviderKind
     var activePostProcessingBackend: PostProcessingBackend
+    var activeCustomLlmId: String
+    var customLlmModels: [CustomLlmModel]
     var ollama: ExternalProviderSettings
     var lmStudio: ExternalProviderSettings
     var modes: [ProcessingMode]
@@ -425,6 +486,8 @@ struct AppSettings: Codable, Equatable {
         localLlmAutoUnloadSecs: 180,
         activeProvider: .localWhisper,
         activePostProcessingBackend: .local,
+        activeCustomLlmId: "",
+        customLlmModels: [],
         ollama: ExternalProviderSettings(endpoint: "http://127.0.0.1:11434", modelName: "whisper"),
         lmStudio: ExternalProviderSettings(endpoint: "http://127.0.0.1:1234", modelName: "openai/whisper-small"),
         modes: [.standard],

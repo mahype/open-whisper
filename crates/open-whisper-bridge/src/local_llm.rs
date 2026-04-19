@@ -1,6 +1,6 @@
 use std::{
     num::NonZeroU32,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
     time::{Duration, Instant},
 };
@@ -20,6 +20,13 @@ use crate::llm_model_manager::default_llm_model_path;
 const MAX_OUTPUT_TOKENS: i32 = 512;
 const STOP_SEQUENCE: &str = "<turn|>";
 const PROMPT_BATCH_CAPACITY: usize = 512;
+const CUSTOM_CONTEXT_SIZE: u32 = 2_048;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LocalLlmKey {
+    Preset(LlmPreset),
+    Custom(String),
+}
 
 static LLAMA_BACKEND: OnceCell<Arc<LlamaBackend>> = OnceCell::new();
 
@@ -39,7 +46,7 @@ pub struct LocalLlmRuntime {
 }
 
 struct LoadedModel {
-    preset: LlmPreset,
+    key: LocalLlmKey,
     path: PathBuf,
     model: LlamaModel,
 }
@@ -57,7 +64,17 @@ impl LocalLlmRuntime {
     }
 
     pub fn loaded_preset(&self) -> Option<LlmPreset> {
-        self.loaded.as_ref().map(|loaded| loaded.preset)
+        match &self.loaded.as_ref()?.key {
+            LocalLlmKey::Preset(preset) => Some(*preset),
+            LocalLlmKey::Custom(_) => None,
+        }
+    }
+
+    pub fn loaded_custom_id(&self) -> Option<String> {
+        match &self.loaded.as_ref()?.key {
+            LocalLlmKey::Preset(_) => None,
+            LocalLlmKey::Custom(id) => Some(id.clone()),
+        }
     }
 
     pub fn maybe_unload(&mut self, auto_unload_secs: u32) {
@@ -83,15 +100,54 @@ impl LocalLlmRuntime {
         user_text: &str,
     ) -> Result<String, String> {
         let target_path = default_llm_model_path(preset)?;
-
         if !target_path.exists() {
             return Err(format!(
                 "Lokales Sprachmodell ({}) ist noch nicht heruntergeladen.",
                 preset.display_label()
             ));
         }
+        self.generate_any(
+            LocalLlmKey::Preset(preset),
+            &target_path,
+            preset.context_size(),
+            system_prompt,
+            user_text,
+        )
+    }
 
-        self.ensure_loaded(preset, &target_path)?;
+    pub fn generate_custom(
+        &mut self,
+        id: &str,
+        display_name: &str,
+        path: &Path,
+        system_prompt: &str,
+        user_text: &str,
+    ) -> Result<String, String> {
+        if !path.exists() {
+            return Err(format!(
+                "Eigenes Sprachmodell '{}' wurde unter {} nicht gefunden.",
+                display_name,
+                path.display()
+            ));
+        }
+        self.generate_any(
+            LocalLlmKey::Custom(id.to_owned()),
+            path,
+            CUSTOM_CONTEXT_SIZE,
+            system_prompt,
+            user_text,
+        )
+    }
+
+    fn generate_any(
+        &mut self,
+        key: LocalLlmKey,
+        target_path: &Path,
+        n_ctx_value: u32,
+        system_prompt: &str,
+        user_text: &str,
+    ) -> Result<String, String> {
+        self.ensure_loaded(key, target_path)?;
         self.last_used = Instant::now();
 
         let loaded = self
@@ -100,7 +156,6 @@ impl LocalLlmRuntime {
             .expect("ensure_loaded guarantees loaded model");
 
         let backend = backend()?;
-        let n_ctx_value = preset.context_size();
         let n_ctx = NonZeroU32::new(n_ctx_value)
             .ok_or_else(|| "context_size must be greater than zero".to_owned())?;
         let ctx_params = LlamaContextParams::default().with_n_ctx(Some(n_ctx));
@@ -187,11 +242,11 @@ impl LocalLlmRuntime {
 
     fn ensure_loaded(
         &mut self,
-        target_preset: LlmPreset,
-        target_path: &PathBuf,
+        target_key: LocalLlmKey,
+        target_path: &Path,
     ) -> Result<(), String> {
         let needs_load = match &self.loaded {
-            Some(loaded) => loaded.preset != target_preset || loaded.path != *target_path,
+            Some(loaded) => loaded.key != target_key || loaded.path.as_path() != target_path,
             None => true,
         };
 
@@ -207,8 +262,8 @@ impl LocalLlmRuntime {
             .map_err(|err| format!("Sprachmodell konnte nicht geladen werden: {err}"))?;
 
         self.loaded = Some(LoadedModel {
-            preset: target_preset,
-            path: target_path.clone(),
+            key: target_key,
+            path: target_path.to_path_buf(),
             model,
         });
 
@@ -237,6 +292,19 @@ pub fn generate_with_shared_runtime(
         .lock()
         .map_err(|_| "Lokales Sprachmodell-Runtime-Mutex wurde vergiftet.".to_owned())?;
     runtime.generate(preset, system_prompt, user_text)
+}
+
+pub fn generate_with_custom_path(
+    id: &str,
+    display_name: &str,
+    path: &Path,
+    system_prompt: &str,
+    user_text: &str,
+) -> Result<String, String> {
+    let mut runtime = shared_runtime()
+        .lock()
+        .map_err(|_| "Lokales Sprachmodell-Runtime-Mutex wurde vergiftet.".to_owned())?;
+    runtime.generate_custom(id, display_name, path, system_prompt, user_text)
 }
 
 pub fn maybe_unload_shared_runtime(auto_unload_secs: u32) {

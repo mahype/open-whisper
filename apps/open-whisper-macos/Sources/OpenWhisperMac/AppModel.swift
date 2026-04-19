@@ -197,6 +197,10 @@ final class AppModel: ObservableObject {
             get: {
                 switch self.settings.activePostProcessingBackend {
                 case .local:
+                    if !self.settings.activeCustomLlmId.isEmpty,
+                       let entry = self.settings.customLlmModels.first(where: { $0.id == self.settings.activeCustomLlmId }) {
+                        return .localCustom(id: entry.id, name: entry.name)
+                    }
                     return .localPreset(self.settings.localLlm)
                 case .ollama:
                     return .ollamaModel(self.settings.ollama.modelName)
@@ -208,12 +212,18 @@ final class AppModel: ObservableObject {
                 switch newValue {
                 case .localPreset(let preset):
                     self.settings.activePostProcessingBackend = .local
+                    self.settings.activeCustomLlmId = ""
                     self.settings.localLlm = preset
+                case .localCustom(let id, _):
+                    self.settings.activePostProcessingBackend = .local
+                    self.settings.activeCustomLlmId = id
                 case .ollamaModel(let name):
                     self.settings.activePostProcessingBackend = .ollama
+                    self.settings.activeCustomLlmId = ""
                     self.settings.ollama.modelName = name
                 case .lmStudioModel(let name):
                     self.settings.activePostProcessingBackend = .lmStudio
+                    self.settings.activeCustomLlmId = ""
                     self.settings.lmStudio.modelName = name
                 }
                 self.requestAutoSave()
@@ -223,6 +233,10 @@ final class AppModel: ObservableObject {
 
     var postProcessingChoices: [PostProcessingChoice] {
         var choices: [PostProcessingChoice] = LlmPreset.allCases.map { .localPreset($0) }
+
+        choices.append(
+            contentsOf: settings.customLlmModels.map { .localCustom(id: $0.id, name: $0.name) }
+        )
 
         var ollamaNames = ollamaModels.map(\.name)
         let currentOllama = settings.ollama.modelName
@@ -239,6 +253,26 @@ final class AppModel: ObservableObject {
         choices.append(contentsOf: lmNames.map { .lmStudioModel($0) })
 
         return choices
+    }
+
+    func addCustomLocalLlm(name: String, path: String) {
+        let id = UUID().uuidString.lowercased()
+        let entry = CustomLlmModel(
+            id: id,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            source: .localPath(path: path)
+        )
+        settings.customLlmModels.append(entry)
+        requestAutoSave()
+    }
+
+    func removeCustomLlm(id: String) {
+        settings.customLlmModels.removeAll(where: { $0.id == id })
+        if settings.activeCustomLlmId == id {
+            settings.activeCustomLlmId = ""
+            settings.activePostProcessingBackend = .local
+        }
+        requestAutoSave()
     }
 
     func reloadAll() {

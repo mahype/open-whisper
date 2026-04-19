@@ -393,6 +393,20 @@ impl ExternalProviderSettings {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CustomLlmSource {
+    LocalPath { path: String },
+    DownloadUrl { url: String, filename: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CustomLlmModel {
+    pub id: String,
+    pub name: String,
+    pub source: CustomLlmSource,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct ProcessingMode {
     pub id: String,
@@ -460,6 +474,8 @@ pub struct AppSettings {
     pub local_llm_auto_unload_secs: u32,
     pub active_provider: ProviderKind,
     pub active_post_processing_backend: PostProcessingBackend,
+    pub active_custom_llm_id: String,
+    pub custom_llm_models: Vec<CustomLlmModel>,
     pub ollama: ExternalProviderSettings,
     pub lm_studio: ExternalProviderSettings,
     pub modes: Vec<ProcessingMode>,
@@ -510,17 +526,28 @@ impl AppSettings {
         self.active_mode().post_processing_enabled
     }
 
+    pub fn active_custom_llm(&self) -> Option<&CustomLlmModel> {
+        if self.active_custom_llm_id.trim().is_empty() {
+            return None;
+        }
+        self.custom_llm_models
+            .iter()
+            .find(|entry| entry.id == self.active_custom_llm_id)
+    }
+
     pub fn active_provider_summary(&self) -> String {
         let mode = self.active_mode();
         if !mode.post_processing_enabled {
             return format!("Lokales Whisper mit {}", self.local_model.display_label());
         }
         match self.active_post_processing_backend {
-            PostProcessingBackend::Local => format!(
-                "Lokales Whisper + {} im Modus '{}'",
-                self.local_llm.display_label(),
-                mode.name
-            ),
+            PostProcessingBackend::Local => {
+                let label = self
+                    .active_custom_llm()
+                    .map(|entry| entry.name.clone())
+                    .unwrap_or_else(|| self.local_llm.display_label().to_owned());
+                format!("Lokales Whisper + {} im Modus '{}'", label, mode.name)
+            }
             PostProcessingBackend::Ollama => {
                 format!("Lokales Whisper + Ollama im Modus '{}'", mode.name)
             }
@@ -556,6 +583,8 @@ impl Default for AppSettings {
             local_llm_auto_unload_secs: 180,
             active_provider: ProviderKind::default(),
             active_post_processing_backend: PostProcessingBackend::default(),
+            active_custom_llm_id: String::new(),
+            custom_llm_models: Vec::new(),
             ollama: ExternalProviderSettings::ollama_defaults(),
             lm_studio: ExternalProviderSettings::lm_studio_defaults(),
             modes: vec![ProcessingMode::standard(), ProcessingMode::cleanup()],
