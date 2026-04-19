@@ -66,7 +66,7 @@ struct RecordingIndicatorView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if phase == .recording && !modeName.isEmpty {
+            if !modeName.isEmpty && phase != .transcribing {
                 modeLabel
             }
         }
@@ -85,9 +85,17 @@ struct RecordingIndicatorView: View {
 
     private var statusDot: some View {
         Circle()
-            .fill(phase == .recording ? Color.red : Color.secondary)
+            .fill(statusDotColor)
             .frame(width: 8, height: 8)
             .shadow(color: phase == .recording ? Color.red.opacity(0.6) : .clear, radius: 3)
+    }
+
+    private var statusDotColor: Color {
+        switch phase {
+        case .recording: return .red
+        case .transcribing: return .secondary
+        case .postProcessing: return .purple
+        }
     }
 
     @ViewBuilder
@@ -99,7 +107,7 @@ struct RecordingIndicatorView: View {
         case .transcribing:
             processingRow(text: "Transkribiere...")
         case .postProcessing:
-            processingRow(text: "Verarbeite...")
+            processingRow(text: "Nachbearbeitung...")
         }
     }
 
