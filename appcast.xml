@@ -1,18 +1,9 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+<?xml version="1.0" standalone="yes"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>Open Whisper</title>
     <link>https://mahype.github.io/open-whisper/appcast.xml</link>
     <description>Official update feed for Open Whisper.</description>
     <language>en</language>
-    <item>
-      <title>Version 0.2.0</title>
-      <pubDate>Sun, 19 Apr 2026 14:03:14 +0000</pubDate>
-      <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
-      <sparkle:version>0.2.0</sparkle:version>
-      <sparkle:releaseNotesLink>https://github.com/mahype/open-whisper/releases/tag/v0.2.0</sparkle:releaseNotesLink>
-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/mahype/open-whisper/releases/download/v0.2.0/OpenWhisper-0.2.0.dmg" sparkle:edSignature="1Y29n4J6r4E455wnoYtD1ma991ukXM2Nm7Eghiu1msshApwVxYo0QW8R1KNpEihfetLNrC2sJDEupmOOP3v2AQ==" length="6854141" type="application/octet-stream" />
-    </item>
   </channel>
 </rss>
