@@ -118,6 +118,29 @@ if [[ -f apps/open-whisper-macos/Resources/AppIcon.icns ]]; then
     cp apps/open-whisper-macos/Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 fi
 
+# --- Embed Sparkle.framework ------------------------------------------------
+# The Swift executable links against Sparkle with an @rpath load command; the
+# framework is not copied automatically by `swift build` into an app bundle.
+# SwiftPM only resolves it into the XCFramework artifact tree. Copy the
+# universal variant into Contents/Frameworks/ and add the conventional rpath.
+
+sparkle_framework_src="apps/open-whisper-macos/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+if [[ ! -d "$sparkle_framework_src" ]]; then
+    echo "error: Sparkle.framework not found at $sparkle_framework_src" >&2
+    echo "       run 'swift package --package-path apps/open-whisper-macos resolve' first" >&2
+    exit 1
+fi
+
+echo "==> Embedding Sparkle.framework"
+mkdir -p "$app/Contents/Frameworks"
+rm -rf "$app/Contents/Frameworks/Sparkle.framework"
+cp -R "$sparkle_framework_src" "$app/Contents/Frameworks/"
+
+# The binary was linked with @rpath/Sparkle.framework/... but SwiftPM does
+# not set @executable_path/../Frameworks as an rpath for executableTargets.
+# Add it so dyld can find the embedded framework at runtime.
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$app/Contents/MacOS/OpenWhisperMac"
+
 /usr/libexec/PlistBuddy \
     -c "Set :CFBundleShortVersionString $VERSION" \
     -c "Set :CFBundleVersion $VERSION" \
