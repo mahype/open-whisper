@@ -35,16 +35,14 @@ pub fn process_text(
         PostProcessingBackend::Local => {
             if let Some(custom) = settings.active_custom_llm() {
                 match &custom.source {
-                    CustomLlmSource::LocalPath { path } => {
-                        local_llm::generate_with_custom_path(
-                            &custom.id,
-                            &custom.name,
-                            Path::new(path),
-                            &mode.prompt,
-                            raw_transcript,
-                            cancelled,
-                        )?
-                    }
+                    CustomLlmSource::LocalPath { path } => local_llm::generate_with_custom_path(
+                        &custom.id,
+                        &custom.name,
+                        Path::new(path),
+                        &mode.prompt,
+                        raw_transcript,
+                        cancelled,
+                    )?,
                     CustomLlmSource::DownloadUrl { .. } => {
                         let path = llm_model_manager::default_custom_llm_path(&custom.id)?;
                         if !path.exists() {
@@ -109,9 +107,12 @@ pub fn process_text(
 }
 
 fn build_http_client() -> Result<Client, String> {
-    Client::builder().timeout(REQUEST_TIMEOUT).build().map_err(|err| {
-        format!("HTTP-Client fuer Nachverarbeitung konnte nicht erstellt werden: {err}")
-    })
+    Client::builder()
+        .timeout(REQUEST_TIMEOUT)
+        .build()
+        .map_err(|err| {
+            format!("HTTP-Client fuer Nachverarbeitung konnte nicht erstellt werden: {err}")
+        })
 }
 
 fn build_system_prompt(mode_prompt: &str) -> String {
@@ -277,9 +278,11 @@ mod tests {
 
     #[test]
     fn active_backend_reflects_global_setting() {
-        let mut settings = AppSettings::default();
-        settings.active_post_processing_backend = PostProcessingBackend::Ollama;
-        settings.post_processing_enabled = true;
+        let mut settings = AppSettings {
+            active_post_processing_backend: PostProcessingBackend::Ollama,
+            post_processing_enabled: true,
+            ..AppSettings::default()
+        };
         settings.modes.push(ProcessingMode {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),

@@ -120,11 +120,7 @@ impl LlmModelDownloadManager {
         Ok(format!("Download fuer {} gestartet.", display_name))
     }
 
-    pub fn delete_custom_file(
-        &mut self,
-        id: &str,
-        display_name: &str,
-    ) -> Result<String, String> {
+    pub fn delete_custom_file(&mut self, id: &str, display_name: &str) -> Result<String, String> {
         if self.is_downloading_custom(id) {
             return Err(
                 "Ein laufender Download kann nicht gleichzeitig geloescht werden.".to_owned(),
@@ -194,10 +190,7 @@ impl LlmModelDownloadManager {
             self.state = LlmDownloadState::Missing;
         }
 
-        Ok(format!(
-            "{} wurde lokal geloescht.",
-            preset.display_label()
-        ))
+        Ok(format!("{} wurde lokal geloescht.", preset.display_label()))
     }
 
     pub fn is_downloading_preset(&self, preset: LlmPreset) -> bool {

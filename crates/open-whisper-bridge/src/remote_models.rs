@@ -71,18 +71,13 @@ pub fn list_remote_models(
 
 fn fetch_ollama(client: &Client, endpoint: &str) -> Result<Vec<RemoteModelDto>, String> {
     let url = join_base_url(endpoint, "/api/tags");
-    let response = client.get(&url).send().map_err(|err| {
-        format!(
-            "Ollama-Endpoint {} nicht erreichbar: {err}",
-            endpoint
-        )
-    })?;
+    let response = client
+        .get(&url)
+        .send()
+        .map_err(|err| format!("Ollama-Endpoint {} nicht erreichbar: {err}", endpoint))?;
     let status = response.status();
     if !status.is_success() {
-        return Err(format!(
-            "Ollama lieferte HTTP {} bei {}.",
-            status, url
-        ));
+        return Err(format!("Ollama lieferte HTTP {} bei {}.", status, url));
     }
     let payload: OllamaTagsResponse = response
         .json()
@@ -126,18 +121,13 @@ fn fetch_ollama(client: &Client, endpoint: &str) -> Result<Vec<RemoteModelDto>, 
 
 fn fetch_lm_studio(client: &Client, endpoint: &str) -> Result<Vec<RemoteModelDto>, String> {
     let url = join_base_url(endpoint, "/v1/models");
-    let response = client.get(&url).send().map_err(|err| {
-        format!(
-            "LM-Studio-Endpoint {} nicht erreichbar: {err}",
-            endpoint
-        )
-    })?;
+    let response = client
+        .get(&url)
+        .send()
+        .map_err(|err| format!("LM-Studio-Endpoint {} nicht erreichbar: {err}", endpoint))?;
     let status = response.status();
     if !status.is_success() {
-        return Err(format!(
-            "LM Studio lieferte HTTP {} bei {}.",
-            status, url
-        ));
+        return Err(format!("LM Studio lieferte HTTP {} bei {}.", status, url));
     }
     let payload: LmStudioModelsResponse = response
         .json()

@@ -252,11 +252,7 @@ impl LocalLlmRuntime {
         Ok(trimmed)
     }
 
-    fn ensure_loaded(
-        &mut self,
-        target_key: LocalLlmKey,
-        target_path: &Path,
-    ) -> Result<(), String> {
+    fn ensure_loaded(&mut self, target_key: LocalLlmKey, target_path: &Path) -> Result<(), String> {
         let needs_load = match &self.loaded {
             Some(loaded) => loaded.key != target_key || loaded.path.as_path() != target_path,
             None => true,

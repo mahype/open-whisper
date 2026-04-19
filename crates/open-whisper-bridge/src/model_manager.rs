@@ -42,10 +42,7 @@ impl ModelDownloadManager {
             self.state = ModelDownloadState::Ready {
                 path: target_path.clone(),
             };
-            return Ok(format!(
-                "{} ist bereits vorhanden.",
-                preset.display_label()
-            ));
+            return Ok(format!("{} ist bereits vorhanden.", preset.display_label()));
         }
 
         let download_url = preset.download_url().to_owned();
@@ -101,10 +98,7 @@ impl ModelDownloadManager {
             self.state = ModelDownloadState::Missing;
         }
 
-        Ok(format!(
-            "{} wurde lokal geloescht.",
-            preset.display_label()
-        ))
+        Ok(format!("{} wurde lokal geloescht.", preset.display_label()))
     }
 
     pub fn poll(&mut self) -> Vec<String> {

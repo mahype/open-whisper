@@ -276,10 +276,9 @@ impl BridgeRuntime {
         let was_recording = self.dictation.is_recording();
         let was_transcribing = self.dictation.is_transcribing();
         let was_post_processing = self.post_processing_rx.is_some();
-        let was_blocked = self.dictation.is_blocked(
-            std::time::Instant::now(),
-            std::time::Duration::from_secs(6),
-        );
+        let was_blocked = self
+            .dictation
+            .is_blocked(std::time::Instant::now(), std::time::Duration::from_secs(6));
 
         if !was_recording && !was_transcribing && !was_post_processing && !was_blocked {
             return Ok(self.last_status.clone());
@@ -319,8 +318,7 @@ impl BridgeRuntime {
                         );
                     }
                     Err(clip_err) => {
-                        self.last_status =
-                            format!("{err} Zwischenablage-Fallback: {clip_err}");
+                        self.last_status = format!("{err} Zwischenablage-Fallback: {clip_err}");
                     }
                 },
             }
@@ -457,7 +455,11 @@ impl BridgeRuntime {
                     .map(|value| value.exists())
                     .unwrap_or(false);
                 let is_downloading = active_download == Some(preset);
-                let progress_basis_points = if is_downloading { active_progress } else { None };
+                let progress_basis_points = if is_downloading {
+                    active_progress
+                } else {
+                    None
+                };
                 let summary = if is_downloading {
                     format!("Download fuer {} laeuft.", preset.display_label())
                 } else if is_downloaded {
@@ -506,7 +508,11 @@ impl BridgeRuntime {
                     .map(|value| value.exists())
                     .unwrap_or(false);
                 let is_downloading = active_download == Some(preset);
-                let progress_basis_points = if is_downloading { active_progress } else { None };
+                let progress_basis_points = if is_downloading {
+                    active_progress
+                } else {
+                    None
+                };
                 let summary = if is_downloading {
                     format!("Download fuer {} laeuft.", preset.display_label())
                 } else if is_downloaded {
@@ -567,12 +573,13 @@ impl BridgeRuntime {
                     .as_ref()
                     .map(|p| p.display().to_string())
                     .unwrap_or_default();
-                let is_downloaded = path_buf
-                    .as_ref()
-                    .map(|p| p.exists())
-                    .unwrap_or(false);
+                let is_downloaded = path_buf.as_ref().map(|p| p.exists()).unwrap_or(false);
                 let is_downloading = active_custom_download.as_deref() == Some(entry.id.as_str());
-                let progress_basis_points = if is_downloading { active_progress } else { None };
+                let progress_basis_points = if is_downloading {
+                    active_progress
+                } else {
+                    None
+                };
 
                 CustomLlmStatusDto {
                     id: entry.id.clone(),
@@ -1057,7 +1064,9 @@ pub extern "C" fn ow_start_custom_llm_download(request_json: *const c_char) -> *
         Err(err) => return response_from_result::<String>(Err(err)),
     };
 
-    response_from_result(with_runtime(|runtime| runtime.start_custom_llm_download(&id)))
+    response_from_result(with_runtime(|runtime| {
+        runtime.start_custom_llm_download(&id)
+    }))
 }
 
 #[unsafe(no_mangle)]
@@ -1074,7 +1083,8 @@ pub extern "C" fn ow_delete_custom_llm_model(request_json: *const c_char) -> *mu
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ow_list_remote_models(request_json: *const c_char) -> *mut c_char {
-    let backend = match parse_json_arg::<RemoteBackendRequest>(request_json, "RemoteBackendRequest") {
+    let backend = match parse_json_arg::<RemoteBackendRequest>(request_json, "RemoteBackendRequest")
+    {
         Ok(request) => request.backend,
         Err(err) => return response_from_result::<Vec<RemoteModelDto>>(Err(err)),
     };

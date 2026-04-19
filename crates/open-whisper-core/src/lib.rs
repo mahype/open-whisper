@@ -239,9 +239,7 @@ impl ModelPreset {
 
     pub fn download_url(self) -> &'static str {
         match self {
-            Self::Tiny => {
-                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
-            }
+            Self::Tiny => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
             Self::Light => {
                 "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
             }
@@ -801,9 +799,11 @@ mod tests {
 
     #[test]
     fn remote_provider_summary_uses_backend_and_mode() {
-        let mut settings = AppSettings::default();
-        settings.active_post_processing_backend = PostProcessingBackend::Ollama;
-        settings.post_processing_enabled = true;
+        let mut settings = AppSettings {
+            active_post_processing_backend: PostProcessingBackend::Ollama,
+            post_processing_enabled: true,
+            ..AppSettings::default()
+        };
         settings.modes.push(ProcessingMode {
             id: "dev".to_owned(),
             name: "Entwickler".to_owned(),
@@ -932,10 +932,12 @@ mod tests {
 
     #[test]
     fn local_llm_summary_uses_global_preset_when_mode_enabled() {
-        let mut settings = AppSettings::default();
-        settings.local_llm = LlmPreset::Large;
-        settings.active_post_processing_backend = PostProcessingBackend::Local;
-        settings.post_processing_enabled = true;
+        let mut settings = AppSettings {
+            local_llm: LlmPreset::Large,
+            active_post_processing_backend: PostProcessingBackend::Local,
+            post_processing_enabled: true,
+            ..AppSettings::default()
+        };
         settings.modes.push(ProcessingMode {
             id: "email".to_owned(),
             name: "Email".to_owned(),
