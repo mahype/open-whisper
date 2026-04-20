@@ -17,6 +17,9 @@ jobs:
     name: Analyze ${{ matrix.language }}
     runs-on: macos-15
     timeout-minutes: 45
+    env:
+      # See ci.yml for rationale — disables whisper.cpp's -mcpu=native.
+      SOURCE_DATE_EPOCH: '1'
     permissions:
       actions: read
       contents: read

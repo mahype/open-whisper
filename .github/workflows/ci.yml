@@ -14,6 +14,12 @@ jobs:
     name: Rust + Swift build
     runs-on: macos-15
     timeout-minutes: 30
+    env:
+      # Opt whisper.cpp's CMake out of -mcpu=native, which newer Apple clang
+      # on the macos-15 runner rejects. The flag is only used for native-CPU
+      # optimizations we don't need in CI — the release workflow (macos-14)
+      # keeps them enabled for the shipped binary.
+      SOURCE_DATE_EPOCH: '1'
     steps:
       - uses: actions/checkout@v4
 
