@@ -27,7 +27,7 @@ Steps, in order:
 6. **`cargo clippy --workspace --all-targets -- -D warnings`** — clippy with warnings as errors.
 7. **`cargo test --workspace`** — runs Rust unit tests in both crates.
 8. **`cargo audit`** — `rustsec/audit-check@v2`. Fails on any unpatched advisory in the dependency graph.
-9. **`cargo deny`** — `EmbarkStudios/cargo-deny-action@v2` runs `check bans licenses sources` against [`deny.toml`](../deny.toml). Fails on license violations, banned crates, or unknown registries.
+9. **`cargo deny`** — `cargo-deny` is installed via `taiki-e/install-action@v2` (the official `EmbarkStudios/cargo-deny-action` is a container action and therefore Linux-only, which does not fit our `macos-15` runner). Runs `check bans licenses sources` against [`deny.toml`](../deny.toml). Fails on license violations, banned crates, or unknown registries.
 10. **SwiftLint** — installed via `brew install swiftlint`, runs against `apps/open-whisper-macos/Sources`. Configured in [`.swiftlint.yml`](../.swiftlint.yml). Currently **non-strict** — warnings do not fail the build. See [Strictness roadmap](#strictness-roadmap) below.
 11. **`swift format lint --recursive`** — Apple's swift-format (bundled with Xcode 16), configured in [`.swift-format`](../.swift-format). Also non-strict for now.
 12. **`cargo build -p open-whisper-bridge`** — produces the static lib that the Swift package links against.

@@ -43,11 +43,13 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: cargo deny
-        uses: EmbarkStudios/cargo-deny-action@v2
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
         with:
-          command: check bans licenses sources
-          log-level: warn
+          tool: cargo-deny
+
+      - name: cargo deny
+        run: cargo deny check bans licenses sources
 
       - name: Install SwiftLint
         run: brew install swiftlint
