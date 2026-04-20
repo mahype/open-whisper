@@ -966,8 +966,7 @@ fn validate_hotkey_text(raw_hotkey: &str) -> Result<String, String> {
             });
 
         if modifier_only {
-            "Hotkey needs a real key like Space, R, or F8 in addition to modifier keys."
-                .to_owned()
+            "Hotkey needs a real key like Space, R, or F8 in addition to modifier keys.".to_owned()
         } else {
             format!("Hotkey '{hotkey}' is invalid: {err}")
         }

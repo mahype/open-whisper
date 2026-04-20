@@ -40,9 +40,9 @@ impl AutostartManager {
 
         match settings.startup_behavior {
             StartupBehavior::AskOnFirstLaunch => {
-                let enabled = launcher.is_enabled().map_err(|err| {
-                    format!("Startup status could not be read: {err}")
-                })?;
+                let enabled = launcher
+                    .is_enabled()
+                    .map_err(|err| format!("Startup status could not be read: {err}"))?;
                 self.enabled = Some(enabled);
                 self.status = if enabled {
                     "Launch at login is active. 'Ask on first launch' leaves the OS state unchanged.".to_owned()
@@ -52,12 +52,13 @@ impl AutostartManager {
                 Ok(None)
             }
             StartupBehavior::LaunchAtLogin => {
-                if !launcher.is_enabled().map_err(|err| {
-                    format!("Startup status could not be read: {err}")
-                })? {
-                    launcher.enable().map_err(|err| {
-                        format!("Launch at login could not be enabled: {err}")
-                    })?;
+                if !launcher
+                    .is_enabled()
+                    .map_err(|err| format!("Startup status could not be read: {err}"))?
+                {
+                    launcher
+                        .enable()
+                        .map_err(|err| format!("Launch at login could not be enabled: {err}"))?;
                 }
 
                 let enabled = launcher
@@ -76,12 +77,13 @@ impl AutostartManager {
                 }))
             }
             StartupBehavior::ManualLaunch => {
-                if launcher.is_enabled().map_err(|err| {
-                    format!("Startup status could not be read: {err}")
-                })? {
-                    launcher.disable().map_err(|err| {
-                        format!("Launch at login could not be disabled: {err}")
-                    })?;
+                if launcher
+                    .is_enabled()
+                    .map_err(|err| format!("Startup status could not be read: {err}"))?
+                {
+                    launcher
+                        .disable()
+                        .map_err(|err| format!("Launch at login could not be disabled: {err}"))?;
                 }
 
                 let enabled = launcher

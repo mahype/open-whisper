@@ -66,10 +66,7 @@ impl ModelDownloadManager {
             }
         });
 
-        Ok(format!(
-            "Download for {} started.",
-            preset.display_label()
-        ))
+        Ok(format!("Download for {} started.", preset.display_label()))
     }
 
     pub fn delete_downloaded_model(&mut self, settings: &AppSettings) -> Result<String, String> {
@@ -78,9 +75,7 @@ impl ModelDownloadManager {
 
     pub fn delete_preset(&mut self, preset: ModelPreset) -> Result<String, String> {
         if self.is_downloading_preset(preset) {
-            return Err(
-                "A running download can't be deleted at the same time.".to_owned(),
-            );
+            return Err("A running download can't be deleted at the same time.".to_owned());
         }
 
         let path = default_model_path(preset)?;
@@ -91,8 +86,7 @@ impl ModelDownloadManager {
             ));
         }
 
-        fs::remove_file(&path)
-            .map_err(|err| format!("Model could not be deleted: {err}"))?;
+        fs::remove_file(&path).map_err(|err| format!("Model could not be deleted: {err}"))?;
 
         if !self.is_downloading() {
             self.state = ModelDownloadState::Missing;
@@ -326,9 +320,8 @@ fn download_model_file(
             break;
         }
 
-        file.write_all(&buffer[..read]).map_err(|err| {
-            format!("Model could not be written to disk: {err}")
-        })?;
+        file.write_all(&buffer[..read])
+            .map_err(|err| format!("Model could not be written to disk: {err}"))?;
         downloaded_bytes += read as u64;
 
         if last_progress.elapsed() >= DOWNLOAD_PROGRESS_INTERVAL {
@@ -363,8 +356,7 @@ fn temporary_download_path(target_path: &Path) -> PathBuf {
 
 fn cleanup_temp_file(path: &Path) -> Result<(), String> {
     if path.exists() {
-        fs::remove_file(path)
-            .map_err(|err| format!("Temp file could not be removed: {err}"))?;
+        fs::remove_file(path).map_err(|err| format!("Temp file could not be removed: {err}"))?;
     }
 
     Ok(())

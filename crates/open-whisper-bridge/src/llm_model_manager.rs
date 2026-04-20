@@ -66,10 +66,7 @@ impl LlmModelDownloadManager {
             }
         });
 
-        Ok(format!(
-            "Download for {} started.",
-            preset.display_label()
-        ))
+        Ok(format!("Download for {} started.", preset.display_label()))
     }
 
     pub fn start_custom_download(
@@ -122,17 +119,12 @@ impl LlmModelDownloadManager {
 
     pub fn delete_custom_file(&mut self, id: &str, display_name: &str) -> Result<String, String> {
         if self.is_downloading_custom(id) {
-            return Err(
-                "A running download can't be deleted at the same time.".to_owned(),
-            );
+            return Err("A running download can't be deleted at the same time.".to_owned());
         }
 
         let path = default_custom_llm_path(id)?;
         if !path.exists() {
-            return Ok(format!(
-                "{} was already not present locally.",
-                display_name
-            ));
+            return Ok(format!("{} was already not present locally.", display_name));
         }
         fs::remove_file(&path)
             .map_err(|err| format!("Language model could not be deleted: {err}"))?;
@@ -170,9 +162,7 @@ impl LlmModelDownloadManager {
 
     pub fn delete_preset(&mut self, preset: LlmPreset) -> Result<String, String> {
         if self.is_downloading_preset(preset) {
-            return Err(
-                "A running download can't be deleted at the same time.".to_owned(),
-            );
+            return Err("A running download can't be deleted at the same time.".to_owned());
         }
 
         let path = default_llm_model_path(preset)?;
@@ -435,9 +425,8 @@ fn download_model_file(
     tx: &mpsc::Sender<DownloadEvent>,
 ) -> Result<(), String> {
     if let Some(parent) = target_path.parent() {
-        fs::create_dir_all(parent).map_err(|err| {
-            format!("Language model directory could not be created: {err}")
-        })?;
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("Language model directory could not be created: {err}"))?;
     }
 
     let client = Client::builder()
@@ -453,9 +442,8 @@ fn download_model_file(
         .map_err(|err| format!("Language model download failed: {err}"))?;
 
     let total_bytes = response.content_length();
-    let mut file = fs::File::create(temp_path).map_err(|err| {
-        format!("Temporary language model file could not be created: {err}")
-    })?;
+    let mut file = fs::File::create(temp_path)
+        .map_err(|err| format!("Temporary language model file could not be created: {err}"))?;
     let mut buffer = vec![0_u8; DOWNLOAD_BUFFER_SIZE];
     let mut downloaded_bytes = 0_u64;
     let mut last_progress = Instant::now() - DOWNLOAD_PROGRESS_INTERVAL;
@@ -468,9 +456,8 @@ fn download_model_file(
             break;
         }
 
-        file.write_all(&buffer[..read]).map_err(|err| {
-            format!("Language model could not be written to disk: {err}")
-        })?;
+        file.write_all(&buffer[..read])
+            .map_err(|err| format!("Language model could not be written to disk: {err}"))?;
         downloaded_bytes += read as u64;
 
         if last_progress.elapsed() >= DOWNLOAD_PROGRESS_INTERVAL {
@@ -505,8 +492,7 @@ fn temporary_download_path(target_path: &Path) -> PathBuf {
 
 fn cleanup_temp_file(path: &Path) -> Result<(), String> {
     if path.exists() {
-        fs::remove_file(path)
-            .map_err(|err| format!("Temp file could not be removed: {err}"))?;
+        fs::remove_file(path).map_err(|err| format!("Temp file could not be removed: {err}"))?;
     }
 
     Ok(())

@@ -217,19 +217,13 @@ impl ModelPreset {
 
     pub fn description(self) -> &'static str {
         match self {
-            Self::Tiny => {
-                "Tiny model for very weak machines with minimal latency."
-            }
+            Self::Tiny => "Tiny model for very weak machines with minimal latency.",
             Self::Light => "Small local model for weaker machines with quick response.",
-            Self::Standard => {
-                "Mid-size local model — solid default for daily use and accuracy."
-            }
+            Self::Standard => "Mid-size local model — solid default for daily use and accuracy.",
             Self::LargeV3TurboQ5_0 => {
                 "Quantized Turbo variant: large-v3 quality at a compact size."
             }
-            Self::Quality => {
-                "Large local model with higher accuracy — needs more CPU/RAM."
-            }
+            Self::Quality => "Large local model with higher accuracy — needs more CPU/RAM.",
             Self::LargeV3Turbo => {
                 "Fast Large-v3 Turbo with high accuracy — great balance for recent Macs."
             }

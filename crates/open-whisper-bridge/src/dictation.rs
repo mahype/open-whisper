@@ -91,9 +91,7 @@ impl DictationController {
                     ));
                 }
             }
-            Err(err) => messages.push(format!(
-                "Input devices could not be loaded: {err}"
-            )),
+            Err(err) => messages.push(format!("Input devices could not be loaded: {err}")),
         }
 
         messages

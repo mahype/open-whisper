@@ -44,9 +44,7 @@ pub fn process_text(
                 .custom_llm_models
                 .iter()
                 .find(|entry| entry.id == id)
-                .ok_or_else(|| {
-                    format!("Custom language model '{id}' is not known in settings.")
-                })?;
+                .ok_or_else(|| format!("Custom language model '{id}' is not known in settings."))?;
             match &custom.source {
                 CustomLlmSource::LocalPath { path } => local_llm::generate_with_custom_path(
                     &custom.id,
@@ -115,9 +113,7 @@ fn build_http_client() -> Result<Client, String> {
     Client::builder()
         .timeout(REQUEST_TIMEOUT)
         .build()
-        .map_err(|err| {
-            format!("HTTP client for post-processing could not be created: {err}")
-        })
+        .map_err(|err| format!("HTTP client for post-processing could not be created: {err}"))
 }
 
 fn build_system_prompt(mode_prompt: &str) -> String {
@@ -209,9 +205,7 @@ fn request_lm_studio(
             ]
         }))
         .send()
-        .map_err(|err| {
-            format!("LM Studio post-processing could not be started: {err}")
-        })?;
+        .map_err(|err| format!("LM Studio post-processing could not be started: {err}"))?;
 
     let status = response.status();
     let value: Value = response

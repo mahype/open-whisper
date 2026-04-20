@@ -12,8 +12,8 @@ pub fn insert_text_into_active_app(text: &str, settings: &AppSettings) -> Result
         return Err("No text available to paste.".to_owned());
     }
 
-    let mut clipboard = Clipboard::new()
-        .map_err(|err| format!("Clipboard could not be opened: {err}"))?;
+    let mut clipboard =
+        Clipboard::new().map_err(|err| format!("Clipboard could not be opened: {err}"))?;
     let previous_text = clipboard.get_text().ok();
 
     clipboard
@@ -64,8 +64,8 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
         return Err("No text available to copy.".to_owned());
     }
 
-    let mut clipboard = Clipboard::new()
-        .map_err(|err| format!("Clipboard could not be opened: {err}"))?;
+    let mut clipboard =
+        Clipboard::new().map_err(|err| format!("Clipboard could not be opened: {err}"))?;
     clipboard
         .set_text(text.to_owned())
         .map_err(|err| format!("Clipboard could not be written to: {err}"))?;

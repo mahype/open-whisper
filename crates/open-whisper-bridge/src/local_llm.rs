@@ -36,9 +36,9 @@ static LLAMA_BACKEND: OnceCell<Arc<LlamaBackend>> = OnceCell::new();
 fn backend() -> Result<Arc<LlamaBackend>, String> {
     LLAMA_BACKEND
         .get_or_try_init(|| {
-            LlamaBackend::init().map(Arc::new).map_err(|err| {
-                format!("llama.cpp backend could not be initialized: {err}")
-            })
+            LlamaBackend::init()
+                .map(Arc::new)
+                .map_err(|err| format!("llama.cpp backend could not be initialized: {err}"))
         })
         .cloned()
 }
