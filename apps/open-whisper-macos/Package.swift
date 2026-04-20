@@ -40,5 +40,21 @@ let package = Package(
                 .linkedFramework("SystemConfiguration"),
             ]
         ),
+        .testTarget(
+            name: "OpenWhisperMacTests",
+            dependencies: ["OpenWhisperBridgeFFI"],
+            path: "Tests/OpenWhisperMacTests",
+            linkerSettings: [
+                .unsafeFlags(["-L", "../../target/debug", "-lopen_whisper_bridge"]),
+                .linkedLibrary("c++"),
+                .linkedFramework("Accelerate"),
+                .linkedFramework("AppKit"),
+                .linkedFramework("ApplicationServices"),
+                .linkedFramework("AudioToolbox"),
+                .linkedFramework("Carbon"),
+                .linkedFramework("CoreAudio"),
+                .linkedFramework("SystemConfiguration"),
+            ]
+        ),
     ]
 )

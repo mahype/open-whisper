@@ -38,8 +38,31 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
 
+      - name: cargo audit
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: cargo deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check bans licenses sources
+          log-level: warn
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: SwiftLint
+        run: swiftlint lint --reporter github-actions-logging apps/open-whisper-macos/Sources
+
+      - name: swift-format lint
+        run: swift format lint --recursive apps/open-whisper-macos/Sources
+
       - name: Build Rust bridge (debug)
         run: cargo build -p open-whisper-bridge
 
       - name: Build Swift app (debug)
         run: swift build --package-path apps/open-whisper-macos
+
+      - name: Swift tests
+        run: swift test --package-path apps/open-whisper-macos

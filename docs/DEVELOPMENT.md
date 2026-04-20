@@ -113,13 +113,37 @@ Deleting these resets the app to a fresh-install state — handy for testing onb
 
 ```bash
 cargo test --workspace
+swift test --package-path apps/open-whisper-macos
 ```
 
-Swift tests are not currently set up. When they are, `swift test --package-path apps/open-whisper-macos` will be the entry point.
+Swift tests require Xcode.app (not only CommandLineTools) because `XCTest` ships with the Xcode developer toolchain. CI switches to Xcode 16 via `maxim-lobanov/setup-xcode`.
 
 ## Style and CI
 
 - Rust: `cargo fmt` + `cargo clippy --workspace -- -D warnings`
+- Swift: [SwiftLint](https://github.com/realm/SwiftLint) + `swift format lint` (configs at [`.swiftlint.yml`](../.swiftlint.yml) and [`.swift-format`](../.swift-format)). Install locally: `brew install swiftlint`.
 - Commits: keep the subject line imperative; reference any related issue.
 
-GitHub Actions runs `cargo fmt --check`, clippy, and `cargo test --workspace` on every push and PR. See [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+### Optional pre-commit hook
+
+[lefthook](https://github.com/evilmartians/lefthook) mirrors the CI checks locally so formatter/linter breakage is caught before push:
+
+```bash
+brew install lefthook
+lefthook install
+```
+
+The hook config is at [`lefthook.yml`](../lefthook.yml).
+
+### CI overview
+
+GitHub Actions runs on every push and PR ([.github/workflows/ci.yml](../.github/workflows/ci.yml)):
+
+- `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, `cargo test --workspace`
+- `cargo audit` (RustSec advisories) and `cargo deny check` (licenses + bans)
+- SwiftLint and `swift format lint` against the Swift sources
+- `swift build` and `swift test` for the macOS package
+
+CodeQL security analysis runs weekly and on every push/PR ([.github/workflows/codeql.yml](../.github/workflows/codeql.yml)).
+
+Dependency updates are proposed weekly by Dependabot ([.github/dependabot.yml](../.github/dependabot.yml)).

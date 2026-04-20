@@ -92,6 +92,14 @@ jobs:
       - name: Build DMG
         run: ./scripts/build-dmg.sh
 
+      - name: Smoke test DMG
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          ./scripts/smoke-test-dmg.sh "dist/OpenWhisper-${version}.dmg"
+
       - name: Verify Sparkle sign_update is available
         run: |
           set -euo pipefail
