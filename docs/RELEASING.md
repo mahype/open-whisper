@@ -40,8 +40,9 @@ On push of a `v*` tag, the GitHub Actions release workflow:
 5. Signs the bundle with the **Developer ID Application** certificate.
 6. Submits to Apple's notary service via `notarytool` and staples the ticket.
 7. Packages the result into `OpenWhisper-<version>.dmg`.
-8. Uploads the DMG and a `SHA256SUMS.txt` to a **published** GitHub Release with auto-generated release notes.
+8. Runs a **DMG smoke test** ([scripts/smoke-test-dmg.sh](../scripts/smoke-test-dmg.sh)) that mounts the finished DMG and verifies `codesign`, Gatekeeper (`spctl`), and a valid stapled notarization ticket. A broken artifact halts the workflow **before** anything is published.
 9. Signs the DMG with the Sparkle Ed25519 key and appends a new `<item>` to `appcast.xml` on the `gh-pages` branch, so existing installs see the update on their next check (see [Sparkle auto-updates](#sparkle-auto-updates)).
+10. Uploads the DMG and a `SHA256SUMS.txt` to a **published** GitHub Release with auto-generated release notes.
 
 You can edit the auto-generated release notes afterwards on GitHub.
 
@@ -151,3 +152,6 @@ Run `xcrun notarytool log <submission-id> --apple-id … --team-id … --passwor
 
 **DMG upload step fails.**
 Check that the workflow has `permissions: contents: write`. GitHub Actions requires explicit write permission on the repo to create releases.
+
+**Smoke-test step fails.**
+Inspect the Actions log for the output of `codesign`, `spctl`, or `xcrun stapler validate`. The three common causes are: (a) signing identity did not cover a nested binary inside the bundle, (b) notarization ticket was not stapled (the earlier `codesign-macos.sh` step reports submission timeouts in its own output), or (c) Gatekeeper rejects because hardened runtime was disabled. Resolve the earlier step, re-tag (do not re-use the broken tag — notary sees it as a duplicate).

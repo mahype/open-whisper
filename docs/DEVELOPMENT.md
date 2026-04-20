@@ -124,26 +124,13 @@ Swift tests require Xcode.app (not only CommandLineTools) because `XCTest` ships
 - Swift: [SwiftLint](https://github.com/realm/SwiftLint) + `swift format lint` (configs at [`.swiftlint.yml`](../.swiftlint.yml) and [`.swift-format`](../.swift-format)). Install locally: `brew install swiftlint`.
 - Commits: keep the subject line imperative; reference any related issue.
 
-### Optional pre-commit hook
-
-[lefthook](https://github.com/evilmartians/lefthook) mirrors the CI checks locally so formatter/linter breakage is caught before push:
+Optional local pre-commit hook that mirrors the CI checks:
 
 ```bash
 brew install lefthook
 lefthook install
 ```
 
-The hook config is at [`lefthook.yml`](../lefthook.yml).
+See [`lefthook.yml`](../lefthook.yml) for the hook config.
 
-### CI overview
-
-GitHub Actions runs on every push and PR ([.github/workflows/ci.yml](../.github/workflows/ci.yml)):
-
-- `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, `cargo test --workspace`
-- `cargo audit` (RustSec advisories) and `cargo deny check` (licenses + bans)
-- SwiftLint and `swift format lint` against the Swift sources
-- `swift build` and `swift test` for the macOS package
-
-CodeQL security analysis runs weekly and on every push/PR ([.github/workflows/codeql.yml](../.github/workflows/codeql.yml)).
-
-Dependency updates are proposed weekly by Dependabot ([.github/dependabot.yml](../.github/dependabot.yml)).
+For a full description of every workflow, what each check does, when it runs, and how to respond to failures, see [**CI.md**](./CI.md).
