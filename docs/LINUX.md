@@ -141,6 +141,24 @@ That keeps the expensive whisper.cpp / llama.cpp caches. Full `cargo clean` work
 
 **Fix.** Already tuned: `RUNTIME_POLL = 1 s`, `MODEL_POLL = 3 s` in [app.rs](../apps/open-whisper-linux/src/app.rs). Any bridge call > 100 ms triggers a `WARN slow bridge call` log entry — that's the signal to investigate a regression (usually ALSA device enumeration or the hotkey portal registration).
 
+### Window is visible but unresponsive (no SIGKILL, no crash) on GNOME
+
+**Symptom.** The window paints once, then the compositor marks it as *not
+responding*. Bridge-poll traces stop after the first tick even though the
+process is still alive. Killing the process requires `SIGKILL`. No
+`Gtk-CRITICAL`, no `Gdk-WARNING` in the log.
+
+**Cause.** The `ksni` 0.2 StatusNotifierItem integration deadlocks the GTK
+main thread on certain GNOME sessions (observed on AnduinOS / Ubuntu
+25.10 + NVIDIA). The tray's D-Bus wiring re-enters the main context
+during its well-known-name negotiation and never yields again, even
+though our probe correctly reported a watcher on the session bus.
+
+**Fix.** The tray is **opt-in** — unset by default, enabled with
+`OW_ENABLE_TRAY=1`. KDE / Xfce / Cinnamon / Budgie / MATE sessions can
+set the env var safely. On GNOME, leave it unset until Stage 5 replaces
+the integration with a portal-aware implementation.
+
 ### Tons of `Theme parser warning: gtk.css:…: Expected ';' at end of block`
 
 **Cause.** GTK's default Adwaita stylesheet in some distribution packagings uses CSS that the parser flags (older GTK parsing a newer Adwaita stylesheet, or vice versa). The warnings are cosmetic — the theme renders anyway.

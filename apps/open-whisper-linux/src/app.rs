@@ -25,6 +25,7 @@ const MODEL_POLL: Duration = Duration::from_millis(3000);
 const SLOW_BRIDGE_THRESHOLD_MS: u128 = 100;
 
 pub fn on_startup(app: &adw::Application) {
+    let startup_started = Instant::now();
     tracing::info!(app_id = %app.application_id().unwrap_or_default(), "startup begin");
 
     // First bridge call lazily initialises the thread-local runtime — time
@@ -70,9 +71,25 @@ pub fn on_startup(app: &adw::Application) {
 
     install_actions(app);
 
-    // Linux tray attaches on startup and stays alive for the app lifetime.
+    // Linux tray is **opt-in** for now: `ksni` 0.2 integration deadlocks the
+    // GTK main thread on some GNOME setups (confirmed reproducible on
+    // AnduinOS / Ubuntu 25.10 + NVIDIA), even with our StatusNotifierWatcher
+    // probe guarding the spawn. Stage 5 replaces the bridge with a proper
+    // portal-aware tray; until then, `OW_ENABLE_TRAY=1` re-enables it for
+    // desktops that are known to work (KDE, Xfce, Cinnamon, Budgie, MATE).
     #[cfg(target_os = "linux")]
-    crate::tray::spawn(app.clone(), app_state(app));
+    if std::env::var_os("OW_ENABLE_TRAY").is_some() {
+        tracing::info!("tray enabled via OW_ENABLE_TRAY; spawning");
+        crate::tray::spawn(app.clone(), app_state(app));
+        tracing::info!("tray spawn returned");
+    } else {
+        tracing::debug!("tray disabled by default; set OW_ENABLE_TRAY=1 to opt in");
+    }
+
+    tracing::info!(
+        elapsed_ms = startup_started.elapsed().as_millis() as u64,
+        "on_startup complete"
+    );
 }
 
 pub fn on_activate(app: &adw::Application) {
