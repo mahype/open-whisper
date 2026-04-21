@@ -521,6 +521,7 @@ pub struct AppSettings {
     pub modes: Vec<ProcessingMode>,
     pub active_mode_id: String,
     pub ui_language: UiLanguage,
+    pub insert_text_mode: InsertTextMode,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -530,6 +531,25 @@ pub enum UiLanguage {
     System,
     En,
     De,
+}
+
+/// Strategy for inserting transcribed text into the active application.
+///
+/// Used primarily on Linux where Wayland/X11 and compositor capabilities
+/// differ. macOS always uses the enigo-based paste path regardless of
+/// this field.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum InsertTextMode {
+    /// Probe at runtime and pick the best available path (enigo → portal → clipboard).
+    #[default]
+    Auto,
+    /// Force the enigo-based simulated paste (libei on Wayland, XTest on X11, AppKit on macOS).
+    Enigo,
+    /// Use the `org.freedesktop.portal.RemoteDesktop` XDG portal (Linux only).
+    Portal,
+    /// Skip auto-paste; copy to clipboard and surface a notification to the user.
+    ClipboardOnly,
 }
 
 impl AppSettings {
@@ -673,6 +693,7 @@ impl Default for AppSettings {
             modes: vec![ProcessingMode::cleanup()],
             active_mode_id: "cleanup".to_owned(),
             ui_language: UiLanguage::default(),
+            insert_text_mode: InsertTextMode::default(),
         }
     }
 }

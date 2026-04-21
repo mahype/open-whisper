@@ -5,12 +5,24 @@ use enigo::{
     Direction::{Click, Press, Release},
     Enigo, Key, Keyboard, Settings,
 };
-use open_whisper_core::AppSettings;
+use open_whisper_core::{AppSettings, InsertTextMode};
 
 pub fn insert_text_into_active_app(text: &str, settings: &AppSettings) -> Result<String, String> {
     if text.trim().is_empty() {
         return Err("No text available to paste.".to_owned());
     }
+
+    // Clipboard-only mode: never drive a paste event, just surface the text
+    // via the clipboard. Used when the compositor blocks input simulation
+    // (e.g. Wayland without libei/RemoteDesktop portal available).
+    if matches!(settings.insert_text_mode, InsertTextMode::ClipboardOnly) {
+        copy_to_clipboard(text)?;
+        return Ok("Transcript copied to clipboard. Press Ctrl/Cmd+V to paste.".to_owned());
+    }
+
+    // Portal mode is reserved for Linux; until it's wired to `ashpd`, we fall
+    // through to enigo. The caller's clipboard-fallback in `finish_transcript`
+    // still handles the failure path.
 
     let mut clipboard =
         Clipboard::new().map_err(|err| format!("Clipboard could not be opened: {err}"))?;

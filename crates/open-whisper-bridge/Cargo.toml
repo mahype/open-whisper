@@ -15,7 +15,6 @@ directories = "6.0.0"
 encoding_rs = "0.8.35"
 enigo = { version = "0.6.1", features = ["wayland"] }
 global-hotkey = "0.7.0"
-llama-cpp-2 = { version = "0.1.143", default-features = false, features = ["metal"] }
 once_cell = "1.21.3"
 open-whisper-core = { path = "../open-whisper-core" }
 reqwest = { version = "0.13.2", features = ["blocking", "json", "rustls"] }
@@ -23,3 +22,10 @@ serde.workspace = true
 serde_json = "1.0.149"
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 whisper-rs = "0.16.0"
+
+# Metal only exists on Apple platforms; Linux/Windows fall back to CPU.
+[target.'cfg(target_os = "macos")'.dependencies]
+llama-cpp-2 = { version = "0.1.143", default-features = false, features = ["metal"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+llama-cpp-2 = { version = "0.1.143", default-features = false }

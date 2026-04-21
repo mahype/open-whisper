@@ -975,6 +975,107 @@ fn validate_hotkey_text(raw_hotkey: &str) -> Result<String, String> {
     Ok(hotkey.to_owned())
 }
 
+/// Rust-native bridge API for in-process callers (e.g. the GTK4 Linux shell).
+///
+/// Each function here routes into the same thread-local `BridgeRuntime` that
+/// backs the C FFI below — but returns typed `open_whisper_core` DTOs instead
+/// of JSON strings, avoiding the serialization round-trip that the FFI needs
+/// for the Swift side. Thread-safety rules mirror the FFI: all calls must
+/// happen on the same thread that first constructed the runtime (typically
+/// the UI main thread).
+pub mod bridge_api {
+    use super::{BridgeRuntime, with_runtime, with_runtime_value};
+    use open_whisper_core::{
+        AppSettings, CustomLlmStatusDto, DeviceDto, DiagnosticsDto, LlmModelStatusDto, LlmPreset,
+        ModelPreset, ModelStatusDto, RecordingLevelsDto, RemoteModelBackend, RemoteModelDto,
+        RuntimeStatusDto,
+    };
+
+    pub fn load_settings() -> AppSettings {
+        with_runtime_value(BridgeRuntime::load_settings)
+    }
+
+    pub fn save_settings(settings: AppSettings) -> Result<String, String> {
+        with_runtime(|runtime| runtime.save_settings(settings))
+    }
+
+    pub fn list_input_devices() -> Vec<DeviceDto> {
+        with_runtime_value(BridgeRuntime::list_input_devices)
+    }
+
+    pub fn model_status() -> ModelStatusDto {
+        with_runtime_value(BridgeRuntime::model_status)
+    }
+
+    pub fn model_status_list() -> Vec<ModelStatusDto> {
+        with_runtime_value(BridgeRuntime::model_status_list)
+    }
+
+    pub fn start_model_download(preset: Option<ModelPreset>) -> Result<String, String> {
+        with_runtime(|runtime| runtime.start_model_download(preset))
+    }
+
+    pub fn delete_model(preset: Option<ModelPreset>) -> Result<String, String> {
+        with_runtime(|runtime| runtime.delete_model(preset))
+    }
+
+    pub fn llm_status_list() -> Vec<LlmModelStatusDto> {
+        with_runtime_value(BridgeRuntime::llm_status_list)
+    }
+
+    pub fn start_llm_download(preset: LlmPreset) -> Result<String, String> {
+        with_runtime(|runtime| runtime.start_llm_download(preset))
+    }
+
+    pub fn delete_llm_model(preset: LlmPreset) -> Result<String, String> {
+        with_runtime(|runtime| runtime.delete_llm_model(preset))
+    }
+
+    pub fn custom_llm_status_list() -> Vec<CustomLlmStatusDto> {
+        with_runtime_value(BridgeRuntime::custom_llm_status_list)
+    }
+
+    pub fn start_custom_llm_download(id: &str) -> Result<String, String> {
+        with_runtime(|runtime| runtime.start_custom_llm_download(id))
+    }
+
+    pub fn delete_custom_llm_download(id: &str) -> Result<String, String> {
+        with_runtime(|runtime| runtime.delete_custom_llm_download(id))
+    }
+
+    pub fn list_remote_models(backend: RemoteModelBackend) -> Result<Vec<RemoteModelDto>, String> {
+        with_runtime(|runtime| runtime.list_remote_models(backend))
+    }
+
+    pub fn run_permission_diagnostics() -> DiagnosticsDto {
+        with_runtime_value(BridgeRuntime::run_permission_diagnostics)
+    }
+
+    pub fn start_dictation() -> Result<String, String> {
+        with_runtime(BridgeRuntime::start_dictation)
+    }
+
+    pub fn stop_dictation() -> Result<String, String> {
+        with_runtime(BridgeRuntime::stop_dictation)
+    }
+
+    pub fn cancel_dictation() -> Result<String, String> {
+        with_runtime(BridgeRuntime::cancel_dictation)
+    }
+
+    pub fn runtime_status() -> RuntimeStatusDto {
+        with_runtime_value(BridgeRuntime::runtime_status)
+    }
+
+    pub fn recording_levels() -> RecordingLevelsDto {
+        with_runtime_value(BridgeRuntime::recording_levels)
+    }
+
+    pub fn validate_hotkey(text: &str) -> Result<String, String> {
+        super::validate_hotkey_text(text)
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn ow_load_settings() -> *mut c_char {
     response_ok(with_runtime_value(BridgeRuntime::load_settings))

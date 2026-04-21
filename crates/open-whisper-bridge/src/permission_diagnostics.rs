@@ -124,11 +124,71 @@ pub fn collect(
 
     #[cfg(target_os = "linux")]
     {
+        let session_type = std::env::var("XDG_SESSION_TYPE").unwrap_or_else(|_| "unknown".into());
+        let current_desktop =
+            std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_else(|_| "unknown".into());
+
         items.push(item(
             "Linux session",
             DiagnosticStatus::Info,
-            "Global hotkeys and simulated paste are usually more robust under X11 than under Wayland.",
-            "If the hotkey or paste does not work, try an X11 session or desktop-specific permissions.",
+            &format!(
+                "Session: {session_type} on {current_desktop}."
+            ),
+            match session_type.as_str() {
+                "wayland" => "On Wayland, hotkey binding goes through the XDG GlobalShortcuts portal and paste through the RemoteDesktop portal. A portal dialog will ask for permission on first use.",
+                "x11" => "On X11, global-hotkey and libei/XTest work directly without portals.",
+                _ => "Unable to detect the session type — set XDG_SESSION_TYPE if autodetection fails.",
+            },
+        ));
+
+        // Audio server probe — PipeWire is default on Fedora/Ubuntu 24.04+; PulseAudio on older.
+        let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_default();
+        let has_pipewire = !runtime_dir.is_empty()
+            && std::path::Path::new(&format!("{runtime_dir}/pipewire-0")).exists();
+        let has_pulse = !runtime_dir.is_empty()
+            && std::path::Path::new(&format!("{runtime_dir}/pulse/native")).exists();
+        let audio_summary = match (has_pipewire, has_pulse) {
+            (true, _) => "PipeWire detected.",
+            (false, true) => "PulseAudio detected (PipeWire not running).",
+            (false, false) => "Neither PipeWire nor PulseAudio socket was found.",
+        };
+        let audio_status = if has_pipewire || has_pulse {
+            DiagnosticStatus::Ok
+        } else {
+            DiagnosticStatus::Warning
+        };
+        items.push(item(
+            "Audio server",
+            audio_status,
+            audio_summary,
+            "Install pipewire or pulseaudio so the microphone is accessible via cpal.",
+        ));
+
+        // Tray availability (StatusNotifierItem host). We do a cheap filesystem
+        // heuristic — a real D-Bus probe happens in the GTK shell's onboarding.
+        let snw_hint = match current_desktop.to_lowercase().as_str() {
+            d if d.contains("kde") || d.contains("plasma") => {
+                "KDE/Plasma ships a StatusNotifier host out of the box."
+            }
+            d if d.contains("xfce")
+                || d.contains("cinnamon")
+                || d.contains("budgie")
+                || d.contains("mate") =>
+            {
+                "Your desktop supports StatusNotifierItem by default."
+            }
+            d if d.contains("gnome") => {
+                "Vanilla GNOME does not show tray icons; install the 'AppIndicator and KStatusNotifierItem Support' extension."
+            }
+            _ => {
+                "If the tray icon does not appear, your desktop may not implement StatusNotifierItem."
+            }
+        };
+        items.push(item(
+            "System tray",
+            DiagnosticStatus::Info,
+            &format!("Desktop: {current_desktop}."),
+            snw_hint,
         ));
     }
 
