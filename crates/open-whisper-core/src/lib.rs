@@ -704,7 +704,7 @@ pub struct DeviceDto {
     pub is_selected: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelStatusDto {
     pub preset_label: String,
     pub backend_model_name: String,
@@ -770,7 +770,7 @@ pub struct DiagnosticItemDto {
     pub recommendation: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DiagnosticsDto {
     pub summary: String,
     pub items: Vec<DiagnosticItemDto>,
@@ -804,7 +804,7 @@ pub struct RecordingLevelsDto {
     pub levels: Vec<f32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RuntimeStatusDto {
     pub is_recording: bool,
     pub is_transcribing: bool,

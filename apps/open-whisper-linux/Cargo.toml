@@ -1,0 +1,33 @@
+[package]
+name = "open-whisper-linux"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Open Whisper — GTK4/libadwaita desktop shell for Linux"
+default-run = "open-whisper-linux"
+
+[[bin]]
+name = "open-whisper-linux"
+path = "src/main.rs"
+
+[dependencies]
+open-whisper-bridge = { path = "../../crates/open-whisper-bridge" }
+open-whisper-core = { path = "../../crates/open-whisper-core" }
+
+gtk = { package = "gtk4", version = "0.9", features = ["v4_12"] }
+adw = { package = "libadwaita", version = "0.7", features = ["v1_5"] }
+glib = "0.20"
+gio = "0.20"
+
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Linux-only integrations. macOS/Windows builds of this crate skip them so the
+# developer can still run `cargo check` on a non-Linux host during UI work.
+[target.'cfg(target_os = "linux")'.dependencies]
+ksni = "0.2"
+ashpd = { version = "0.10", default-features = false, features = ["tokio", "gtk4"] }
+gtk4-layer-shell = "0.4"
+global-hotkey = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }

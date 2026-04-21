@@ -2,6 +2,11 @@
 members = [
     "crates/open-whisper-bridge",
     "crates/open-whisper-core",
+    "apps/open-whisper-linux",
+]
+default-members = [
+    "crates/open-whisper-bridge",
+    "crates/open-whisper-core",
 ]
 resolver = "2"
 
