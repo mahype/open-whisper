@@ -12,8 +12,8 @@
 
 use open_whisper_bridge::bridge_api;
 use open_whisper_core::{
-    AppSettings, DiagnosticsDto, LlmPreset, ModelPreset, ModelStatusDto, RecordingLevelsDto,
-    RuntimeStatusDto,
+    AppSettings, DeviceDto, DiagnosticsDto, LlmPreset, ModelPreset, ModelStatusDto,
+    RecordingLevelsDto, RuntimeStatusDto,
 };
 
 pub fn load_settings() -> AppSettings {
@@ -22,6 +22,10 @@ pub fn load_settings() -> AppSettings {
 
 pub fn save_settings(settings: AppSettings) -> Result<String, String> {
     bridge_api::save_settings(settings)
+}
+
+pub fn list_input_devices() -> Vec<DeviceDto> {
+    bridge_api::list_input_devices()
 }
 
 pub fn runtime_status() -> RuntimeStatusDto {
