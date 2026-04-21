@@ -33,11 +33,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: ${{ matrix.language }}
-
+      # Xcode must be selected BEFORE codeql init so the tracer wraps the
+      # right Swift toolchain.
       - name: Select Xcode 16 (Swift 6)
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -48,11 +45,20 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
       - name: Build Rust bridge (required for Swift linker)
         run: cargo build -p open-whisper-bridge
 
+      # Explicit --arch arm64: macos-15 is Apple Silicon and the Rust
+      # bridge is built for arm64 only. Without this, CodeQL's Swift
+      # tracer has been observed to default to x86_64 on hosted runners,
+      # which then fails to link against the arm64 static lib.
       - name: Build Swift app for analysis
-        run: swift build --package-path apps/open-whisper-macos
+        run: swift build --package-path apps/open-whisper-macos --arch arm64
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
