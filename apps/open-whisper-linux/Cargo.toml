@@ -28,6 +28,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 [target.'cfg(target_os = "linux")'.dependencies]
 ksni = "0.2"
 ashpd = { version = "0.10", default-features = false, features = ["tokio", "gtk4"] }
-gtk4-layer-shell = "0.4"
 global-hotkey = "0.7"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }

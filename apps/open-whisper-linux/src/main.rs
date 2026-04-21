@@ -32,9 +32,13 @@ fn main() -> Result<()> {
     // before any widget lookup.
     adw::init()?;
 
+    // NON_UNIQUE skips the single-instance bus-name registration. This is both
+    // pragmatic (Flatpak-proxied session buses refuse to register arbitrary
+    // well-known names) and matches the menu-bar-only UX: re-running the
+    // binary spawns a fresh process rather than focussing an existing one.
     let application = adw::Application::builder()
         .application_id(APP_ID)
-        .flags(ApplicationFlags::FLAGS_NONE)
+        .flags(ApplicationFlags::NON_UNIQUE)
         .build();
 
     application.connect_activate(app::on_activate);

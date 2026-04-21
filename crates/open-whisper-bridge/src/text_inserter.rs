@@ -37,6 +37,10 @@ pub fn insert_text_into_active_app(text: &str, settings: &AppSettings) -> Result
         thread::sleep(delay);
     }
 
+    // `mut` is only used inside the macos-cfg block below; keep the
+    // declaration shared so the non-macos branch doesn't warn about
+    // unused_mut nor duplicate the initialisation.
+    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
     let mut enigo_settings = Settings::default();
     #[cfg(target_os = "macos")]
     {
