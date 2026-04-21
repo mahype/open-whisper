@@ -42,6 +42,13 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         ("de", "button.stop_dictation") => "Diktat stoppen",
         ("de", "button.open_settings") => "Einstellungen \u{2026}",
         ("de", "status.ready") => "Bereit",
+        ("de", "tray.start_dictation") => "Diktat starten",
+        ("de", "tray.stop_dictation") => "Diktat stoppen",
+        ("de", "tray.open_settings") => "Einstellungen \u{2026}",
+        ("de", "tray.quit") => "Beenden",
+        ("de", "tray.mode") => "Modus",
+        ("de", "tray.tooltip.idle") => "Bereit \u{2013} Hotkey oder Klick zum Starten",
+        ("de", "tray.tooltip.recording") => "Aufnahme l\u{00e4}uft \u{2026}",
         (_, "app.title") => "Open Whisper",
         (_, "window.main.subtitle") => {
             "Dictation \u{2022} Transcription \u{2022} AI post-processing"
@@ -50,6 +57,13 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         (_, "button.stop_dictation") => "Stop dictation",
         (_, "button.open_settings") => "Settings\u{2026}",
         (_, "status.ready") => "Ready",
+        (_, "tray.start_dictation") => "Start dictation",
+        (_, "tray.stop_dictation") => "Stop dictation",
+        (_, "tray.open_settings") => "Settings\u{2026}",
+        (_, "tray.quit") => "Quit",
+        (_, "tray.mode") => "Mode",
+        (_, "tray.tooltip.idle") => "Idle \u{2014} press hotkey or click to start",
+        (_, "tray.tooltip.recording") => "Recording\u{2026}",
         _ => key,
     }
     .to_owned()
