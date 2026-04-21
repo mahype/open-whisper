@@ -126,6 +126,7 @@ How the Rust core, FFI bridge, and Swift UI fit together: → [docs/ARCHITECTURE
 | --- | --- |
 | [INSTALL.md](docs/INSTALL.md) | Install, permissions, autostart, uninstall |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Dev setup, build scripts, debugging |
+| [LINUX.md](docs/LINUX.md) | Linux shell: dependencies, dev workflow, known issues, packaging |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Rust core ↔ FFI bridge ↔ Swift UI |
 | [RELEASING.md](docs/RELEASING.md) | Tagging, signing, notarization, publishing, Sparkle |
 | [CHANGELOG.md](CHANGELOG.md) | Release-by-release summary of changes |

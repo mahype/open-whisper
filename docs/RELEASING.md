@@ -2,6 +2,8 @@
 
 This document is for maintainers. It describes how Open Whisper is versioned, built, signed, and published.
 
+> **Scope:** macOS only. The Linux packaging story (Flatpak-first, no Sparkle equivalent — updates flow through the distro channel) is tracked in [LINUX.md → Packaging](LINUX.md#packaging). There is no Linux release workflow yet.
+
 ## TL;DR
 
 ```bash

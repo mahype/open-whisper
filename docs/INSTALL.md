@@ -78,4 +78,4 @@ Coming soon. The Rust bridge already compiles on Windows; a native UI shell is o
 
 ## Linux
 
-Coming soon. Same story as Windows — the core is ready, the UI is the gating piece.
+The GTK4 shell is under active development. Binary packages are not published yet; see [LINUX.md](LINUX.md) for the current feature status, runtime dependencies, GNOME tray setup, and the `GSK_RENDERER=cairo` workaround needed on NVIDIA + Wayland.

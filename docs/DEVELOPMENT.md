@@ -1,5 +1,7 @@
 # Development
 
+> **Linux shell?** The GTK4/libadwaita Linux app has its own toolchain, build script, and known-issues list. See [LINUX.md](LINUX.md) — this document covers the macOS app only.
+
 ## Prerequisites
 
 You need a Mac running macOS 14+ with:
