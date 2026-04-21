@@ -12,8 +12,8 @@
 
 use open_whisper_bridge::bridge_api;
 use open_whisper_core::{
-    AppSettings, DeviceDto, DiagnosticsDto, LlmPreset, ModelPreset, ModelStatusDto,
-    RecordingLevelsDto, RuntimeStatusDto,
+    AppSettings, DeviceDto, DiagnosticsDto, LlmModelStatusDto, LlmPreset, ModelPreset,
+    ModelStatusDto, RecordingLevelsDto, RuntimeStatusDto,
 };
 
 pub fn load_settings() -> AppSettings {
@@ -34,6 +34,18 @@ pub fn runtime_status() -> RuntimeStatusDto {
 
 pub fn model_status() -> ModelStatusDto {
     bridge_api::model_status()
+}
+
+pub fn model_status_list() -> Vec<ModelStatusDto> {
+    bridge_api::model_status_list()
+}
+
+pub fn llm_status_list() -> Vec<LlmModelStatusDto> {
+    bridge_api::llm_status_list()
+}
+
+pub fn delete_llm_model(preset: LlmPreset) -> Result<String, String> {
+    bridge_api::delete_llm_model(preset)
 }
 
 pub fn diagnostics() -> DiagnosticsDto {

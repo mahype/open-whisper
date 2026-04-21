@@ -7,6 +7,7 @@
 
 pub mod dashboard;
 pub mod help;
+pub mod language_models;
 pub mod recording;
 pub mod start_behavior;
 

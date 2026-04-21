@@ -33,12 +33,7 @@ pub fn build(app: &adw::Application, state: AppState) -> adw::PreferencesWindow 
         "text-editor-symbolic",
         lang,
     ));
-    window.add(&settings::placeholder_page(
-        "language-models",
-        &tr("settings.tab.language_models", lang),
-        "folder-download-symbolic",
-        lang,
-    ));
+    window.add(&settings::language_models::build(state.clone()));
     window.add(&settings::start_behavior::build(state.clone()));
     window.add(&settings::updates_page(lang));
     window.add(&settings::placeholder_page(

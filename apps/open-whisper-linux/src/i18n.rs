@@ -186,6 +186,43 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
             "Modus, Modell und Hotkey auf einen Blick"
         }
 
+        // Settings -> Language models
+        ("de", "settings.models.transcription.title") => "Transkription",
+        ("de", "settings.models.transcription.description") => {
+            "Whisper-Modell, das Deine Aufnahmen in Text umwandelt"
+        }
+        ("de", "settings.models.post_processing.title") => "Nachbearbeitung",
+        ("de", "settings.models.post_processing.description") => {
+            "Gemma 4 Sprachmodell, das den rohen Transkript aufbereitet"
+        }
+        ("de", "settings.models.active_preset") => "Aktives Modell",
+        ("de", "settings.models.manage") => "Verwalten",
+        ("de", "settings.models.manage.subtitle") => {
+            "Modelle herunterladen, l\u{00f6}schen oder aktualisieren"
+        }
+
+        ("de", "settings.models.manage.transcription.title") => {
+            "Whisper-Modelle verwalten"
+        }
+        ("de", "settings.models.manage.post_processing.title") => {
+            "Gemma 4 Modelle verwalten"
+        }
+        ("de", "settings.models.state.ready") => "Bereit",
+        ("de", "settings.models.state.downloading") => "Wird heruntergeladen",
+        ("de", "settings.models.state.not_downloaded") => "Nicht heruntergeladen",
+        ("de", "settings.models.state.progress_percent") => "Fortschritt: {}%",
+        ("de", "settings.models.action.download") => "Download",
+        ("de", "settings.models.action.delete") => "L\u{00f6}schen",
+        ("de", "settings.models.action.downloading") => "L\u{00e4}uft \u{2026}",
+        ("de", "settings.models.advanced.title") => "Erweitert",
+        ("de", "settings.models.advanced.description") => {
+            "Speichermanagement f\u{00fc}r lokal geladene Modelle"
+        }
+        ("de", "settings.models.llm_unload.title") => "Modell nach Leerlauf entladen",
+        ("de", "settings.models.llm_unload.subtitle") => {
+            "Sekunden Inaktivit\u{00e4}t, bevor das Sprachmodell RAM freigibt (0 = nie)"
+        }
+
         // Dialogs
         ("de", "dialog.restart_onboarding.title") => "Onboarding neu starten",
         ("de", "dialog.restart_onboarding.body") => {
@@ -348,6 +385,39 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         (_, "settings.dashboard.current.title") => "Current state",
         (_, "settings.dashboard.current.description") => {
             "Mode, model and hotkey at a glance"
+        }
+
+        // Settings -> Language models
+        (_, "settings.models.transcription.title") => "Transcription",
+        (_, "settings.models.transcription.description") => {
+            "Whisper model that turns your recordings into text"
+        }
+        (_, "settings.models.post_processing.title") => "Post-processing",
+        (_, "settings.models.post_processing.description") => {
+            "Gemma 4 language model that cleans up the raw transcript"
+        }
+        (_, "settings.models.active_preset") => "Active model",
+        (_, "settings.models.manage") => "Manage",
+        (_, "settings.models.manage.subtitle") => {
+            "Download, delete, or update models"
+        }
+
+        (_, "settings.models.manage.transcription.title") => "Manage Whisper models",
+        (_, "settings.models.manage.post_processing.title") => "Manage Gemma 4 models",
+        (_, "settings.models.state.ready") => "Ready",
+        (_, "settings.models.state.downloading") => "Downloading",
+        (_, "settings.models.state.not_downloaded") => "Not downloaded",
+        (_, "settings.models.state.progress_percent") => "Progress: {}%",
+        (_, "settings.models.action.download") => "Download",
+        (_, "settings.models.action.delete") => "Delete",
+        (_, "settings.models.action.downloading") => "Running \u{2026}",
+        (_, "settings.models.advanced.title") => "Advanced",
+        (_, "settings.models.advanced.description") => {
+            "Memory management for loaded models"
+        }
+        (_, "settings.models.llm_unload.title") => "Unload model after idle",
+        (_, "settings.models.llm_unload.subtitle") => {
+            "Seconds of inactivity before the language model releases RAM (0 = never)"
         }
 
         (_, "dialog.restart_onboarding.title") => "Restart onboarding",
