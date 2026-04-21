@@ -67,6 +67,7 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
 
         // Settings window
         ("de", "settings.window.title") => "Einstellungen",
+        ("de", "settings.tab.dashboard") => "\u{00dc}bersicht",
         ("de", "settings.tab.recording") => "Aufnahme",
         ("de", "settings.tab.post_processing") => "Nachbearbeitung",
         ("de", "settings.tab.language_models") => "Sprachmodelle",
@@ -170,11 +171,20 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         ("de", "settings.help.version.title") => "Version",
         ("de", "settings.help.bundle_id.title") => "Bundle-ID",
         ("de", "settings.help.actions.title") => "Aktionen",
+        ("de", "settings.help.about_action.title") => "\u{00dc}ber Open Whisper",
+        ("de", "settings.help.about_action.subtitle") => "Version, Autor, Lizenz",
+        ("de", "settings.help.about_action.button") => "Anzeigen",
         ("de", "settings.help.restart_onboarding.title") => "Onboarding neu starten",
         ("de", "settings.help.restart_onboarding.subtitle") => {
             "F\u{00fc}hrt dich erneut durch Einrichtung"
         }
         ("de", "settings.help.restart_onboarding.button") => "Starten",
+
+        // Dashboard (first sidebar page)
+        ("de", "settings.dashboard.current.title") => "Aktueller Zustand",
+        ("de", "settings.dashboard.current.description") => {
+            "Modus, Modell und Hotkey auf einen Blick"
+        }
 
         // Dialogs
         ("de", "dialog.restart_onboarding.title") => "Onboarding neu starten",
@@ -225,6 +235,7 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         (_, "menu.quit") => "Quit",
 
         (_, "settings.window.title") => "Settings",
+        (_, "settings.tab.dashboard") => "Overview",
         (_, "settings.tab.recording") => "Recording",
         (_, "settings.tab.post_processing") => "Post-processing",
         (_, "settings.tab.language_models") => "Language models",
@@ -324,11 +335,20 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         (_, "settings.help.version.title") => "Version",
         (_, "settings.help.bundle_id.title") => "Bundle ID",
         (_, "settings.help.actions.title") => "Actions",
+        (_, "settings.help.about_action.title") => "About Open Whisper",
+        (_, "settings.help.about_action.subtitle") => "Version, author, license",
+        (_, "settings.help.about_action.button") => "Show",
         (_, "settings.help.restart_onboarding.title") => "Restart onboarding",
         (_, "settings.help.restart_onboarding.subtitle") => {
             "Walks you through the setup again"
         }
         (_, "settings.help.restart_onboarding.button") => "Start",
+
+        // Dashboard (first sidebar page)
+        (_, "settings.dashboard.current.title") => "Current state",
+        (_, "settings.dashboard.current.description") => {
+            "Mode, model and hotkey at a glance"
+        }
 
         (_, "dialog.restart_onboarding.title") => "Restart onboarding",
         (_, "dialog.restart_onboarding.body") => {

@@ -9,7 +9,7 @@ use glib::ControlFlow;
 use crate::bridge;
 use crate::i18n::tr;
 use crate::state::{AppSnapshot, AppState};
-use crate::ui::{main_window, settings_window};
+use crate::ui::main_window;
 
 /// Runtime poll cadence. macOS polls at roughly 1 s — runtime flags change
 /// only on user input (recording toggle, hotkey fire) so this is plenty,
@@ -117,20 +117,11 @@ pub fn app_state(app: &adw::Application) -> AppState {
     }
 }
 
-/// Install the `app.*` `gio::SimpleAction`s that the hamburger menu binds
-/// to. Keeping action handling on the application (rather than the window)
-/// means the tray menu — or future CLI hooks — can fire the same actions.
+/// Install the `app.*` `gio::SimpleAction`s reachable from accelerators,
+/// from the Help tab, and from the optional tray. `app.settings` is no
+/// longer needed — settings live inside the main window, so any secondary
+/// caller can simply `app.activate()` to bring the window forward.
 fn install_actions(app: &adw::Application) {
-    let settings_action = SimpleAction::new("settings", None);
-    settings_action.connect_activate(glib::clone!(
-        #[weak]
-        app,
-        move |_, _| {
-            open_settings(&app);
-        }
-    ));
-    app.add_action(&settings_action);
-
     let restart_onboarding_action = SimpleAction::new("restart_onboarding", None);
     restart_onboarding_action.connect_activate(glib::clone!(
         #[weak]
@@ -161,26 +152,6 @@ fn install_actions(app: &adw::Application) {
     ));
     app.add_action(&quit_action);
     app.set_accels_for_action("app.quit", &["<Primary>q"]);
-}
-
-fn open_settings(app: &adw::Application) {
-    let lang = app_state(app).with(|snap| snap.settings.ui_language);
-
-    // Focus an existing settings window rather than stacking duplicates.
-    for window in app.windows() {
-        if window.is::<adw::PreferencesWindow>() {
-            window.present();
-            return;
-        }
-    }
-
-    let state = app_state(app);
-    let window = settings_window::build(app, state);
-    if let Some(active) = app.active_window() {
-        window.set_transient_for(Some(&active));
-    }
-    window.set_title(Some(&tr("settings.window.title", lang)));
-    window.present();
 }
 
 fn show_about_window(app: &adw::Application) {

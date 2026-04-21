@@ -14,7 +14,7 @@ use open_whisper_core::{AppSettings, TriggerMode};
 use crate::bridge;
 use crate::i18n::tr;
 use crate::state::AppState;
-use crate::ui::settings_window::persist_settings;
+use crate::ui::settings::persist_settings;
 
 pub fn build(state: AppState) -> adw::PreferencesPage {
     let lang = state.with(|snap| snap.settings.ui_language);

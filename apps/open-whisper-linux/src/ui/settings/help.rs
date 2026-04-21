@@ -55,23 +55,38 @@ fn actions_group(lang: UiLanguage) -> adw::PreferencesGroup {
         .title(tr("settings.help.actions.title", lang))
         .build();
 
-    // Action row with a trailing button that triggers `app.restart_onboarding`.
-    // Wiring via action-name keeps the behaviour identical whether the user
-    // hits the button here or picks the same item from the hamburger menu.
-    let button = gtk::Button::builder()
+    // Action rows triggering existing `app.*` actions. Wiring via
+    // action-name keeps the behaviour identical whether the user hits the
+    // button here, an accelerator, or (future) a tray entry.
+    let about_button = gtk::Button::builder()
+        .label(tr("settings.help.about_action.button", lang))
+        .valign(gtk::Align::Center)
+        .action_name("app.about")
+        .build();
+    about_button.add_css_class("pill");
+
+    let about_row = adw::ActionRow::builder()
+        .title(tr("settings.help.about_action.title", lang))
+        .subtitle(tr("settings.help.about_action.subtitle", lang))
+        .build();
+    about_row.add_suffix(&about_button);
+    about_row.set_activatable_widget(Some(&about_button));
+
+    let onboarding_button = gtk::Button::builder()
         .label(tr("settings.help.restart_onboarding.button", lang))
         .valign(gtk::Align::Center)
         .action_name("app.restart_onboarding")
         .build();
-    button.add_css_class("pill");
+    onboarding_button.add_css_class("pill");
 
     let onboarding_row = adw::ActionRow::builder()
         .title(tr("settings.help.restart_onboarding.title", lang))
         .subtitle(tr("settings.help.restart_onboarding.subtitle", lang))
         .build();
-    onboarding_row.add_suffix(&button);
-    onboarding_row.set_activatable_widget(Some(&button));
+    onboarding_row.add_suffix(&onboarding_button);
+    onboarding_row.set_activatable_widget(Some(&onboarding_button));
 
+    group.add(&about_row);
     group.add(&onboarding_row);
 
     group
