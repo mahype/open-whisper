@@ -113,6 +113,16 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         ("de", "settings.recording.hotkey.subtitle") => {
             "Bearbeiten folgt in einer sp\u{00e4}teren Ausbaustufe"
         }
+        ("de", "settings.recording.hotkey.subtitle.ready") => {
+            "Klick auf den Button und dr\u{00fc}cke Deine Kombination"
+        }
+        ("de", "settings.recording.hotkey.subtitle.capture") => {
+            "Dr\u{00fc}cke jetzt \u{2014} Escape bricht ab"
+        }
+        ("de", "settings.recording.hotkey.subtitle.saved") => "Gespeichert",
+        ("de", "settings.recording.hotkey.press") => "Taste dr\u{00fc}cken \u{2026}",
+        ("de", "settings.recording.hotkey.empty") => "Nicht festgelegt",
+        ("de", "settings.recording.hotkey.cancelled") => "Abgebrochen",
 
         ("de", "settings.recording.text_output.title") => "Textausgabe",
         ("de", "settings.recording.text_output.description") => {
@@ -318,6 +328,16 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         (_, "settings.recording.hotkey.subtitle") => {
             "Editing arrives in a later stage"
         }
+        (_, "settings.recording.hotkey.subtitle.ready") => {
+            "Click the button and press your combination"
+        }
+        (_, "settings.recording.hotkey.subtitle.capture") => {
+            "Press now \u{2014} Escape cancels"
+        }
+        (_, "settings.recording.hotkey.subtitle.saved") => "Saved",
+        (_, "settings.recording.hotkey.press") => "Press keys \u{2026}",
+        (_, "settings.recording.hotkey.empty") => "Not set",
+        (_, "settings.recording.hotkey.cancelled") => "Cancelled",
 
         (_, "settings.recording.text_output.title") => "Text output",
         (_, "settings.recording.text_output.description") => {

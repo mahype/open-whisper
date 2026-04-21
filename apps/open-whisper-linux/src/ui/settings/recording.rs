@@ -14,7 +14,7 @@ use open_whisper_core::{AppSettings, TriggerMode};
 use crate::bridge;
 use crate::i18n::tr;
 use crate::state::AppState;
-use crate::ui::settings::persist_settings;
+use crate::ui::settings::{hotkey_recorder, persist_settings};
 
 pub fn build(state: AppState) -> adw::PreferencesPage {
     let lang = state.with(|snap| snap.settings.ui_language);
@@ -165,7 +165,7 @@ fn trigger_group(
         .build();
 
     group.add(&trigger_mode_row(state, lang));
-    group.add(&hotkey_row(state, lang));
+    group.add(&hotkey_recorder::build(state.clone(), lang));
 
     group
 }
@@ -207,20 +207,6 @@ fn trigger_mode_row(state: &AppState, lang: open_whisper_core::UiLanguage) -> ad
 
 /// Hotkey display row. Read-only in Stage 2; Stage 3 replaces the subtitle
 /// with a dedicated recorder widget hooked up to `bridge_api::validate_hotkey`.
-fn hotkey_row(state: &AppState, lang: open_whisper_core::UiLanguage) -> adw::ActionRow {
-    let current_hotkey = state.with(|snap| snap.settings.hotkey.clone());
-    let subtitle = if current_hotkey.is_empty() {
-        tr("card.hotkey.unset", lang)
-    } else {
-        current_hotkey
-    };
-
-    adw::ActionRow::builder()
-        .title(tr("settings.recording.hotkey.title", lang))
-        .subtitle(subtitle)
-        .build()
-}
-
 fn text_output_group(
     state: &AppState,
     lang: open_whisper_core::UiLanguage,
