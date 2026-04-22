@@ -24,7 +24,28 @@ pub fn insert_text_into_active_app(text: &str, settings: &AppSettings) -> Result
     if matches!(settings.insert_text_mode, InsertTextMode::ClipboardOnly) {
         copy_to_clipboard(text)?;
         tracing::info!("text_inserter: clipboard-only mode, transcript copied");
+        #[cfg(target_os = "linux")]
+        notify_transcript_ready(text);
         return Ok("Transcript copied to clipboard. Press Ctrl/Cmd+V to paste.".to_owned());
+    }
+
+    // On Wayland `enigo`'s libei backend silently swallows keystrokes when
+    // the compositor (notably GNOME Mutter) hasn't issued a RemoteDesktop
+    // portal grant — `.key(...)` returns Ok but nothing lands in the
+    // focused app. Detection: `XDG_SESSION_TYPE=wayland`. In `Auto` mode we
+    // therefore bypass enigo and do clipboard + notification. Users can
+    // still force the enigo path by explicitly picking `InsertTextMode::Enigo`
+    // (useful on Sway/Hyprland/KDE where libei delivers keys correctly).
+    #[cfg(target_os = "linux")]
+    if matches!(settings.insert_text_mode, InsertTextMode::Auto) && is_wayland_session() {
+        tracing::info!(
+            "text_inserter: Wayland session + Auto mode → clipboard fallback with notification"
+        );
+        copy_to_clipboard(text)?;
+        notify_transcript_ready(text);
+        return Ok(
+            "Wayland detected — transcript copied to clipboard. Press Ctrl+V to paste.".to_owned(),
+        );
     }
 
     // Portal mode is reserved for Linux; until it's wired to `ashpd`, we fall
@@ -90,6 +111,36 @@ pub fn insert_text_into_active_app(text: &str, settings: &AppSettings) -> Result
     Ok("Transcript inserted into the active app.".to_owned())
 }
 
+#[cfg(target_os = "linux")]
+fn is_wayland_session() -> bool {
+    matches!(std::env::var("XDG_SESSION_TYPE").as_deref(), Ok("wayland"))
+}
+
+/// Send a desktop notification with a preview of the transcript so the
+/// user knows it's ready and that they need to paste manually. Fires via
+/// `notify-send` (shipped with libnotify-bin on virtually every Linux
+/// desktop, preinstalled on GNOME/KDE/Xfce).
+#[cfg(target_os = "linux")]
+fn notify_transcript_ready(text: &str) {
+    const PREVIEW_CHARS: usize = 60;
+    let preview: String = text.chars().take(PREVIEW_CHARS).collect();
+    let suffix = if text.chars().count() > PREVIEW_CHARS {
+        "\u{2026}"
+    } else {
+        ""
+    };
+    let body = format!("{preview}{suffix}\n\nPress Ctrl+V to paste.");
+    let _ = std::process::Command::new("notify-send")
+        .args([
+            "--app-name=Open Whisper",
+            "--icon=audio-input-microphone",
+            "--expire-time=4000",
+            "Transcript ready",
+            &body,
+        ])
+        .spawn();
+}
+
 pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
     if text.trim().is_empty() {
         return Err("No text available to copy.".to_owned());
@@ -100,6 +151,8 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
     clipboard
         .set_text(text.to_owned())
         .map_err(|err| format!("Clipboard could not be written to: {err}"))?;
+    #[cfg(target_os = "linux")]
+    notify_transcript_ready(text);
     Ok(())
 }
 
