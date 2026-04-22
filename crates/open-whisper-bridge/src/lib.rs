@@ -48,6 +48,10 @@ struct BridgeRuntime {
     model_downloads: ModelDownloadManager,
     llm_downloads: LlmModelDownloadManager,
     hotkey: Option<HotKeyController>,
+    /// When `true`, hotkey events are delivered from outside the bridge
+    /// (e.g. the Wayland GlobalShortcuts portal). Diagnostics uses this to
+    /// avoid warning "hotkey not registered" when that's by design.
+    external_hotkey: bool,
     post_processing_rx: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
     pending_post_processing: Option<PendingPostProcessing>,
     dictation_trigger_count: u64,
@@ -107,7 +111,17 @@ impl BridgeRuntime {
             last_status = message;
         }
 
-        let mut hotkey = HotKeyController::new().ok();
+        // On Wayland the `global-hotkey` crate cannot bind a system-wide
+        // shortcut — it only knows the X11 grab path. The Linux shell
+        // therefore sets `OW_EXTERNAL_HOTKEY=1` and drives the hotkey via
+        // the XDG `org.freedesktop.portal.GlobalShortcuts` portal,
+        // feeding events back through `hotkey_external_triggered`.
+        let external_hotkey = std::env::var_os("OW_EXTERNAL_HOTKEY").is_some();
+        let mut hotkey = if external_hotkey {
+            None
+        } else {
+            HotKeyController::new().ok()
+        };
         if let Some(controller) = &mut hotkey
             && let Err(err) = controller.apply_settings(&settings)
         {
@@ -121,6 +135,7 @@ impl BridgeRuntime {
             model_downloads,
             llm_downloads,
             hotkey,
+            external_hotkey,
             post_processing_rx: None,
             pending_post_processing: None,
             dictation_trigger_count: 0,
@@ -672,6 +687,7 @@ impl BridgeRuntime {
             &self.dictation,
             self.hotkey.as_ref(),
             self.autostart.summary(),
+            self.external_hotkey,
         )
     }
 
@@ -688,6 +704,31 @@ impl BridgeRuntime {
         let outcomes = self
             .dictation
             .stop_recording_and_transcribe(&self.settings, "Menueleisten-Aktion")?;
+        self.apply_dictation_outcomes(outcomes);
+        Ok(self.last_status.clone())
+    }
+
+    /// Inject a "hotkey pressed" signal from an external source
+    /// (e.g. the Wayland GlobalShortcuts portal). Mirrors the
+    /// `HotKeyAction::Pressed` branch of `poll()` so `TriggerMode` and
+    /// `dictation_trigger_count` behave identically to a native hotkey.
+    fn hotkey_external_triggered(&mut self) -> Result<String, String> {
+        self.poll();
+        self.dictation_trigger_count += 1;
+        if !self.dictation.is_recording() && !self.dictation.is_transcribing() {
+            self.reset_cancellation();
+        }
+        let outcomes = self.dictation.handle_hotkey(&self.settings, true);
+        self.apply_dictation_outcomes(outcomes);
+        Ok(self.last_status.clone())
+    }
+
+    /// Inject a "hotkey released" signal from an external source. Only
+    /// meaningful in `TriggerMode::PushToTalk`; in Toggle mode the
+    /// dictation controller ignores the released edge.
+    fn hotkey_external_released(&mut self) -> Result<String, String> {
+        self.poll();
+        let outcomes = self.dictation.handle_hotkey(&self.settings, false);
         self.apply_dictation_outcomes(outcomes);
         Ok(self.last_status.clone())
     }
@@ -1061,6 +1102,18 @@ pub mod bridge_api {
 
     pub fn cancel_dictation() -> Result<String, String> {
         with_runtime(BridgeRuntime::cancel_dictation)
+    }
+
+    /// Entry point for Linux/Wayland where the XDG portal drives the
+    /// hotkey. Call when the portal emits an `Activated` signal.
+    pub fn hotkey_external_triggered() -> Result<String, String> {
+        with_runtime(BridgeRuntime::hotkey_external_triggered)
+    }
+
+    /// Counterpart of [`hotkey_external_triggered`]. Only relevant for
+    /// `TriggerMode::PushToTalk`; in Toggle mode this is a no-op.
+    pub fn hotkey_external_released() -> Result<String, String> {
+        with_runtime(BridgeRuntime::hotkey_external_released)
     }
 
     pub fn runtime_status() -> RuntimeStatusDto {

@@ -27,6 +27,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # developer can still run `cargo check` on a non-Linux host during UI work.
 [target.'cfg(target_os = "linux")'.dependencies]
 ksni = "0.2"
-ashpd = { version = "0.10", default-features = false, features = ["tokio", "gtk4"] }
+# `async-std` routes zbus through the `async-io` reactor, which
+# co-operates with GLib's MainContext (we `spawn_local` onto it).
+# `gtk4` adds WindowIdentifier integration for parent-window hints.
+# The default `tokio` feature would demand a running Tokio runtime
+# which this shell deliberately doesn't spin up.
+ashpd = { version = "0.10", default-features = false, features = ["async-std", "gtk4"] }
 global-hotkey = "0.7"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+# Needed for `select!` + stream combinators in the hotkey portal loop.
+futures-util = { version = "0.3", default-features = false, features = ["std", "async-await-macro"] }

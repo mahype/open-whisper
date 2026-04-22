@@ -159,6 +159,35 @@ though our probe correctly reported a watcher on the session bus.
 set the env var safely. On GNOME, leave it unset until Stage 5 replaces
 the integration with a portal-aware implementation.
 
+### Pressing the global hotkey does nothing on Wayland + GNOME
+
+**Symptom.** Log reports
+`GlobalShortcuts portal rejected bind` and
+`Method BindShortcuts is not implemented on interface
+org.gnome.Settings.GlobalShortcutsProvider` (visible via
+`dbus-monitor --session`). The main window works, but the hotkey
+doesn't toggle recording.
+
+**Cause.** `global-hotkey` 0.7 has no functional path on Wayland (it
+only knows X11 grabs), so the Linux shell routes through the
+`org.freedesktop.portal.GlobalShortcuts` portal instead. KDE/Plasma
+implements that portal fully; on GNOME 49 `CreateSession` works but
+`BindShortcuts` is still a stub — it's an upstream GNOME / gnome-shell
+limitation, tracked in gnome-shell's bug tracker.
+
+**Status / workaround.** Nothing in the app to fix. Until upstream
+lands the portal backend:
+
+- Use the main-window dashboard button to start/stop dictation.
+- Or bind the app's command to a GNOME *Custom Shortcut* yourself
+  (Settings → Keyboard → View and Customise Shortcuts → Custom
+  Shortcuts) pointing at the binary. An in-app D-Bus-service hook for
+  that is on the roadmap.
+
+On KDE/Plasma the portal accepts the binding and the app reads
+`Activated` signals normally — no user action required beyond the
+one-time confirmation dialog.
+
 ### Tons of `Theme parser warning: gtk.css:…: Expected ';' at end of block`
 
 **Cause.** GTK's default Adwaita stylesheet in some distribution packagings uses CSS that the parser flags (older GTK parsing a newer Adwaita stylesheet, or vice versa). The warnings are cosmetic — the theme renders anyway.

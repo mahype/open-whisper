@@ -7,6 +7,7 @@ pub fn collect(
     dictation: &DictationController,
     hotkey: Option<&HotKeyController>,
     autostart_summary: &str,
+    external_hotkey: bool,
 ) -> DiagnosticsDto {
     let mut items = Vec::new();
     let available_devices = dictation.available_input_devices();
@@ -77,7 +78,20 @@ pub fn collect(
         )),
     }
 
-    if let Some(hotkey) = hotkey {
+    if external_hotkey {
+        items.push(item(
+            "Global hotkey",
+            DiagnosticStatus::Info,
+            &format!(
+                "Hotkey '{}' is managed by the XDG GlobalShortcuts portal (Wayland).",
+                settings.hotkey
+            ),
+            "On KDE/Plasma the portal accepts the binding directly. On GNOME 49 the \
+             portal backend is still a stub (`BindShortcuts` not implemented \
+             upstream) — until that lands, start dictation from the main window or \
+             bind an in-shell custom keybinding to the app as a workaround.",
+        ));
+    } else if let Some(hotkey) = hotkey {
         if hotkey.is_registered() {
             items.push(item(
                 "Global hotkey",

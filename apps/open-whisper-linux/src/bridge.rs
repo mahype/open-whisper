@@ -68,6 +68,14 @@ pub fn cancel_dictation() -> Result<String, String> {
     bridge_api::cancel_dictation()
 }
 
+pub fn hotkey_external_triggered() -> Result<String, String> {
+    bridge_api::hotkey_external_triggered()
+}
+
+pub fn hotkey_external_released() -> Result<String, String> {
+    bridge_api::hotkey_external_released()
+}
+
 pub fn start_model_download(preset: Option<ModelPreset>) -> Result<String, String> {
     bridge_api::start_model_download(preset)
 }

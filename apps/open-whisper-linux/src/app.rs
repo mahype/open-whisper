@@ -86,6 +86,11 @@ pub fn on_startup(app: &adw::Application) {
         tracing::debug!("tray disabled by default; set OW_ENABLE_TRAY=1 to opt in");
     }
 
+    // On Wayland the bridge skips its built-in hotkey binding; drive it
+    // via the XDG GlobalShortcuts portal instead. Installer returns fast
+    // — the portal loop runs as a local task on the GLib main context.
+    crate::hotkey::install(app_state(app));
+
     tracing::info!(
         elapsed_ms = startup_started.elapsed().as_millis() as u64,
         "on_startup complete"

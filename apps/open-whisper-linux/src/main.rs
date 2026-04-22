@@ -28,17 +28,36 @@ fn main() -> Result<()> {
         .with_target(false)
         .init();
 
+    // On Wayland `global-hotkey` can't bind a system-wide shortcut (it
+    // only knows the X11 grab path). Tell the bridge to skip its
+    // built-in registration so we can drive the hotkey through the XDG
+    // GlobalShortcuts portal instead. This must run *before* any bridge
+    // call — `BridgeRuntime::new` reads the env once during lazy init.
+    if hotkey::is_wayland_session() && std::env::var_os("OW_EXTERNAL_HOTKEY").is_none() {
+        // SAFETY: single-threaded context — `main` before any spawn.
+        unsafe {
+            std::env::set_var("OW_EXTERNAL_HOTKEY", "1");
+        }
+        tracing::info!("Wayland detected — hotkey will be bound via the GlobalShortcuts portal");
+    }
+
     // libadwaita pulls in GTK and sets the theme/stylesheet. Must be called
     // before any widget lookup.
     adw::init()?;
 
-    // NON_UNIQUE skips the single-instance bus-name registration. This is both
-    // pragmatic (Flatpak-proxied session buses refuse to register arbitrary
-    // well-known names) and matches the menu-bar-only UX: re-running the
-    // binary spawns a fresh process rather than focussing an existing one.
+    // When running inside a Flatpak sandbox the session-bus proxy refuses
+    // to register arbitrary well-known names, so we skip the single-
+    // instance handshake. On the real host we *want* the registration:
+    // the XDG GlobalShortcuts portal uses the D-Bus app_id derived from
+    // that well-known name to route `BindShortcuts` requests.
+    let flags = if std::env::var_os("FLATPAK_ID").is_some() {
+        ApplicationFlags::NON_UNIQUE
+    } else {
+        ApplicationFlags::FLAGS_NONE
+    };
     let application = adw::Application::builder()
         .application_id(APP_ID)
-        .flags(ApplicationFlags::NON_UNIQUE)
+        .flags(flags)
         .build();
 
     application.connect_activate(app::on_activate);
