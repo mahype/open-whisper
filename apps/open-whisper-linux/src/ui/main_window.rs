@@ -33,7 +33,11 @@ pub fn build(app: &adw::Application, state: AppState) -> adw::ApplicationWindow 
         Page {
             id: "dashboard",
             title: tr("settings.tab.dashboard", lang),
-            icon: "view-dashboard-symbolic",
+            // user-home-symbolic ships with libadwaita's bundled icons, so
+            // it renders consistently even when the user's system icon theme
+            // (e.g. Fluent-dark) doesn't inherit Adwaita. `view-dashboard-*`
+            // was not bundled and fell back to a multi-colour stand-in.
+            icon: "user-home-symbolic",
             content: settings::dashboard::build(state.clone()).upcast(),
         },
         Page {
@@ -75,7 +79,10 @@ pub fn build(app: &adw::Application, state: AppState) -> adw::ApplicationWindow 
         Page {
             id: "diagnostics",
             title: tr("settings.tab.diagnostics", lang),
-            icon: "dialog-information-symbolic",
+            // system-run-symbolic is part of libadwaita's bundled set and
+            // reads as "run checks / diagnose" well; dialog-information-*
+            // was inconsistent on themes that don't inherit Adwaita.
+            icon: "system-run-symbolic",
             content: settings::diagnostics::build(state.clone()).upcast(),
         },
         Page {

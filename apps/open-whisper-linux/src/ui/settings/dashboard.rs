@@ -23,7 +23,7 @@ pub fn build(state: AppState) -> adw::PreferencesPage {
 
     let page = adw::PreferencesPage::builder()
         .title(tr("settings.tab.dashboard", lang))
-        .icon_name("view-dashboard-symbolic")
+        .icon_name("user-home-symbolic")
         .name("dashboard")
         .build();
 

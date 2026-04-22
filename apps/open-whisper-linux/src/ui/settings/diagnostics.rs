@@ -26,7 +26,7 @@ pub fn build(state: AppState) -> adw::PreferencesPage {
 
     let page = adw::PreferencesPage::builder()
         .title(tr("settings.tab.diagnostics", lang))
-        .icon_name("dialog-information-symbolic")
+        .icon_name("system-run-symbolic")
         .name("diagnostics")
         .build();
 
