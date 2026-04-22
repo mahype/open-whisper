@@ -117,9 +117,11 @@ fn is_wayland_session() -> bool {
 }
 
 /// Send a desktop notification with a preview of the transcript so the
-/// user knows it's ready and that they need to paste manually. Fires via
-/// `notify-send` (shipped with libnotify-bin on virtually every Linux
-/// desktop, preinstalled on GNOME/KDE/Xfce).
+/// user knows it's ready and that they need to paste manually. Uses
+/// `notify-rust` which talks the `org.freedesktop.Notifications` D-Bus
+/// interface directly — no dependency on `notify-send` /
+/// `libnotify-bin` being installed, which is by no means guaranteed on
+/// a minimal GNOME setup.
 #[cfg(target_os = "linux")]
 fn notify_transcript_ready(text: &str) {
     const PREVIEW_CHARS: usize = 60;
@@ -130,15 +132,16 @@ fn notify_transcript_ready(text: &str) {
         ""
     };
     let body = format!("{preview}{suffix}\n\nPress Ctrl+V to paste.");
-    let _ = std::process::Command::new("notify-send")
-        .args([
-            "--app-name=Open Whisper",
-            "--icon=audio-input-microphone",
-            "--expire-time=4000",
-            "Transcript ready",
-            &body,
-        ])
-        .spawn();
+    let outcome = notify_rust::Notification::new()
+        .appname("Open Whisper")
+        .icon("audio-input-microphone")
+        .summary("Transcript ready")
+        .body(&body)
+        .timeout(notify_rust::Timeout::Milliseconds(4000))
+        .show();
+    if let Err(err) = outcome {
+        tracing::debug!(%err, "notify_transcript_ready: notification send failed");
+    }
 }
 
 pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
