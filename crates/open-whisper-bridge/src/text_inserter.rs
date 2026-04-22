@@ -12,11 +12,18 @@ pub fn insert_text_into_active_app(text: &str, settings: &AppSettings) -> Result
         return Err("No text available to paste.".to_owned());
     }
 
+    tracing::info!(
+        chars = text.len(),
+        mode = ?settings.insert_text_mode,
+        "text_inserter: start"
+    );
+
     // Clipboard-only mode: never drive a paste event, just surface the text
     // via the clipboard. Used when the compositor blocks input simulation
     // (e.g. Wayland without libei/RemoteDesktop portal available).
     if matches!(settings.insert_text_mode, InsertTextMode::ClipboardOnly) {
         copy_to_clipboard(text)?;
+        tracing::info!("text_inserter: clipboard-only mode, transcript copied");
         return Ok("Transcript copied to clipboard. Press Ctrl/Cmd+V to paste.".to_owned());
     }
 
@@ -31,6 +38,7 @@ pub fn insert_text_into_active_app(text: &str, settings: &AppSettings) -> Result
     clipboard
         .set_text(text.to_owned())
         .map_err(|err| format!("Clipboard could not be written to: {err}"))?;
+    tracing::debug!("text_inserter: clipboard updated with transcript");
 
     let delay = Duration::from_millis(settings.insert_delay_ms as u64);
     if !delay.is_zero() {
@@ -47,19 +55,26 @@ pub fn insert_text_into_active_app(text: &str, settings: &AppSettings) -> Result
         enigo_settings.open_prompt_to_get_permissions = true;
     }
 
-    let mut enigo = Enigo::new(&enigo_settings)
-        .map_err(|err| format!("Input simulation could not be initialized: {err}"))?;
+    let mut enigo = Enigo::new(&enigo_settings).map_err(|err| {
+        tracing::warn!(%err, "text_inserter: Enigo::new failed");
+        format!("Input simulation could not be initialized: {err}")
+    })?;
+    tracing::debug!("text_inserter: enigo initialised");
 
     let modifier = paste_modifier_key();
-    enigo
-        .key(modifier, Press)
-        .map_err(|err| format!("Paste hotkey could not be pressed: {err}"))?;
-    enigo
-        .key(Key::Unicode('v'), Click)
-        .map_err(|err| format!("Paste hotkey could not be sent: {err}"))?;
-    enigo
-        .key(modifier, Release)
-        .map_err(|err| format!("Paste hotkey could not be released: {err}"))?;
+    enigo.key(modifier, Press).map_err(|err| {
+        tracing::warn!(%err, step = "press_modifier", "text_inserter: enigo key failed");
+        format!("Paste hotkey could not be pressed: {err}")
+    })?;
+    enigo.key(Key::Unicode('v'), Click).map_err(|err| {
+        tracing::warn!(%err, step = "click_v", "text_inserter: enigo key failed");
+        format!("Paste hotkey could not be sent: {err}")
+    })?;
+    enigo.key(modifier, Release).map_err(|err| {
+        tracing::warn!(%err, step = "release_modifier", "text_inserter: enigo key failed");
+        format!("Paste hotkey could not be released: {err}")
+    })?;
+    tracing::info!("text_inserter: paste chord dispatched via enigo");
 
     if settings.restore_clipboard_after_insert
         && let Some(previous_text) = previous_text

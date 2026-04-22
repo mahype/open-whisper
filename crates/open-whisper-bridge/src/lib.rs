@@ -316,27 +316,37 @@ impl BridgeRuntime {
     }
 
     fn finish_transcript(&mut self, transcript: String, ready_status: &str) {
+        tracing::info!(
+            chars = transcript.len(),
+            auto_insert = self.settings.insert_text_automatically,
+            "finish_transcript: entry"
+        );
         self.last_transcript = transcript.clone();
         if self.settings.insert_text_automatically {
             match text_inserter::insert_text_into_active_app(&transcript, &self.settings) {
                 Ok(message) => {
+                    tracing::info!(%message, "finish_transcript: insert ok");
                     if ready_status.is_empty() {
                         self.last_status = message;
                     } else {
                         self.last_status = format!("{ready_status} {message}");
                     }
                 }
-                Err(err) => match text_inserter::copy_to_clipboard(&transcript) {
-                    Ok(()) => {
-                        self.last_status =
-                            "Einfuegen fehlgeschlagen – Text in Zwischenablage kopiert.".to_owned();
+                Err(err) => {
+                    tracing::warn!(%err, "finish_transcript: insert failed, falling back to clipboard");
+                    match text_inserter::copy_to_clipboard(&transcript) {
+                        Ok(()) => {
+                            self.last_status =
+                                "Einfuegen fehlgeschlagen – Text in Zwischenablage kopiert.".to_owned();
+                        }
+                        Err(clip_err) => {
+                            self.last_status = format!("{err} Zwischenablage-Fallback: {clip_err}");
+                        }
                     }
-                    Err(clip_err) => {
-                        self.last_status = format!("{err} Zwischenablage-Fallback: {clip_err}");
-                    }
-                },
+                }
             }
         } else {
+            tracing::info!("finish_transcript: auto-insert disabled, keeping transcript");
             self.last_status = ready_status.to_owned();
         }
     }
