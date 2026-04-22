@@ -47,13 +47,20 @@ fn main() -> Result<()> {
 
     // When running inside a Flatpak sandbox the session-bus proxy refuses
     // to register arbitrary well-known names, so we skip the single-
-    // instance handshake. On the real host we *want* the registration:
-    // the XDG GlobalShortcuts portal uses the D-Bus app_id derived from
-    // that well-known name to route `BindShortcuts` requests.
+    // instance handshake. On the real host we want the registration:
+    //
+    //  - The XDG GlobalShortcuts portal uses the D-Bus app_id derived
+    //    from the well-known name to route `BindShortcuts`.
+    //  - `HANDLES_COMMAND_LINE` turns the primary instance into an
+    //    inbox for `--dictate-toggle` / `--dictate-start` /
+    //    `--dictate-stop` launched by a GNOME custom shortcut; the
+    //    secondary invocation is relayed via D-Bus so the user's
+    //    keypress arrives at the running app without running whisper a
+    //    second time.
     let flags = if std::env::var_os("FLATPAK_ID").is_some() {
         ApplicationFlags::NON_UNIQUE
     } else {
-        ApplicationFlags::FLAGS_NONE
+        ApplicationFlags::HANDLES_COMMAND_LINE
     };
     let application = adw::Application::builder()
         .application_id(APP_ID)
@@ -62,6 +69,7 @@ fn main() -> Result<()> {
 
     application.connect_activate(app::on_activate);
     application.connect_startup(app::on_startup);
+    application.connect_command_line(app::on_command_line);
 
     // gtk/gio converts the integer exit code; propagate a non-zero on failure.
     let exit_code = application.run();

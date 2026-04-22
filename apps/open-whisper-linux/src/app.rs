@@ -110,6 +110,87 @@ pub fn on_activate(app: &adw::Application) {
     window.present();
 }
 
+/// Handle a secondary invocation relayed to the primary instance.
+///
+/// With `ApplicationFlags::HANDLES_COMMAND_LINE` set, GIO dispatches
+/// every invocation through this signal. When a user triggers a GNOME
+/// custom keyboard shortcut that runs
+/// `open-whisper-linux --dictate-toggle`, GIO:
+///
+///  1. Sees that a primary instance already holds `APP_ID` on the bus.
+///  2. Forwards the command-line to the primary over D-Bus.
+///  3. The secondary process exits immediately (with the value we
+///     return here).
+///
+/// That's the workaround for GNOME still stubbing out
+/// `GlobalShortcuts.BindShortcuts`. Desktop environments that handle
+/// portals properly (KDE/Plasma) don't need this path.
+pub fn on_command_line(
+    app: &adw::Application,
+    cmd_line: &gio::ApplicationCommandLine,
+) -> i32 {
+    let args: Vec<String> = cmd_line
+        .arguments()
+        .into_iter()
+        .map(|s| s.to_string_lossy().into_owned())
+        .collect();
+
+    let mut matched = false;
+    for arg in args.iter().skip(1) {
+        match arg.as_str() {
+            "--dictate-toggle" => {
+                tracing::info!("CLI: --dictate-toggle");
+                log_bridge_result("toggle", bridge::hotkey_external_triggered());
+                matched = true;
+            }
+            "--dictate-start" => {
+                tracing::info!("CLI: --dictate-start");
+                log_bridge_result("start", bridge::start_dictation());
+                matched = true;
+            }
+            "--dictate-stop" => {
+                tracing::info!("CLI: --dictate-stop");
+                log_bridge_result("stop", bridge::stop_dictation());
+                matched = true;
+            }
+            "--help" | "-h" => {
+                print_help();
+                return 0;
+            }
+            other if other.starts_with("--") => {
+                tracing::warn!(flag = %other, "CLI: unknown flag, ignored");
+            }
+            _ => {}
+        }
+    }
+
+    if !matched {
+        app.activate();
+    }
+    0
+}
+
+fn log_bridge_result(label: &str, outcome: Result<String, String>) {
+    match outcome {
+        Ok(msg) => tracing::info!(action = label, message = %msg, "bridge action ok"),
+        Err(err) => tracing::warn!(action = label, %err, "bridge action failed"),
+    }
+}
+
+fn print_help() {
+    eprintln!(
+        "open-whisper-linux — local dictation shell\n\n\
+         Flags:\n  \
+         --dictate-toggle   Toggle dictation in the running instance\n  \
+         --dictate-start    Start dictation in the running instance\n  \
+         --dictate-stop     Stop dictation in the running instance\n  \
+         --help, -h         Show this help\n\n\
+         Bind any of the flags to a system-wide keyboard shortcut (e.g. GNOME\n\
+         Settings → Keyboard → Custom Shortcuts) to drive dictation without\n\
+         focusing the window. See docs/LINUX.md for details.\n"
+    );
+}
+
 /// Retrieve the per-application shared state installed in `on_startup`.
 /// Panics if called before startup — by design, since every UI entry point
 /// lives downstream of the application lifecycle.

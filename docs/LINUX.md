@@ -175,18 +175,51 @@ implements that portal fully; on GNOME 49 `CreateSession` works but
 `BindShortcuts` is still a stub — it's an upstream GNOME / gnome-shell
 limitation, tracked in gnome-shell's bug tracker.
 
-**Status / workaround.** Nothing in the app to fix. Until upstream
-lands the portal backend:
+**Status / workaround.** The binary speaks CLI flags that a GNOME
+Custom Shortcut can bind to. When the primary app is already running
+(`APP_ID=com.openwhisper.OpenWhisper`), a secondary invocation with
+`--dictate-toggle` is relayed over D-Bus to the running instance and
+triggers the same dictation path the portal would have. No CPU is
+spent launching a second whisper — the secondary exits instantly.
 
-- Use the main-window dashboard button to start/stop dictation.
-- Or bind the app's command to a GNOME *Custom Shortcut* yourself
-  (Settings → Keyboard → View and Customise Shortcuts → Custom
-  Shortcuts) pointing at the binary. An in-app D-Bus-service hook for
-  that is on the roadmap.
+Available flags:
+
+| Flag | Effect |
+| --- | --- |
+| `--dictate-toggle` | Start dictation, or stop it if already recording. |
+| `--dictate-start` | Start dictation (no-op if already recording). |
+| `--dictate-stop` | Stop dictation (no-op if not recording). |
+| `--help`, `-h` | Print the list and exit. |
+
+### One-time setup on GNOME
+
+GUI: **Settings → Keyboard → View and Customise Shortcuts → Custom
+Shortcuts → +**. Fill in:
+
+| Field | Value |
+| --- | --- |
+| Name | `Open Whisper: Toggle Dictation` |
+| Command | `/home/YOUR_USER/Dev/Apps/open-whisper/target/debug/open-whisper-linux --dictate-toggle` (adjust to your binary path) |
+| Shortcut | Press the combination you want (e.g. `Ctrl+Shift+Space`) |
+
+Equivalent `gsettings` one-liner:
+
+```bash
+BINARY="$HOME/Dev/Apps/open-whisper/target/debug/open-whisper-linux"
+SCHEMA=org.gnome.settings-daemon.plugins.media-keys
+CUSTOM=org.gnome.settings-daemon.plugins.media-keys.custom-keybinding
+KB_PATH=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/open-whisper/
+
+gsettings set "$SCHEMA" custom-keybindings "['$KB_PATH']"
+gsettings set --schemadir . "$CUSTOM:$KB_PATH" name 'Open Whisper: Toggle Dictation'
+gsettings set --schemadir . "$CUSTOM:$KB_PATH" command "$BINARY --dictate-toggle"
+gsettings set --schemadir . "$CUSTOM:$KB_PATH" binding '<Ctrl><Shift>space'
+```
 
 On KDE/Plasma the portal accepts the binding and the app reads
-`Activated` signals normally — no user action required beyond the
-one-time confirmation dialog.
+`Activated` signals directly, no user action required beyond the
+one-time confirmation dialog. The CLI flags still work there if you
+prefer a compositor-agnostic setup.
 
 ### Tons of `Theme parser warning: gtk.css:…: Expected ';' at end of block`
 

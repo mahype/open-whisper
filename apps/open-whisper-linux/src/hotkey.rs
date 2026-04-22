@@ -164,8 +164,9 @@ mod linux {
                     %err,
                     "GlobalShortcuts portal rejected bind. On GNOME this is a known \
                      upstream limitation — BindShortcuts is not yet implemented by \
-                     gnome-settings-daemon. Dictation can still be toggled from the \
-                     main window until the upstream portal support lands."
+                     gnome-settings-daemon. Workaround: bind a GNOME Custom Shortcut \
+                     to `open-whisper-linux --dictate-toggle` (see docs/LINUX.md). \
+                     KDE/Plasma sessions get the native portal prompt."
                 );
                 Err(err)
             }
