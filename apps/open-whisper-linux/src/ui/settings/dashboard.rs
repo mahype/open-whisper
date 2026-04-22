@@ -78,11 +78,7 @@ fn status_group(
     group
 }
 
-fn info_group(
-    state: &AppState,
-    initial: &AppSnapshot,
-    lang: UiLanguage,
-) -> adw::PreferencesGroup {
+fn info_group(state: &AppState, initial: &AppSnapshot, lang: UiLanguage) -> adw::PreferencesGroup {
     let group = adw::PreferencesGroup::builder()
         .title(tr("settings.dashboard.current.title", lang))
         .description(tr("settings.dashboard.current.description", lang))

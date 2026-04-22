@@ -72,15 +72,18 @@ fn mic_row(state: &AppState, lang: open_whisper_core::UiLanguage) -> adw::ComboR
     // Find the stored device in the list; if missing, append a disabled-
     // looking entry preserving the user's configuration so a USB mic that's
     // currently unplugged doesn't silently reset to something else.
-    let selected = names.iter().position(|n| n == &current_name).unwrap_or_else(|| {
-        if !current_name.is_empty() {
-            model.append(&current_name);
-            names.push(current_name.clone());
-            names.len() - 1
-        } else {
-            0
-        }
-    });
+    let selected = names
+        .iter()
+        .position(|n| n == &current_name)
+        .unwrap_or_else(|| {
+            if !current_name.is_empty() {
+                model.append(&current_name);
+                names.push(current_name.clone());
+                names.len() - 1
+            } else {
+                0
+            }
+        });
 
     let row = adw::ComboRow::builder()
         .title(tr("settings.recording.mic.title", lang))
@@ -155,10 +158,7 @@ fn language_row(state: &AppState, lang: open_whisper_core::UiLanguage) -> adw::C
     row
 }
 
-fn trigger_group(
-    state: &AppState,
-    lang: open_whisper_core::UiLanguage,
-) -> adw::PreferencesGroup {
+fn trigger_group(state: &AppState, lang: open_whisper_core::UiLanguage) -> adw::PreferencesGroup {
     let group = adw::PreferencesGroup::builder()
         .title(tr("settings.recording.trigger.title", lang))
         .description(tr("settings.recording.trigger.description", lang))
@@ -244,10 +244,7 @@ fn insert_text_row(state: &AppState, lang: open_whisper_core::UiLanguage) -> adw
     row
 }
 
-fn restore_clipboard_row(
-    state: &AppState,
-    lang: open_whisper_core::UiLanguage,
-) -> adw::SwitchRow {
+fn restore_clipboard_row(state: &AppState, lang: open_whisper_core::UiLanguage) -> adw::SwitchRow {
     let row = adw::SwitchRow::builder()
         .title(tr("settings.recording.restore_clipboard.title", lang))
         .subtitle(tr("settings.recording.restore_clipboard.subtitle", lang))

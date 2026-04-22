@@ -126,10 +126,7 @@ pub fn on_activate(app: &adw::Application) {
 /// That's the workaround for GNOME still stubbing out
 /// `GlobalShortcuts.BindShortcuts`. Desktop environments that handle
 /// portals properly (KDE/Plasma) don't need this path.
-pub fn on_command_line(
-    app: &adw::Application,
-    cmd_line: &gio::ApplicationCommandLine,
-) -> i32 {
+pub fn on_command_line(app: &adw::Application, cmd_line: &gio::ApplicationCommandLine) -> i32 {
     let args: Vec<String> = cmd_line
         .arguments()
         .into_iter()

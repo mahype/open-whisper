@@ -61,13 +61,7 @@ pub fn build(state: AppState) -> adw::PreferencesPage {
     let rows: Rc<RefCell<Vec<adw::ActionRow>>> = Rc::new(RefCell::new(Vec::new()));
 
     // Initial populate.
-    refresh(
-        &state,
-        &summary_row,
-        &details_group,
-        &rows,
-        lang,
-    );
+    refresh(&state, &summary_row, &details_group, &rows, lang);
 
     refresh_button.connect_clicked(clone!(
         #[strong]

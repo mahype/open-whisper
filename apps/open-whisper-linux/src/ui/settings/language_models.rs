@@ -11,7 +11,9 @@ use std::rc::Rc;
 use adw::prelude::*;
 use glib::clone;
 
-use open_whisper_core::{AppSettings, LlmModelStatusDto, LlmPreset, ModelPreset, ModelStatusDto, UiLanguage};
+use open_whisper_core::{
+    AppSettings, LlmModelStatusDto, LlmPreset, ModelPreset, ModelStatusDto, UiLanguage,
+};
 
 use crate::bridge;
 use crate::i18n::tr;
@@ -425,10 +427,9 @@ fn refresh_rows(rows: &Rc<RefCell<Vec<ManagedRow>>>, kind: ManageKind, lang: UiL
 
 fn apply_whisper_state(managed: &ManagedRow, status: &ModelStatusDto, lang: UiLanguage) {
     if status.is_downloading {
-        managed.row.set_subtitle(&downloading_subtitle(
-            status.progress_basis_points,
-            lang,
-        ));
+        managed
+            .row
+            .set_subtitle(&downloading_subtitle(status.progress_basis_points, lang));
         managed
             .button
             .set_label(&tr("settings.models.action.downloading", lang));
@@ -458,10 +459,9 @@ fn apply_whisper_state(managed: &ManagedRow, status: &ModelStatusDto, lang: UiLa
 
 fn apply_llm_state(managed: &ManagedRow, status: &LlmModelStatusDto, lang: UiLanguage) {
     if status.is_downloading {
-        managed.row.set_subtitle(&downloading_subtitle(
-            status.progress_basis_points,
-            lang,
-        ));
+        managed
+            .row
+            .set_subtitle(&downloading_subtitle(status.progress_basis_points, lang));
         managed
             .button
             .set_label(&tr("settings.models.action.downloading", lang));
@@ -495,5 +495,9 @@ fn downloading_subtitle(progress_basis_points: Option<u16>, lang: UiLanguage) ->
         .unwrap_or(0);
     let template = tr("settings.models.state.progress_percent", lang);
     let filled = template.replace("{}", &percent.to_string());
-    format!("{} \u{2022} {}", tr("settings.models.state.downloading", lang), filled)
+    format!(
+        "{} \u{2022} {}",
+        tr("settings.models.state.downloading", lang),
+        filled
+    )
 }

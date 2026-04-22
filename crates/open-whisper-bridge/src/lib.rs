@@ -337,7 +337,8 @@ impl BridgeRuntime {
                     match text_inserter::copy_to_clipboard(&transcript) {
                         Ok(()) => {
                             self.last_status =
-                                "Einfuegen fehlgeschlagen – Text in Zwischenablage kopiert.".to_owned();
+                                "Einfuegen fehlgeschlagen – Text in Zwischenablage kopiert."
+                                    .to_owned();
                         }
                         Err(clip_err) => {
                             self.last_status = format!("{err} Zwischenablage-Fallback: {clip_err}");
