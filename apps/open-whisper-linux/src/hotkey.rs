@@ -115,10 +115,14 @@ mod linux {
                             to = %latest,
                             "hotkey setting changed, rebinding",
                         );
-                        match bind(&portal, &session, &latest).await {
-                            Ok(()) => *current.borrow_mut() = latest,
-                            Err(err) => tracing::warn!(%err, "portal rebind failed"),
+                        // Record the attempt regardless of outcome. On
+                        // GNOME the portal backend rejects every bind
+                        // right now — without this update we'd retry
+                        // the same value every 2 s and spam the log.
+                        if let Err(err) = bind(&portal, &session, &latest).await {
+                            tracing::warn!(%err, "portal rebind failed");
                         }
+                        *current.borrow_mut() = latest;
                     }
                 }
             }
