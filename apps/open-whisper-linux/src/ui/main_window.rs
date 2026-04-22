@@ -76,13 +76,7 @@ pub fn build(app: &adw::Application, state: AppState) -> adw::ApplicationWindow 
             id: "diagnostics",
             title: tr("settings.tab.diagnostics", lang),
             icon: "dialog-information-symbolic",
-            content: settings::placeholder_page(
-                "diagnostics",
-                &tr("settings.tab.diagnostics", lang),
-                "dialog-information-symbolic",
-                lang,
-            )
-            .upcast(),
+            content: settings::diagnostics::build(state.clone()).upcast(),
         },
         Page {
             id: "help",

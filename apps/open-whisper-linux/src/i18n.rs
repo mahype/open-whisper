@@ -196,6 +196,24 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
             "Modus, Modell und Hotkey auf einen Blick"
         }
 
+        // Settings -> Diagnostics
+        ("de", "settings.diagnostics.overview.title") => "\u{00dc}bersicht",
+        ("de", "settings.diagnostics.overview.subtitle") => "Zusammenfassung aller Pr\u{00fc}fungen",
+        ("de", "settings.diagnostics.summary.unknown") => "Noch nicht gepr\u{00fc}ft",
+        ("de", "settings.diagnostics.refresh") => "Aktualisieren",
+        ("de", "settings.diagnostics.details.title") => "Details",
+        ("de", "settings.diagnostics.details.description") => {
+            "Einzelne Pr\u{00fc}fungen mit Problem und Empfehlung"
+        }
+        ("de", "settings.diagnostics.recommendation_prefix") => "Empfehlung:",
+        ("de", "settings.diagnostics.status.ok") => "OK",
+        ("de", "settings.diagnostics.status.info") => "Info",
+        ("de", "settings.diagnostics.status.warning") => "Warnung",
+        ("de", "settings.diagnostics.status.error") => "Fehler",
+        ("de", "settings.diagnostics.empty") => {
+            "Es sind noch keine Pr\u{00fc}fergebnisse vorhanden."
+        }
+
         // Settings -> Language models
         ("de", "settings.models.transcription.title") => "Transkription",
         ("de", "settings.models.transcription.description") => {
@@ -406,6 +424,22 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         (_, "settings.dashboard.current.description") => {
             "Mode, model and hotkey at a glance"
         }
+
+        // Settings -> Diagnostics
+        (_, "settings.diagnostics.overview.title") => "Overview",
+        (_, "settings.diagnostics.overview.subtitle") => "Summary of every check",
+        (_, "settings.diagnostics.summary.unknown") => "Not checked yet",
+        (_, "settings.diagnostics.refresh") => "Refresh",
+        (_, "settings.diagnostics.details.title") => "Details",
+        (_, "settings.diagnostics.details.description") => {
+            "Individual checks with problem and recommendation"
+        }
+        (_, "settings.diagnostics.recommendation_prefix") => "Recommendation:",
+        (_, "settings.diagnostics.status.ok") => "OK",
+        (_, "settings.diagnostics.status.info") => "Info",
+        (_, "settings.diagnostics.status.warning") => "Warning",
+        (_, "settings.diagnostics.status.error") => "Error",
+        (_, "settings.diagnostics.empty") => "No check results yet.",
 
         // Settings -> Language models
         (_, "settings.models.transcription.title") => "Transcription",

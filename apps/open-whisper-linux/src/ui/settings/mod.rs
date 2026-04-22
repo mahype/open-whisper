@@ -6,6 +6,7 @@
 //! just inside the same sidebar the other pages live in.
 
 pub mod dashboard;
+pub mod diagnostics;
 pub mod help;
 pub mod hotkey_recorder;
 pub mod language_models;
