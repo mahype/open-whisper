@@ -71,19 +71,20 @@ pub fn on_startup(app: &adw::Application) {
 
     install_actions(app);
 
-    // Linux tray is **opt-in** for now: `ksni` 0.2 integration deadlocks the
-    // GTK main thread on some GNOME setups (confirmed reproducible on
-    // AnduinOS / Ubuntu 25.10 + NVIDIA), even with our StatusNotifierWatcher
-    // probe guarding the spawn. Stage 5 replaces the bridge with a proper
-    // portal-aware tray; until then, `OW_ENABLE_TRAY=1` re-enables it for
-    // desktops that are known to work (KDE, Xfce, Cinnamon, Budgie, MATE).
+    // Linux tray is on by default. The original freeze on GNOME/AnduinOS
+    // was a recursive-lock bug in our `tool_tip` implementation (std::Mutex
+    // isn't reentrant), now fixed. The StatusNotifierWatcher probe still
+    // guards the spawn so desktops without SNI support (bare GNOME without
+    // the AppIndicator extension, CI sessions) degrade gracefully to no
+    // tray instead of crashing. `OW_DISABLE_TRAY=1` is the escape hatch
+    // for developers who want the tray off (e.g. to isolate an unrelated
+    // hang) without editing code.
     #[cfg(target_os = "linux")]
-    if std::env::var_os("OW_ENABLE_TRAY").is_some() {
-        tracing::info!("tray enabled via OW_ENABLE_TRAY; spawning");
-        crate::tray::spawn(app.clone(), app_state(app));
-        tracing::info!("tray spawn returned");
+    if std::env::var_os("OW_DISABLE_TRAY").is_some() {
+        tracing::info!("tray disabled via OW_DISABLE_TRAY");
     } else {
-        tracing::debug!("tray disabled by default; set OW_ENABLE_TRAY=1 to opt in");
+        tracing::info!("spawning tray");
+        crate::tray::spawn(app.clone(), app_state(app));
     }
 
     // On Wayland the bridge skips its built-in hotkey binding; drive it

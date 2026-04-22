@@ -270,6 +270,12 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         ("de", "tray.mode") => "Modus",
         ("de", "tray.tooltip.idle") => "Bereit \u{2013} Hotkey oder Klick zum Starten",
         ("de", "tray.tooltip.recording") => "Aufnahme l\u{00e4}uft \u{2026}",
+        ("de", "tray.post_processing") => "Nachbearbeitung",
+        ("de", "tray.post_processing_off") => "Aus",
+        ("de", "tray.transcription_model") => "Transkriptionsmodell",
+        ("de", "tray.send_feedback") => "Feedback senden \u{2026}",
+        ("de", "tray.check_for_updates") => "Auf Aktualisierungen pr\u{00fc}fen \u{2026}",
+        ("de", "tray.status.ready") => "Bereit",
 
         // English defaults
         (_, "app.title") => "Open Whisper",
@@ -490,6 +496,12 @@ pub fn tr(key: &str, lang: UiLanguage) -> String {
         (_, "tray.mode") => "Mode",
         (_, "tray.tooltip.idle") => "Idle \u{2014} press hotkey or click to start",
         (_, "tray.tooltip.recording") => "Recording\u{2026}",
+        (_, "tray.post_processing") => "Post-processing",
+        (_, "tray.post_processing_off") => "Off",
+        (_, "tray.transcription_model") => "Transcription model",
+        (_, "tray.send_feedback") => "Send feedback\u{2026}",
+        (_, "tray.check_for_updates") => "Check for updates\u{2026}",
+        (_, "tray.status.ready") => "Ready",
 
         _ => key,
     }

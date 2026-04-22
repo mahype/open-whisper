@@ -186,13 +186,31 @@ pub fn build(app: &adw::Application, state: AppState) -> adw::ApplicationWindow 
     split.set_min_sidebar_width(220.0);
     split.set_max_sidebar_width(280.0);
 
-    adw::ApplicationWindow::builder()
+    let window = adw::ApplicationWindow::builder()
         .application(app)
         .default_width(920)
         .default_height(640)
         .title(tr("app.title", lang))
         .content(&split)
-        .build()
+        .build();
+
+    // Close-to-tray: when a StatusNotifierWatcher is available, intercept
+    // the close request and just hide the window. The tray stays up, the
+    // dictation hotkey keeps working, and a tray-click via `activate()`
+    // re-presents the same window. This mirrors the macOS accessory-app
+    // lifecycle. If there's no tray (bare GNOME without AppIndicator
+    // extension, CI, etc.) we fall back to the default close behaviour
+    // so the user can still quit the normal way.
+    if crate::tray::status_notifier_watcher_available()
+        && std::env::var_os("OW_DISABLE_TRAY").is_none()
+    {
+        window.connect_close_request(|window| {
+            window.set_visible(false);
+            glib::Propagation::Stop
+        });
+    }
+
+    window
 }
 
 fn build_sidebar_row(page: &Page) -> gtk::ListBoxRow {
