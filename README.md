@@ -1,10 +1,10 @@
 # Open Whisper
 
-**Dictate anywhere on your Mac — 100% local.**
+**Dictate anywhere — 100% local.**
 
-Press a hotkey, speak, and your words land in whatever app has focus: mail, chat, your editor, the browser. Transcription runs on your machine with [whisper.cpp](https://github.com/ggerganov/whisper.cpp). Nothing leaves your Mac unless you deliberately configure a remote provider.
+Press a hotkey, speak, and your words land in whatever app has focus: mail, chat, your editor, the browser. Transcription runs on your machine with [whisper.cpp](https://github.com/ggerganov/whisper.cpp). Nothing leaves your computer unless you deliberately configure a remote provider.
 
-> **Status:** macOS 14+ is stable. Windows and Linux UI shells are on the roadmap — the Rust core and bridge already compile cross-platform.
+> **Status:** macOS 14+ is stable. Linux UI is in active development. Windows is on the roadmap — the Rust core and bridge already compile cross-platform.
 
 ---
 
@@ -15,7 +15,7 @@ Press a hotkey, speak, and your words land in whatever app has focus: mail, chat
 3. **Clean up** — an optional local LLM pass (Gemma 4 via llama.cpp) fixes punctuation, capitalization, and recognition errors according to the active Mode's prompt.
 4. **Done** — the result is pasted into the focused app, with a clipboard fallback if paste is blocked.
 
-Open Whisper lives in your menu bar. No Dock icon, no window clutter.
+Open Whisper lives in your menu bar (macOS) or system tray (Linux). No Dock icon, no window clutter.
 
 ---
 
@@ -32,8 +32,8 @@ Need permissions help, autostart setup, or uninstall steps? → [docs/INSTALL.md
 | Platform | Status |
 | --- | --- |
 | macOS 14+ (Apple Silicon & Intel) | Stable — [download](https://github.com/mahype/open-whisper/releases/latest) |
+| Linux (GTK4 + libadwaita) | In development — [build from source](#linux) |
 | Windows | Planned |
-| Linux | Planned |
 
 ---
 
@@ -101,6 +101,24 @@ open "dist/Open Whisper.app"
 Universal (Apple Silicon + Intel), release build, ad-hoc signed — good for running on your own Mac. For signed + notarized releases, see [docs/RELEASING.md](docs/RELEASING.md).
 
 Full toolchain, debugging tips, and project walk-through: → [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+
+### Run on Linux
+
+Prereqs: **Rust 1.88+**, **CMake**, and system packages:
+
+| Distro | Packages |
+| --- | --- |
+| Debian / Ubuntu / AnduinOS | `libgtk-4-dev libadwaita-1-dev libasound2-dev libdbus-1-dev libxkbcommon-dev` |
+| Fedora / RHEL | `gtk4-devel libadwaita-devel alsa-lib-devel dbus-devel libxkbcommon-devel` |
+| Arch | `gtk4 libadwaita alsa-lib dbus libxkbcommon` |
+
+```bash
+git clone git@github.com:mahype/open-whisper.git
+cd open-whisper
+./scripts/dev-linux.sh
+```
+
+`dev-linux.sh` builds the Rust core and launches the GTK4/libadwaita UI. See [docs/LINUX.md](docs/LINUX.md) for detailed setup, known issues, and packaging notes.
 
 ---
 
