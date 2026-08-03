@@ -39,6 +39,16 @@
     <string>TorroWhisper records your voice so it can be transcribed locally.</string>
     <key>NSAppleEventsUsageDescription</key>
     <string>TorroWhisper uses Apple Events to paste transcribed text into the active application.</string>
+    <!-- Opt out of the macOS 26 "Liquid Glass" redesign (applies to AppKit/SwiftUI
+         despite the UI prefix). Which design the app gets depends on the SDK it was
+         built against: macOS 26 SDK builds (Xcode 26, locally and in CI) get the new
+         floating rounded sidebar panel, older-SDK builds keep the classic flush
+         sidebar — so the layout flip-flopped between build machines. This key pins
+         the classic pre-Tahoe design regardless of build SDK; macOS before 26
+         ignores it. Apple guarantees the key for ONE major release only: before
+         macOS 27 the app must deliberately adopt the new design, then remove it. -->
+    <key>UIDesignRequiresCompatibility</key>
+    <true/>
     <key>SUFeedURL</key>
     <string>https://mahype.github.io/TorroWhisper/appcast.xml</string>
     <key>SUPublicEDKey</key>

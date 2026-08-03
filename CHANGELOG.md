@@ -6,6 +6,11 @@ All notable changes to TorroWhisper are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.7.3] — 2026-08-03
+
+### Fixed
+- **The window design no longer depends on the build machine** — built with the macOS 26 SDK (Xcode 26, now used locally *and* in CI), the app automatically adopted the macOS 26 "Liquid Glass" redesign: the settings sidebar floated as a rounded panel inside the window instead of running flush to the window edges, and toolbar and controls changed with it. Older SDKs kept the classic look, so the layout flip-flopped between local builds and CI releases. `UIDesignRequiresCompatibility` in the Info.plist now pins the classic pre-Tahoe design regardless of the build SDK; macOS before 26 ignores the key. Apple honors it for one major release only — before macOS 27 the app must adopt the new design deliberately, then the key goes away.
+
 ## [0.6.1] — 2026-07-19
 
 ### Fixed
@@ -215,7 +220,8 @@ First public release. Everything below has landed since the project was initiali
 - CI runner bumped to `macos-15` for a newer Metal.framework ([`47caf7d`](https://github.com/mahype/TorroWhisper/commit/47caf7d)); Xcode 16 pinned on `macos-14` for Swift 6 ([`a1a2b63`](https://github.com/mahype/TorroWhisper/commit/a1a2b63)).
 - Legacy egui desktop app removed ([`82a3f6d`](https://github.com/mahype/TorroWhisper/commit/82a3f6d)).
 
-[Unreleased]: https://github.com/mahype/TorroWhisper/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/mahype/TorroWhisper/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/mahype/TorroWhisper/compare/v0.7.2...v0.7.3
 [0.6.1]: https://github.com/mahype/TorroWhisper/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/mahype/TorroWhisper/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/mahype/TorroWhisper/compare/v0.4.2...v0.5.0
