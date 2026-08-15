@@ -69,7 +69,6 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 struct ModeListTile: View {
     let mode: ProcessingMode
     let isActive: Bool
-    let canDelete: Bool
     let onActivate: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
@@ -117,11 +116,10 @@ struct ModeListTile: View {
 
             Button(action: onDelete) {
                 Image(systemName: "trash")
-                    .foregroundStyle(canDelete ? .secondary : Color.secondary.opacity(0.35))
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.borderless)
-            .disabled(!canDelete)
-            .help(Text(canDelete ? "Delete post-processing" : "At least one post-processing must remain", bundle: .module))
+            .help(Text("Delete post-processing", bundle: .module))
             .accessibilityLabel(Text("Delete post-processing", bundle: .module))
         }
         .onHover { hovering in

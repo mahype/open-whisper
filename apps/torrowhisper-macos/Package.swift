@@ -55,7 +55,7 @@ let package = Package(
         ),
         .testTarget(
             name: "TorroWhisperTests",
-            dependencies: ["TorroWhisperBridgeFFI"],
+            dependencies: ["TorroWhisper", "TorroWhisperBridgeFFI"],
             path: "Tests/TorroWhisperTests",
             linkerSettings: [
                 .unsafeFlags(["-L", "../../target/debug", "-ltorrowhisper_bridge"]),

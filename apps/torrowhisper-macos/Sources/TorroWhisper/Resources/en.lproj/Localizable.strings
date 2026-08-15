@@ -83,7 +83,6 @@
 "After adding, the file is fetched via the 'Download' button. Hugging Face 'resolve/main' links are recommended." = "After adding, the file is fetched via the 'Download' button. Hugging Face 'resolve/main' links are recommended.";
 "App language" = "App language";
 "Ask on first launch" = "Ask on first launch";
-"At least one post-processing must remain" = "At least one post-processing must remain";
 "Audio & hotkey" = "Audio & hotkey";
 "Audio source" = "Audio source";
 "Automatic" = "Automatic";
@@ -111,6 +110,9 @@
 "Delete file" = "Delete file";
 "Delete entry" = "Delete entry";
 "Delete post-processing" = "Delete post-processing";
+"Delete post-processing?" = "Delete post-processing?";
+"'%@' will be permanently deleted." = "'%@' will be permanently deleted.";
+"'%@' will be permanently deleted. Post-processing will be turned off; the default post-processing stays available as a template." = "'%@' will be permanently deleted. Post-processing will be turned off; the default post-processing stays available as a template.";
 "Details" = "Details";
 "Diagnostics" = "Diagnostics";
 "Dictation stop" = "Dictation stop";

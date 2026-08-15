@@ -6,6 +6,11 @@ All notable changes to TorroWhisper are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.7.4] — 2026-08-15
+
+### Fixed
+- **Deleting a post-processing no longer dead-ends** — with a single entry left, the trash button silently refused to work: it was disabled to enforce "at least one post-processing must remain", the dimming barely visible and the reason tucked away in a hover tooltip. With more entries it deleted instantly — the only destructive action in Settings without a confirmation. The trash can now always be clicked and asks first, naming the entry it is about to delete. Deleting the last entry turns post-processing off (nothing selected = off) and leaves the restored default in the list as a template — the settings layer never allows an empty mode list — and the dialog says so upfront, so the reappearing default does not read as a failed delete.
+
 ## [0.7.3] — 2026-08-03
 
 ### Fixed
@@ -220,7 +225,8 @@ First public release. Everything below has landed since the project was initiali
 - CI runner bumped to `macos-15` for a newer Metal.framework ([`47caf7d`](https://github.com/mahype/TorroWhisper/commit/47caf7d)); Xcode 16 pinned on `macos-14` for Swift 6 ([`a1a2b63`](https://github.com/mahype/TorroWhisper/commit/a1a2b63)).
 - Legacy egui desktop app removed ([`82a3f6d`](https://github.com/mahype/TorroWhisper/commit/82a3f6d)).
 
-[Unreleased]: https://github.com/mahype/TorroWhisper/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/mahype/TorroWhisper/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/mahype/TorroWhisper/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/mahype/TorroWhisper/compare/v0.7.2...v0.7.3
 [0.6.1]: https://github.com/mahype/TorroWhisper/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/mahype/TorroWhisper/compare/v0.5.0...v0.6.0

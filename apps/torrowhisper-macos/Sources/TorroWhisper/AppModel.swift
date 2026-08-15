@@ -281,10 +281,6 @@ final class AppModel: ObservableObject {
         runtime.activeModeName.isEmpty ? activeMode.name : runtime.activeModeName
     }
 
-    var canDeleteModes: Bool {
-        settings.modes.count > 1
-    }
-
     var persistedModes: [ProcessingMode] {
         persistedSettingsSnapshot.modes
     }
@@ -1225,15 +1221,7 @@ final class AppModel: ObservableObject {
     }
 
     func deleteMode(_ modeID: String) {
-        guard canDeleteModes,
-              let index = settings.modes.firstIndex(where: { $0.id == modeID }) else {
-            return
-        }
-
-        settings.modes.remove(at: index)
-        if settings.activeModeId == modeID {
-            settings.activeModeId = settings.modes.first?.id ?? ProcessingMode.cleanup.id
-        }
+        settings.deleteMode(modeID)
         ensureSelectedMode()
         flushAutoSave()
     }

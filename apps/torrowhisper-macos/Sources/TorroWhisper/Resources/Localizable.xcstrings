@@ -393,11 +393,6 @@
         "de" : { "stringUnit" : { "state" : "translated", "value" : "Beim ersten Start fragen" } }
       }
     },
-    "At least one post-processing must remain" : {
-      "localizations" : {
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Mindestens eine Nachbearbeitung muss bestehen bleiben" } }
-      }
-    },
     "Audio & hotkey" : {
       "localizations" : {
         "de" : { "stringUnit" : { "state" : "translated", "value" : "Audio & Hotkey" } }
@@ -556,6 +551,21 @@
     "Delete post-processing" : {
       "localizations" : {
         "de" : { "stringUnit" : { "state" : "translated", "value" : "Nachbearbeitung löschen" } }
+      }
+    },
+    "Delete post-processing?" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Nachbearbeitung löschen?" } }
+      }
+    },
+    "'%@' will be permanently deleted." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "„%@“ wird unwiderruflich gelöscht." } }
+      }
+    },
+    "'%@' will be permanently deleted. Post-processing will be turned off; the default post-processing stays available as a template." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "„%@“ wird unwiderruflich gelöscht. Die Nachbearbeitung wird deaktiviert; die Standard-Nachbearbeitung bleibt als Vorlage erhalten." } }
       }
     },
     "Details" : {

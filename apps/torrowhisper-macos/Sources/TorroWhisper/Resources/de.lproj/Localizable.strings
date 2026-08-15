@@ -112,7 +112,6 @@
 "After adding, the file is fetched via the 'Download' button. Hugging Face 'resolve/main' links are recommended." = "Die Datei wird nach dem Hinzufügen über den 'Herunterladen'-Button geladen. Quellen wie Hugging Face 'resolve/main'-Links werden empfohlen.";
 "App language" = "App-Sprache";
 "Ask on first launch" = "Beim ersten Start fragen";
-"At least one post-processing must remain" = "Mindestens eine Nachbearbeitung muss bestehen bleiben";
 "Audio & hotkey" = "Audio & Hotkey";
 "Audio source" = "Audioquelle";
 "Automatic" = "Automatisch";
@@ -140,6 +139,9 @@
 "Delete file" = "Datei löschen";
 "Delete entry" = "Eintrag löschen";
 "Delete post-processing" = "Nachbearbeitung löschen";
+"Delete post-processing?" = "Nachbearbeitung löschen?";
+"'%@' will be permanently deleted." = "„%@“ wird unwiderruflich gelöscht.";
+"'%@' will be permanently deleted. Post-processing will be turned off; the default post-processing stays available as a template." = "„%@“ wird unwiderruflich gelöscht. Die Nachbearbeitung wird deaktiviert; die Standard-Nachbearbeitung bleibt als Vorlage erhalten.";
 "Details" = "Details";
 "Diagnostics" = "Diagnose";
 "Dictation stop" = "Diktat-Stopp";

@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var isConfirmingHistoryClear: Bool = false
     @State private var isConfirmingAccessibilityReset: Bool = false
+    @State private var modePendingDeletion: ProcessingMode?
     @State private var diagnosticsLogConfirmation: String?
     @Environment(\.locale) private var locale
 
@@ -109,6 +110,36 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("This removes TorroWhisper from the Accessibility list so you can add it again. You will need to re-grant access afterwards.", bundle: .module)
+            }
+            .alert(
+                Text("Delete post-processing?", bundle: .module),
+                isPresented: Binding(
+                    get: { modePendingDeletion != nil },
+                    set: { if !$0 { modePendingDeletion = nil } }
+                ),
+                presenting: modePendingDeletion
+            ) { mode in
+                Button(role: .destructive) {
+                    model.deleteMode(mode.id)
+                } label: {
+                    Text("Delete", bundle: .module)
+                }
+                Button(role: .cancel) {} label: {
+                    Text("Cancel", bundle: .module)
+                }
+            } message: { mode in
+                // Deleting the last entry flips post-processing off and leaves
+                // the restored default in the list (the bridge re-creates it on
+                // the next normalize anyway) — say so, or the reappearing
+                // default reads as "delete did nothing".
+                if model.availableModes.count == 1 {
+                    Text(
+                        "'\(mode.name)' will be permanently deleted. Post-processing will be turned off; the default post-processing stays available as a template.",
+                        bundle: .module
+                    )
+                } else {
+                    Text("'\(mode.name)' will be permanently deleted.", bundle: .module)
+                }
             }
         }
         // No `.navigationSplitViewStyle(...)`: the default is what TorroMail
@@ -299,13 +330,12 @@ struct SettingsView: View {
                 ModeListTile(
                     mode: mode,
                     isActive: model.settings.postProcessingEnabled && model.settings.activeModeId == mode.id,
-                    canDelete: model.canDeleteModes,
                     onActivate: { model.activateMode(mode.id) },
                     onEdit: {
                         model.beginEditingMode(mode.id)
                         isEditingMode = true
                     },
-                    onDelete: { model.deleteMode(mode.id) }
+                    onDelete: { modePendingDeletion = mode }
                 )
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             }

@@ -1073,6 +1073,30 @@ struct AppSettings: Codable, Equatable {
     )
 }
 
+extension AppSettings {
+    /// Removes a post-processing mode. The list must never end up empty — the
+    /// bridge's `AppSettings::normalize()` restores the default on the next
+    /// round-trip anyway — so deleting the last entry brings back the pristine
+    /// default as a template and turns post-processing off instead of silently
+    /// re-activating a mode the user just deleted.
+    mutating func deleteMode(_ modeID: String) {
+        guard let index = modes.firstIndex(where: { $0.id == modeID }) else {
+            return
+        }
+
+        modes.remove(at: index)
+
+        if modes.isEmpty {
+            modes = [.cleanup]
+            postProcessingEnabled = false
+        }
+
+        if !modes.contains(where: { $0.id == activeModeId }) {
+            activeModeId = modes[0].id
+        }
+    }
+}
+
 enum UiLanguage: String, Codable, CaseIterable, Identifiable {
     case system
     case en
