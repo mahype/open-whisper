@@ -486,3 +486,4 @@
 "Whisper (expert)" = "Whisper (Experte)";
 "Threads 0 = automatic. Single segment can be faster on very short dictations but may hurt punctuation on longer ones. Choose values based on the benchmark above." = "Threads 0 = automatisch. Einzelsegment kann bei sehr kurzen Diktaten schneller sein, verschlechtert aber bei längeren ggf. die Zeichensetzung. Werte anhand des Benchmarks oben wählen.";
 "Loading speech model…" = "Sprachmodell wird geladen …";
+"Applies app-wide — the same setting as under “Language models”." = "Gilt app-weit — dieselbe Einstellung wie unter „Sprachmodelle“.";

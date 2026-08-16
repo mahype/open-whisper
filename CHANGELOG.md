@@ -6,6 +6,11 @@ All notable changes to TorroWhisper are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-08-16
+
+### Changed
+- **Settings → Language models is now split by task, and the language sits where you dictate** — one section held the transcription model and the post-processing language model side by side, as if they were the same kind of choice, while the default language stood apart in a section of its own below them. The pane now has two sections that match the two decisions: *Transcription* (transcription model plus the default language) and *Post-processing* (the language model, Apple Foundation among them). Each carries its own "Manage language models…" button, which opens the manager on the matching tab instead of dropping you into a sheet you still have to navigate. The default language additionally appears under Recording, right after the audio source — it is the language you speak, so it is looked for next to the microphone at least as often as under the models. Both pickers are bound to the same stored setting: changing one *is* changing the other, there is nothing to keep in sync.
+
 ## [0.7.4] — 2026-08-15
 
 ### Fixed
@@ -225,7 +230,8 @@ First public release. Everything below has landed since the project was initiali
 - CI runner bumped to `macos-15` for a newer Metal.framework ([`47caf7d`](https://github.com/mahype/TorroWhisper/commit/47caf7d)); Xcode 16 pinned on `macos-14` for Swift 6 ([`a1a2b63`](https://github.com/mahype/TorroWhisper/commit/a1a2b63)).
 - Legacy egui desktop app removed ([`82a3f6d`](https://github.com/mahype/TorroWhisper/commit/82a3f6d)).
 
-[Unreleased]: https://github.com/mahype/TorroWhisper/compare/v0.7.4...HEAD
+[Unreleased]: https://github.com/mahype/TorroWhisper/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/mahype/TorroWhisper/compare/v0.7.4...v0.8.0
 [0.7.4]: https://github.com/mahype/TorroWhisper/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/mahype/TorroWhisper/compare/v0.7.2...v0.7.3
 [0.6.1]: https://github.com/mahype/TorroWhisper/compare/v0.6.0...v0.6.1

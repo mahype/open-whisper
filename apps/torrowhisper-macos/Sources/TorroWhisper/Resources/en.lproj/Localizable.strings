@@ -464,3 +464,4 @@
 "unavailable" = "unavailable";
 "Language detection" = "Language detection";
 "Parakeet detects the spoken language automatically." = "Parakeet detects the spoken language automatically.";
+"Applies app-wide — the same setting as under “Language models”." = "Applies app-wide — the same setting as under “Language models”.";

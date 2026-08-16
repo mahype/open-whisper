@@ -378,6 +378,11 @@
         "de" : { "stringUnit" : { "state" : "translated", "value" : "App-Sprache" } }
       }
     },
+    "Applies app-wide — the same setting as under “Language models”." : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Gilt app-weit — dieselbe Einstellung wie unter „Sprachmodelle“." } }
+      }
+    },
     "Apply dictionary in this mode" : {
       "localizations" : {
         "de" : { "stringUnit" : { "state" : "translated", "value" : "Wörterbuch in diesem Modus anwenden" } }

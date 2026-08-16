@@ -210,6 +210,26 @@ struct SettingsView: View {
             Text("Audio source", bundle: .module)
         }
 
+        // Deliberately the same picker as under Language models: the spoken
+        // language is looked for here as often as there, and the duplicate
+        // costs nothing — one binding, one stored value, no sync to maintain.
+        Section {
+            Picker(selection: model.languageBinding()) {
+                ForEach(model.availableLanguageOptions) { option in
+                    Text(option.label(locale: locale)).tag(option.code)
+                }
+            } label: {
+                Text("Default language", bundle: .module)
+            }
+        } header: {
+            Text("Language", bundle: .module)
+        } footer: {
+            Text("Applies app-wide — the same setting as under “Language models”.", bundle: .module)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+
         Section {
             Picker(selection: model.binding(for: \.triggerMode)) {
                 ForEach(TriggerMode.allCases) { mode in
@@ -509,6 +529,39 @@ struct SettingsView: View {
                 Text("Transcription model", bundle: .module)
             }
 
+            // The default language sits with the transcription model, not in a
+            // section of its own: it is the language you dictate in, so it is
+            // looked for right here. The same picker appears under Recording —
+            // both hang on `languageBinding()`, so they cannot drift apart.
+            Picker(selection: model.languageBinding()) {
+                ForEach(model.availableLanguageOptions) { option in
+                    Text(option.label(locale: locale)).tag(option.code)
+                }
+            } label: {
+                Text("Default language", bundle: .module)
+            }
+
+            Button {
+                managerTab = .transcription
+                isManagingLanguageModels = true
+            } label: {
+                Text("Manage language models…", bundle: .module)
+            }
+        } header: {
+            Text("Transcription", bundle: .module)
+        } footer: {
+            Text(
+                model.settings.transcriptionBackend == .parakeet
+                    ? "Parakeet detects the spoken language automatically among its 25 supported languages. The selected default is also used by post-processing and Whisper alternatives."
+                    : "The default language applies app-wide and is used for transcription.",
+                bundle: .module
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+
+        Section {
             Picker(selection: model.binding(for: \.activePostProcessingModel)) {
                 if model.settings.activePostProcessingModel == nil {
                     Text("Configured local model", bundle: .module)
@@ -522,34 +575,13 @@ struct SettingsView: View {
             }
 
             Button {
+                managerTab = .postProcessing
                 isManagingLanguageModels = true
             } label: {
                 Text("Manage language models…", bundle: .module)
             }
         } header: {
-            Text("Language models", bundle: .module)
-        }
-
-        Section {
-            Picker(selection: model.languageBinding()) {
-                ForEach(model.availableLanguageOptions) { option in
-                    Text(option.label(locale: locale)).tag(option.code)
-                }
-            } label: {
-                Text("Default language", bundle: .module)
-            }
-        } header: {
-            Text("Language", bundle: .module)
-        } footer: {
-            Text(
-                model.settings.transcriptionBackend == .parakeet
-                    ? "Parakeet detects the spoken language automatically among its 25 supported languages. The selected default is also used by post-processing and Whisper alternatives."
-                    : "The default language applies app-wide and is used for transcription.",
-                bundle: .module
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+            Text("Post-processing", bundle: .module)
         }
 
         Section {
